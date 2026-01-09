@@ -22,8 +22,16 @@ async function main() {
   const deployerBalance = await blzToken.balanceOf(deployer.address);
   console.log("Deployer BLZ balance:", hre.ethers.formatEther(deployerBalance));
 
+  // 部署 GameRegistry 合约
+  console.log("\n2. Deploying GameRegistry...");
+  const GameRegistry = await hre.ethers.getContractFactory("GameRegistry");
+  const gameRegistry = await GameRegistry.deploy();
+  await gameRegistry.waitForDeployment();
+  const gameRegistryAddress = await gameRegistry.getAddress();
+  console.log("GameRegistry deployed to:", gameRegistryAddress);
+
   // 部署 GameFactory 合约
-  console.log("\n2. Deploying GameFactory...");
+  console.log("\n3. Deploying GameFactory...");
   const GameFactory = await hre.ethers.getContractFactory("GameFactory");
   const factory = await GameFactory.deploy(blzTokenAddress);
   await factory.waitForDeployment();
@@ -31,7 +39,7 @@ async function main() {
   console.log("GameFactory deployed to:", factoryAddress);
 
   // 部署 Mock Prize Token 用于测试
-  console.log("\n3. Deploying Mock Prize Token...");
+  console.log("\n4. Deploying Mock Prize Token...");
   const prizeToken = await MockToken.deploy("Prize Token", "PRIZE", hre.ethers.parseEther("1000000"));
   await prizeToken.waitForDeployment();
   const prizeTokenAddress = await prizeToken.getAddress();
@@ -40,7 +48,11 @@ async function main() {
   console.log("\n=== Deployment Summary ===");
   console.log("BLZ Token:", blzTokenAddress);
   console.log("Prize Token:", prizeTokenAddress);
+  console.log("GameRegistry:", gameRegistryAddress);
   console.log("GameFactory:", factoryAddress);
+  console.log("\n⚠️  IMPORTANT:");
+  console.log("When creating a GameInstance, you must call:");
+  console.log("  gameInstance.setGameRegistry('" + gameRegistryAddress + "')");
 
   // 保存部署信息
   const deploymentInfo = {
@@ -48,6 +60,7 @@ async function main() {
     chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
     blzToken: blzTokenAddress,
     prizeToken: prizeTokenAddress,
+    gameRegistry: gameRegistryAddress,
     gameFactory: factoryAddress,
     deployer: deployer.address,
     timestamp: new Date().toISOString()
