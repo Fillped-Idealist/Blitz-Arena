@@ -43,8 +43,8 @@
       ]
     },
     "/workspace/projects/contracts/GameInstance.sol": {
-      "lastModificationDate": 1767960286810,
-      "contentHash": "5b51d2ada6798c84c2066259198b72ce",
+      "lastModificationDate": 1767962382401,
+      "contentHash": "0deb7e500ed8abebeb80554150ced11e",
       "sourceName": "contracts/GameInstance.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -73,7 +73,8 @@
       "imports": [
         "@openzeppelin/contracts/access/AccessControl.sol",
         "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "./Types.sol"
+        "./Types.sol",
+        "./GameRegistry.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
@@ -83,8 +84,8 @@
       ]
     },
     "/workspace/projects/contracts/Types.sol": {
-      "lastModificationDate": 1767960275307,
-      "contentHash": "404167a031720a5e6d755d1298270c48",
+      "lastModificationDate": 1767962799021,
+      "contentHash": "c9ed74d21a5434f4a177369923daa630",
       "sourceName": "contracts/Types.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -493,6 +494,45 @@
       ],
       "artifacts": [
         "MockERC20"
+      ]
+    },
+    "/workspace/projects/contracts/GameRegistry.sol": {
+      "lastModificationDate": 1767962218591,
+      "contentHash": "9f2f13057c869445d43f81a783ea2c7e",
+      "sourceName": "contracts/GameRegistry.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/AccessControl.sol",
+        "./Types.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "GameRegistry"
       ]
     }
   }

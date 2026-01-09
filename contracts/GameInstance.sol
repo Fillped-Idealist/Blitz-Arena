@@ -5,6 +5,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 // import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Types} from "./Types.sol"; // 引入公共类型库
+import {GameRegistry} from "./GameRegistry.sol";
 
 /// @title GameInstance (合并版 V3)
 contract GameInstance is AccessControl {
@@ -12,12 +13,16 @@ contract GameInstance is AccessControl {
 
     // AccessControl 的管理员角色哈希
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
-    bool private initialized; 
+    bool private initialized;
+
+    // Game Registry 地址
+    address public gameRegistry;
 
     // ====== 比赛基础数据（由 initialize 设置） ======
     address public creator;
     string public title;
     string public description;
+    Types.GameType public gameType; // 新增：游戏类型
 
     uint public minPlayers;
     uint public maxPlayers;
@@ -40,7 +45,8 @@ contract GameInstance is AccessControl {
     Types.GameStatus public status;                  
     Types.PlayerInfo[] public players;
     mapping(address => bool) public isJoined;              
-    mapping(address => uint) internal scores;                         
+    mapping(address => uint) internal scores;
+    mapping(address => Types.GameResult) public gameResults; // 新增：存储玩家的游戏结果                      
     address[] public winners;
 
 
@@ -75,6 +81,7 @@ contract GameInstance is AccessControl {
         title = config.title;
         description = config.description;
         status = Types.GameStatus.Created;
+        gameType = config.gameType; // 新增：设置游戏类型
 
         feeToken = config.feeTokenAddress;
         entryFee = config.entryFee;
@@ -110,6 +117,12 @@ contract GameInstance is AccessControl {
         _setRoleAdmin(CREATOR_ROLE, DEFAULT_ADMIN_ROLE);
         
         emit Initialized(_creator, title);
+    }
+
+    /// @notice 设置 GameRegistry 地址（仅管理员可调用）
+    function setGameRegistry(address _gameRegistry) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_gameRegistry != address(0), "Invalid game registry address");
+        gameRegistry = _gameRegistry;
     }
     
     /// @notice 玩家报名参加比赛
@@ -220,7 +233,7 @@ contract GameInstance is AccessControl {
         emit GameCanceled(creator, refundAmount);
     }
 
-    /// @notice 玩家提交比赛成绩
+    /// @notice 玩家提交比赛成绩（支持游戏结果验证）
     function submitScore(uint score) external {
         require(status == Types.GameStatus.Ongoing, "Game not ongoing");
         // 检查比赛是否已开始
@@ -235,6 +248,33 @@ contract GameInstance is AccessControl {
         scores[msg.sender] = score;
 
         emit ScoreSubmitted(msg.sender, score);
+    }
+
+    /// @notice 玩家提交游戏结果（通过GameRegistry验证）
+    /// @param result 游戏结果数据
+    function submitGameResult(Types.GameResult calldata result) external {
+        require(status == Types.GameStatus.Ongoing, "Game not ongoing");
+        // 检查比赛是否已开始
+        require(block.timestamp >= gameStartTime, "Game has not started yet"); 
+
+        // 1. 检查是否已报名
+        require(isJoined[msg.sender], "Player not joined");
+
+        // 2. 检查游戏类型是否匹配
+        require(result.gameType == gameType, "Game type mismatch");
+        require(result.player == msg.sender, "Player address mismatch");
+
+        // 3. 调用GameRegistry验证游戏结果
+        require(gameRegistry != address(0), "GameRegistry not set");
+        GameRegistry registry = GameRegistry(gameRegistry);
+        bool verified = registry.verifyGameResult(result);
+        require(verified, "Game result verification failed");
+
+        // 4. 更新分数和存储游戏结果
+        scores[msg.sender] = result.score;
+        gameResults[msg.sender] = result;
+
+        emit ScoreSubmitted(msg.sender, result.score);
     }
     
     /// @notice 比赛创建者/裁判设置比赛胜者
@@ -370,6 +410,7 @@ contract GameInstance is AccessControl {
         data.title = title;
         data.description = description;
         data.status = status;
+        data.gameType = gameType; // 新增：包含游戏类型
 
         data.maxPlayers = maxPlayers;
         data.playerCount = players.length;
@@ -384,6 +425,11 @@ contract GameInstance is AccessControl {
         data.prizeToken = prizeToken;
 
         return data;
+    }
+
+    /// @notice 获取玩家的游戏结果
+    function getPlayerGameResult(address player) external view returns (Types.GameResult memory) {
+        return gameResults[player];
     }
 
 }

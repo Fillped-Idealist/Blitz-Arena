@@ -31,11 +31,24 @@ import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 
 const GAME_TYPES = [
-  { value: "battle-royale", label: "Battle Royale", icon: "⚔️" },
-  { value: "strategy", label: "Strategy", icon: "🎯" },
-  { value: "speed", label: "Speed Challenge", icon: "⚡" },
-  { value: "casual", label: "Casual", icon: "🎮" },
-  { value: "esports", label: "Esports", icon: "🏆" },
+  {
+    value: "1",
+    label: "Number Guess",
+    icon: "🔢",
+    description: "猜数字游戏，最短次数猜中1-100的数字"
+  },
+  {
+    value: "2",
+    label: "Rock Paper Scissors",
+    icon: "✊✋✌️",
+    description: "与AI进行10轮石头剪刀布对决"
+  },
+  {
+    value: "3",
+    label: "Quick Click",
+    icon: "🎯",
+    description: "30秒内尽可能多地点击目标"
+  },
 ];
 
 const PRIZE_DISTRIBUTION = [
@@ -192,30 +205,47 @@ export default function CreateTournamentPage() {
 
                 {/* Game Type Selection */}
                 <div>
-                  <Label className="text-white">Game Type *</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                  <Label className="text-white">Select Game *</Label>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Choose the blockchain game for this tournament
+                  </p>
+                  <div className="space-y-3">
                     {GAME_TYPES.map((type) => (
                       <motion.div
                         key={type.value}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
                         onClick={() => {
                           handleInputChange("gameType", type.value);
                           setSelectedGamePreset(type.value);
                         }}
                       >
                         <Card
-                          className={`cursor-pointer transition-all duration-300 ${
+                          className={`cursor-pointer transition-all duration-300 p-4 ${
                             formData.gameType === type.value
                               ? "bg-gradient-to-r from-blue-600 to-purple-600 border-blue-500"
                               : "bg-white/5 border-white/10 hover:border-white/20"
                           }`}
                         >
-                          <div className="p-4 text-center">
-                            <div className="text-3xl mb-2">{type.icon}</div>
-                            <div className="font-medium text-white text-sm">
-                              {type.label}
+                          <div className="flex items-start gap-4">
+                            <div className="text-4xl">{type.icon}</div>
+                            <div className="flex-1">
+                              <div className="font-semibold text-white text-lg mb-1">
+                                {type.label}
+                              </div>
+                              <div className={`text-sm ${
+                                formData.gameType === type.value
+                                  ? "text-blue-100"
+                                  : "text-gray-400"
+                              }`}>
+                                {type.description}
+                              </div>
                             </div>
+                            {formData.gameType === type.value && (
+                              <div className="text-green-400">
+                                <CheckCircle2 className="w-6 h-6" />
+                              </div>
+                            )}
                           </div>
                         </Card>
                       </motion.div>

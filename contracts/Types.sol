@@ -18,6 +18,24 @@ contract Types {
         Canceled
     }
 
+    /// @dev 游戏类型枚举
+    enum GameType {
+        None,               // 无游戏类型（默认值）
+        NumberGuess,        // 猜数字游戏
+        RockPaperScissors,  // 石头剪刀布
+        QuickClick          // 快速点击
+    }
+
+    /// @dev 游戏结果结构体（用于链上验证）
+    struct GameResult {
+        GameType gameType;              // 游戏类型
+        address player;                 // 玩家地址
+        uint256 score;                  // 游戏得分
+        uint256 timestamp;              // 游戏完成时间戳
+        bytes32 gameHash;               // 游戏数据哈希（防篡改）
+        uint256[] metadata;             // 游戏元数据（具体游戏特定数据）
+    }
+
     /// @dev 玩家信息结构体
     struct PlayerInfo {
         address player; // 玩家地址
@@ -35,6 +53,7 @@ contract Types {
     struct GameConfig {
         string title;               // 比赛名称
         string description;         // 比赛描述
+        GameType gameType;          // 新增：比赛关联的游戏类型
 
         address feeTokenAddress;    // 报名费使用的 ERC20 代币地址
         uint entryFee;              // 每位玩家的报名费 (代币数量)
@@ -59,6 +78,7 @@ contract Types {
         string title;
         string description;
         GameStatus status;
+        GameType gameType;              // 新增：比赛关联的游戏类型
 
         uint maxPlayers;
         uint playerCount;
