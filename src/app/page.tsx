@@ -1,481 +1,379 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Trophy,
+  Users,
+  Zap,
+  Shield,
+  TrendingUp,
+  Clock,
+  ArrowRight,
+  Sparkles,
+} from "lucide-react";
 
-// 合约 ABI (简化版，仅包含关键函数)
-const GAME_FACTORY_ABI = [
-  "function createGame((string title, string description, address feeTokenAddress, uint entryFee, uint minPlayers, uint maxPlayers, uint registrationEndTime, uint gameStartTime, address prizeTokenAddress, uint prizePool, uint8 distributionType, uint[] rankPrizes)) external returns (address)",
-  "function getAllGames() external view returns (address[])",
-  "function getPartofGames(uint begin, uint count) external view returns (address[])",
-  "function getTotalGames() external view returns (uint)"
+const stats = [
+  { label: "Active Tournaments", value: "1.2K+", icon: Trophy },
+  { label: "Players", value: "45K+", icon: Users },
+  { label: "Prize Pool", value: "$2.5M", icon: Zap },
+  { label: "Secure Matches", value: "10K+", icon: Shield },
 ];
 
-const GAME_INSTANCE_ABI = [
-  "function joinGame() external",
-  "function submitScore(uint score) external",
-  "function startGame() external",
-  "function endGame() external",
-  "function setWinners(address[] memory _winners) external",
-  "function distributePrize() external",
-  "function claimPrize() external",
-  "function cancelGame() external",
-  "function cancelRegistration() external",
-  "function claimRefund() external",
-  "function getGameData() external view returns ((address creator, string title, string description, uint8 status, uint maxPlayers, uint playerCount, uint registrationEndTime, uint gameStartTime, uint entryFee, address feeToken, uint prizePool, address prizeToken))",
-  "function getPlayers() external view returns ((address player, uint score)[])"
+const features = [
+  {
+    title: "Instant Payouts",
+    description:
+      "Smart contracts ensure immediate prize distribution upon tournament completion.",
+    icon: Sparkles,
+    color: "from-blue-500 to-cyan-500",
+  },
+  {
+    title: "Fair Competition",
+    description:
+      "Transparent results verified on the blockchain with immutable records.",
+    icon: Shield,
+    color: "from-purple-500 to-pink-500",
+  },
+  {
+    title: "Global Reach",
+    description: "Compete with players worldwide in real-time tournaments.",
+    icon: TrendingUp,
+    color: "from-green-500 to-emerald-500",
+  },
 ];
 
-const MOCK_ERC20_ABI = [
-  "function approve(address spender, uint256 amount) external returns (bool)",
-  "function allowance(address owner, address spender) external view returns (uint256)",
-  "function balanceOf(address account) external view returns (uint256)",
-  "function mint(address to, uint256 amount) external"
+const upcomingTournaments = [
+  {
+    id: 1,
+    title: "Championship League",
+    game: "Battle Royale",
+    prize: "10,000",
+    players: "128/128",
+    status: "In Progress",
+    statusColor: "bg-green-500",
+    startsIn: "2h 30m",
+  },
+  {
+    id: 2,
+    title: "Weekly Cup",
+    game: "Speed Challenge",
+    prize: "5,000",
+    players: "64/64",
+    status: "Starting Soon",
+    statusColor: "bg-yellow-500",
+    startsIn: "30m",
+  },
+  {
+    id: 3,
+    title: "Pro Series",
+    game: "Strategy Arena",
+    prize: "25,000",
+    players: "32/64",
+    status: "Open",
+    statusColor: "bg-blue-500",
+    startsIn: "1d 5h",
+  },
 ];
 
-// 合约地址 (从部署文件读取)
-const GAME_FACTORY_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const BLZ_TOKEN_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const PRIZE_TOKEN_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
-
-// 游戏状态枚举
-const GameStatus = {
-  0: "已创建",
-  1: "进行中",
-  2: "已结束",
-  3: "奖金已分发",
-  4: "已取消"
-};
-
-// 奖励分配方式枚举
-const PrizeDistributionType = {
-  0: "胜者全得",
-  1: "平均分配",
-  2: "自定义排名"
-};
-
-export default function Home() {
-  const [account, setAccount] = useState<string>("");
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
-  const [games, setGames] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [activeTab, setActiveTab] = useState<"create" | "list">("list");
-
-  // 创建游戏表单状态
-  const [gameForm, setGameForm] = useState({
-    title: "",
-    description: "",
-    entryFee: "",
-    minPlayers: "",
-    maxPlayers: "",
-    prizePool: "",
-    distributionType: "0",
-    registrationDuration: "86400", // 默认 24 小时
-    gameDuration: "3600" // 默认 1 小时
-  });
-
-  // 连接钱包
-  const connectWallet = async () => {
-    try {
-      if (!window.ethereum) {
-        alert("请安装 MetaMask 钱包！");
-        return;
-      }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-
-      setProvider(provider);
-      setSigner(signer);
-      setAccount(address);
-      setMessage("钱包连接成功！");
-      setTimeout(() => setMessage(""), 3000);
-
-      // 加载游戏列表
-      loadGames();
-    } catch (error: any) {
-      setMessage(`连接失败: ${error.message}`);
-    }
-  };
-
-  // 加载游戏列表
-  const loadGames = async () => {
-    try {
-      if (!provider) return;
-
-      const factory = new ethers.Contract(GAME_FACTORY_ADDRESS, GAME_FACTORY_ABI, provider);
-      const gameAddresses = await factory.getAllGames();
-
-      const gameDataPromises = gameAddresses.map(async (address: string) => {
-        const game = new ethers.Contract(address, GAME_INSTANCE_ABI, provider);
-        const data = await game.getGameData();
-        return {
-          address,
-          ...data,
-          statusName: GameStatus[data.status as keyof typeof GameStatus]
-        };
-      });
-
-      const gamesData = await Promise.all(gameDataPromises);
-      setGames(gamesData.reverse()); // 最新的在前面
-    } catch (error: any) {
-      console.error("加载游戏失败:", error);
-    }
-  };
-
-  // 创建游戏
-  const createGame = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("正在创建游戏...");
-
-    try {
-      if (!signer) {
-        throw new Error("请先连接钱包");
-      }
-
-      const factory = new ethers.Contract(GAME_FACTORY_ADDRESS, GAME_FACTORY_ABI, signer);
-
-      // 计算 Unix 时间戳
-      const now = Math.floor(Date.now() / 1000);
-      const registrationEndTime = now + parseInt(gameForm.registrationDuration);
-      const gameStartTime = registrationEndTime + parseInt(gameForm.gameDuration);
-
-      // 授权 Prize Token 给 Factory
-      const prizeToken = new ethers.Contract(PRIZE_TOKEN_ADDRESS, MOCK_ERC20_ABI, signer);
-      const prizePoolAmount = ethers.parseEther(gameForm.prizePool);
-      const totalAmount = prizePoolAmount + (prizePoolAmount * BigInt(500) / BigInt(10000)); // 奖池 + 5% 手续费
-
-      setMessage("正在授权代币...");
-      const approveTx = await prizeToken.approve(GAME_FACTORY_ADDRESS, totalAmount);
-      await approveTx.wait();
-
-      setMessage("正在创建游戏实例...");
-      const tx = await factory.createGame({
-        title: gameForm.title,
-        description: gameForm.description,
-        feeTokenAddress: BLZ_TOKEN_ADDRESS,
-        entryFee: ethers.parseEther(gameForm.entryFee || "0"),
-        minPlayers: parseInt(gameForm.minPlayers),
-        maxPlayers: parseInt(gameForm.maxPlayers),
-        registrationEndTime,
-        gameStartTime,
-        prizeTokenAddress: PRIZE_TOKEN_ADDRESS,
-        prizePool: prizePoolAmount,
-        distributionType: parseInt(gameForm.distributionType),
-        rankPrizes: []
-      });
-
-      await tx.wait();
-      setMessage("游戏创建成功！");
-      setActiveTab("list");
-      loadGames();
-    } catch (error: any) {
-      setMessage(`创建失败: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 参加游戏
-  const joinGame = async (gameAddress: string) => {
-    try {
-      if (!signer) {
-        throw new Error("请先连接钱包");
-      }
-
-      const game = new ethers.Contract(gameAddress, GAME_INSTANCE_ABI, signer);
-      setMessage("正在报名...");
-
-      const tx = await game.joinGame();
-      await tx.wait();
-
-      setMessage("报名成功！");
-      loadGames();
-    } catch (error: any) {
-      setMessage(`报名失败: ${error.message}`);
-    }
-  };
-
-  // 铸造测试代币
-  const mintTokens = async () => {
-    try {
-      if (!signer) {
-        throw new Error("请先连接钱包");
-      }
-
-      const prizeToken = new ethers.Contract(PRIZE_TOKEN_ADDRESS, MOCK_ERC20_ABI, signer);
-      const tx = await prizeToken.mint(account, ethers.parseEther("10000"));
-      await tx.wait();
-
-      const blzToken = new ethers.Contract(BLZ_TOKEN_ADDRESS, MOCK_ERC20_ABI, signer);
-      const tx2 = await blzToken.mint(account, ethers.parseEther("10000"));
-      await tx2.wait();
-
-      setMessage("代币铸造成功！");
-    } catch (error: any) {
-      setMessage(`铸造失败: ${error.message}`);
-    }
-  };
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      {/* 头部 */}
-      <header className="border-b border-gray-700 bg-black/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            游戏竞技平台
-          </h1>
-          <div className="flex gap-4 items-center">
-            {account ? (
-              <>
-                <span className="text-sm text-gray-400">{account.slice(0, 6)}...{account.slice(-4)}</span>
-                <button
-                  onClick={mintTokens}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm transition-colors"
+    <div className="min-h-screen bg-black">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20" />
+          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 90, 0],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+            className="absolute -top-1/2 -right-1/2 w-[800px] h-[800px] bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              scale: [1.2, 1, 1.2],
+              rotate: [90, 0, 90],
+            }}
+            transition={{
+              duration: 15,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+            className="absolute -bottom-1/2 -left-1/2 w-[800px] h-[800px] bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-full blur-3xl"
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative container mx-auto px-6 pt-32 pb-20">
+          <div className="max-w-4xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Badge className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 border-none text-white">
+                Next Gen Gaming Platform
+              </Badge>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-6xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
+            >
+              <span className="bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
+                Compete. Win.
+              </span>
+              <br />
+              <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                Earn on Chain.
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-xl md:text-2xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed"
+            >
+              The ultimate blockchain gaming platform where skill meets reward.
+              Create tournaments, compete globally, and get paid instantly.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            >
+              <Link href="/tournaments">
+                <Button
+                  size="lg"
+                  className="group bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-6 rounded-xl shadow-2xl hover:shadow-blue-500/25 transition-all duration-300"
                 >
-                  铸造测试代币
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={connectWallet}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                  Browse Tournaments
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/create">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="group text-white border-white/20 hover:border-white/40 hover:bg-white/10 text-lg px-8 py-6 rounded-xl backdrop-blur-sm transition-all duration-300"
+                >
+                  <Sparkles className="mr-2 w-5 h-5" />
+                  Create Tournament
+                </Button>
+              </Link>
+            </motion.div>
+
+            {/* Stats */}
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6"
+            >
+              {stats.map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                >
+                  <Card className="bg-white/5 backdrop-blur-sm border-white/10 p-6 hover:border-white/20 transition-all duration-300">
+                    <stat.icon className="w-8 h-8 text-blue-400 mb-3 mx-auto" />
+                    <div className="text-3xl font-bold text-white mb-1">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-gray-400">{stat.label}</div>
+                  </Card>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 relative">
+        <div className="container mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                Why Game Arena?
+              </span>
+            </h2>
+            <p className="text-xl text-gray-400">
+              Built for gamers, by gamers. Experience the future of competitive
+              gaming.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
               >
-                连接钱包
-              </button>
-            )}
+                <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 p-8 hover:border-white/20 transition-all duration-300 group h-full">
+                  <motion.div
+                    className={`inline-flex p-4 rounded-xl bg-gradient-to-r ${feature.color} mb-6 group-hover:scale-110 transition-transform`}
+                  >
+                    <feature.icon className="w-6 h-6 text-white" />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold text-white mb-3">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-400 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </Card>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </header>
+      </section>
 
-      {/* 消息提示 */}
-      {message && (
-        <div className="container mx-auto px-4 mt-4">
-          <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-3 text-sm">
-            {message}
-          </div>
-        </div>
-      )}
+      {/* Upcoming Tournaments */}
+      <section className="py-20 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/5 to-transparent" />
+        <div className="container mx-auto px-6 relative">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex justify-between items-center mb-12"
+          >
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                  Live Tournaments
+                </span>
+              </h2>
+              <p className="text-xl text-gray-400">
+                Join exciting competitions and win prizes
+              </p>
+            </div>
+            <Link href="/tournaments">
+              <Button
+                variant="outline"
+                className="text-white border-white/20 hover:border-white/40 hover:bg-white/10"
+              >
+                View All
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </Link>
+          </motion.div>
 
-      {/* 主内容 */}
-      <main className="container mx-auto px-4 py-8">
-        {/* 标签切换 */}
-        {account && (
-          <div className="flex gap-4 mb-6">
-            <button
-              onClick={() => setActiveTab("list")}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === "list"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 hover:bg-gray-600"
-              }`}
-            >
-              游戏列表
-            </button>
-            <button
-              onClick={() => setActiveTab("create")}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === "create"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 hover:bg-gray-600"
-              }`}
-            >
-              创建游戏
-            </button>
-          </div>
-        )}
-
-        {/* 未连接状态 */}
-        {!account && (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-6">🎮</div>
-            <h2 className="text-3xl font-bold mb-4">欢迎来到游戏竞技平台</h2>
-            <p className="text-gray-400 mb-8">连接钱包开始参与游戏竞技</p>
-          </div>
-        )}
-
-        {/* 游戏列表 */}
-        {account && activeTab === "list" && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold mb-4">游戏列表</h2>
-            {games.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">暂无游戏</div>
-            ) : (
-              games.map((game) => (
-                <div
-                  key={game.address}
-                  className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-colors"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold mb-2">{game.title}</h3>
-                      <p className="text-gray-400 text-sm mb-3">{game.description}</p>
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded">
-                          状态: {game.statusName}
+          <div className="grid md:grid-cols-3 gap-6">
+            {upcomingTournaments.map((tournament, index) => (
+              <motion.div
+                key={tournament.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden hover:border-white/20 transition-all duration-300 group">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <Badge
+                        className={`${tournament.statusColor} text-white border-none`}
+                      >
+                        {tournament.status}
+                      </Badge>
+                      <div className="flex items-center text-sm text-gray-400">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {tournament.startsIn}
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                      {tournament.title}
+                    </h3>
+                    <p className="text-gray-400 mb-4">{tournament.game}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-yellow-400" />
+                        <span className="text-white font-semibold">
+                          {tournament.prize} tokens
                         </span>
-                        <span className="px-2 py-1 bg-purple-600/20 text-purple-400 rounded">
-                          玩家: {game.playerCount}/{game.maxPlayers}
-                        </span>
-                        <span className="px-2 py-1 bg-green-600/20 text-green-400 rounded">
-                          奖池: {ethers.formatEther(game.prizePool)} 代币
-                        </span>
-                        <span className="px-2 py-1 bg-orange-600/20 text-orange-400 rounded">
-                          报名费: {ethers.formatEther(game.entryFee)} 代币
-                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Users className="w-4 h-4" />
+                        <span>{tournament.players}</span>
                       </div>
                     </div>
                   </div>
-                  {game.status === 0 && (
-                    <button
-                      onClick={() => joinGame(game.address)}
-                      disabled={loading}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      参加游戏
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
+                </Card>
+              </motion.div>
+            ))}
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* 创建游戏表单 */}
-        {account && activeTab === "create" && (
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6">创建新游戏</h2>
-            <form onSubmit={createGame} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">游戏标题</label>
-                <input
-                  type="text"
-                  required
-                  value={gameForm.title}
-                  onChange={(e) => setGameForm({ ...gameForm, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="输入游戏标题"
-                />
+      {/* CTA Section */}
+      <section className="py-20 relative">
+        <div className="container mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-12 md:p-20 text-center"
+          >
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+            <div className="relative">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                Ready to Compete?
+              </h2>
+              <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
+                Join thousands of players competing in tournaments worldwide.
+                Your next victory is just a click away.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/create">
+                  <Button
+                    size="lg"
+                    className="bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6 rounded-xl"
+                  >
+                    Create Your Tournament
+                  </Button>
+                </Link>
+                <Link href="/tournaments">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="text-white border-white/30 hover:border-white/50 hover:bg-white/10 text-lg px-8 py-6 rounded-xl"
+                  >
+                    Find Matches
+                  </Button>
+                </Link>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">游戏描述</label>
-                <textarea
-                  required
-                  value={gameForm.description}
-                  onChange={(e) => setGameForm({ ...gameForm, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="输入游戏描述"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">报名费 (代币)</label>
-                  <input
-                    type="text"
-                    required
-                    value={gameForm.entryFee}
-                    onChange={(e) => setGameForm({ ...gameForm, entryFee: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">奖池 (代币)</label>
-                  <input
-                    type="text"
-                    required
-                    value={gameForm.prizePool}
-                    onChange={(e) => setGameForm({ ...gameForm, prizePool: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="100"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">最小玩家数</label>
-                  <input
-                    type="number"
-                    required
-                    min="2"
-                    value={gameForm.minPlayers}
-                    onChange={(e) => setGameForm({ ...gameForm, minPlayers: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">最大玩家数</label>
-                  <input
-                    type="number"
-                    required
-                    min="2"
-                    value={gameForm.maxPlayers}
-                    onChange={(e) => setGameForm({ ...gameForm, maxPlayers: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="10"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">奖励分配方式</label>
-                <select
-                  value={gameForm.distributionType}
-                  onChange={(e) => setGameForm({ ...gameForm, distributionType: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="0">胜者全得</option>
-                  <option value="1">平均分配</option>
-                  <option value="2">自定义排名</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">报名时长 (秒)</label>
-                  <input
-                    type="number"
-                    required
-                    value={gameForm.registrationDuration}
-                    onChange={(e) => setGameForm({ ...gameForm, registrationDuration: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="86400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">游戏时长 (秒)</label>
-                  <input
-                    type="number"
-                    required
-                    value={gameForm.gameDuration}
-                    onChange={(e) => setGameForm({ ...gameForm, gameDuration: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="3600"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "创建中..." : "创建游戏"}
-              </button>
-            </form>
-          </div>
-        )}
-      </main>
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }

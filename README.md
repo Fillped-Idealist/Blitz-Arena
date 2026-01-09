@@ -1,192 +1,298 @@
-# 游戏竞技平台
+# Game Arena - Professional Gaming Platform
 
-基于以太坊智能合约的游戏竞技平台，支持创建比赛、报名参加、提交成绩和分发奖金。
+A production-grade blockchain gaming tournament platform featuring modern UI/UX design, multi-wallet support, and seamless smart contract integration.
 
-## 项目结构
+![Game Arena](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
+![Solidity](https://img.shields.io/badge/Solidity-0.8.24-blue?style=for-the-badge&logo=solidity)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?style=for-the-badge&logo=tailwind-css)
 
-```
-.
-├── contracts/           # Solidity 智能合约
-│   ├── Types.sol       # 共享类型定义
-│   ├── GameFactory.sol  # 工厂合约
-│   ├── GameInstance.sol # 游戏实例合约
-│   └── MockERC20.sol    # 测试代币合约
-├── scripts/            # 部署脚本
-│   └── deploy.js       # 合约部署脚本
-├── deployments/        # 部署信息
-│   └── deployment.json # 部署地址信息
-├── src/               # Next.js 前端
-│   ├── app/          # 页面组件
-│   └── types/        # TypeScript 类型定义
-└── hardhat.config.js # Hardhat 配置
-```
+## ✨ Features
 
-## 智能合约功能
+### 🎮 Smart Contracts
+- **GameFactory**: Factory pattern for creating tournament instances
+- **GameInstance**: Complete tournament lifecycle management
+- **Types.sol**: Shared type definitions for consistency
+- **MockERC20**: Test token for local development
 
-### Types.sol
-定义了共享的数据结构和枚举类型：
-- `GameStatus`: 游戏状态（已创建、进行中、已结束等）
-- `PlayerInfo`: 玩家信息结构体
-- `PrizeDistributionType`: 奖励分配方式（胜者全得、平均分配、自定义排名）
-- `GameConfig`: 游戏配置参数
-- `GameData`: 游戏数据
+### 🚀 Frontend Technology Stack
+- **Framework**: Next.js 16 with App Router
+- **UI Components**: shadcn/ui (production-ready components)
+- **Styling**: Tailwind CSS 4 with custom theme
+- **Web3**: Wagmi v3 + RainbowKit (multi-wallet support)
+- **Animations**: Framer Motion for smooth transitions
+- **TypeScript**: Full type safety across the codebase
 
-### GameFactory.sol
-工厂合约，负责：
-- 创建游戏实例
-- 收取 5% 平台手续费
-- 管理所有游戏实例
-- 提取累积的费用
+### 🎨 Design Features
+- **Modern Dark Theme**: Professional dark mode with glassmorphism effects
+- **Responsive Design**: Mobile-first, works on all devices
+- **Smooth Animations**: Page transitions, hover effects, and loading states
+- **Intuitive UX**: Clear navigation, instant feedback, and error handling
+- **Product-Grade UI**: Polished components ready for production deployment
 
-### GameInstance.sol
-游戏实例合约，负责：
-- 玩家报名/取消报名
-- 游戏流程管理（开始、结束）
-- 成绩提交
-- 胜者设置
-- 奖金分发
-- 退款处理
+### 📱 Pages
+1. **Home Page** (`/`)
+   - Hero section with animated gradient background
+   - Live statistics display
+   - Feature highlights with icons
+   - Upcoming tournaments preview
+   - Call-to-action sections
 
-## 快速开始
+2. **Tournaments** (`/tournaments`)
+   - Card-based tournament grid
+   - Real-time filtering and search
+   - Tournament status badges
+   - Player count and prize pool display
+   - Quick join functionality
 
-### 1. 安装依赖
+3. **Create Tournament** (`/create`)
+   - Multi-step form with validation
+   - Intuitive time selection with presets
+   - Game type selection with visual cards
+   - Real-time cost calculation
+   - Prize distribution options
+
+## 🛠️ Installation
+
+### Prerequisites
+- Node.js 20+ and pnpm
+- MetaMask or compatible Web3 wallet
+- Local blockchain network (Hardhat)
+
+### 1. Clone and Install Dependencies
 
 ```bash
+# Install dependencies
 pnpm install
 ```
 
-### 2. 编译合约
+### 2. Smart Contracts Setup
 
 ```bash
+# Compile contracts
 pnpm run compile
-```
 
-### 3. 部署合约到本地网络
-
-```bash
+# Deploy to local Hardhat network
 pnpm run deploy:local
+
+# Deploy to Mantle testnet (requires .env with PRIVATE_KEY)
+pnpm run deploy:testnet
 ```
 
-部署完成后，合约地址会保存在 `deployments/deployment.json` 文件中。
-
-### 4. 启动前端服务
-
-前端服务应该已经自动启动，如果没有：
+### 3. Start Development Server
 
 ```bash
+# Start Next.js development server (runs on port 5000)
 pnpm run dev
 ```
 
-访问 http://localhost:5000 查看前端界面。
+The application will be available at **http://localhost:5000**
 
-## 前端功能
-
-### 钱包连接
-- 支持 MetaMask 等兼容钱包
-- 自动切换到正确的网络（本地测试网 chainId: 31337）
-
-### 游戏管理
-- **创建游戏**: 设置游戏标题、描述、报名费、奖池、玩家数量等
-- **游戏列表**: 查看所有可用游戏
-- **参加游戏**: 缴纳报名费并加入游戏
-- **铸造测试代币**: 为测试环境铸造 BLZ 和 PRIZE 代币
-
-### 游戏状态
-- **已创建**: 玩家可以报名
-- **进行中**: 游戏进行中，玩家可以提交成绩
-- **已结束**: 游戏结束，等待设置胜者
-- **奖金已分发**: 奖金已分发，玩家可以领取
-- **已取消**: 游戏取消，玩家可以申请退款
-
-## 合约地址
-
-本地测试网部署地址（参考 `deployments/deployment.json`）：
-- **BLZ Token**: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-- **Prize Token**: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
-- **GameFactory**: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-
-## 测试流程
-
-1. **连接钱包**
-   - 点击"连接钱包"按钮
-   - 在 MetaMask 中确认连接
-
-2. **铸造测试代币**
-   - 点击"铸造测试代币"按钮
-   - 获得用于测试的 BLZ 和 PRIZE 代币
-
-3. **创建游戏**
-   - 切换到"创建游戏"标签
-   - 填写游戏信息
-   - 提交交易
-
-4. **参加游戏**
-   - 在游戏列表中找到刚创建的游戏
-   - 点击"参加游戏"按钮
-   - 缴纳报名费
-
-## 部署到 Mantle 测试网
-
-### 1. 配置环境变量
-
-创建 `.env` 文件：
+## 📁 Project Structure
 
 ```
+.
+├── contracts/              # Solidity smart contracts
+│   ├── Types.sol          # Shared type definitions
+│   ├── GameFactory.sol    # Factory contract
+│   ├── GameInstance.sol   # Tournament instance
+│   └── MockERC20.sol      # Test token
+├── scripts/               # Deployment scripts
+│   └── deploy.js         # Contract deployment
+├── deployments/           # Deployment information
+│   └── deployment.json   # Contract addresses
+├── src/
+│   ├── app/              # Next.js pages
+│   │   ├── page.tsx     # Home page
+│   │   ├── tournaments/ # Tournaments listing
+│   │   ├── create/      # Create tournament form
+│   │   └── layout.tsx   # Root layout
+│   ├── components/
+│   │   ├── ui/         # shadcn/ui components
+│   │   ├── providers.tsx  # Wagmi + RainbowKit setup
+│   │   └── navbar.tsx     # Navigation component
+│   ├── lib/
+│   │   ├── utils.ts       # Utility functions
+│   │   └── wagmi.ts       # Wagmi configuration
+│   └── types/
+│       └── web3.d.ts      # Web3 type definitions
+├── public/                # Static assets
+├── hardhat.config.js     # Hardhat configuration
+├── next.config.ts        # Next.js configuration
+├── tailwind.config.ts    # Tailwind configuration
+└── package.json          # Dependencies
+```
+
+## 🎯 Core Functionality
+
+### Smart Contract Features
+
+#### GameFactory
+- Create new tournament instances
+- Collect 5% platform fee
+- Track all tournaments
+- Withdraw accumulated fees
+
+#### GameInstance
+- Player registration and cancellation
+- Game state management (Created, Ongoing, Ended, PrizeDistributed, Canceled)
+- Score submission
+- Winner selection
+- Prize distribution (WinnerTakesAll, AverageSplit, CustomRanked)
+- Refund handling for canceled games
+
+### Frontend Features
+
+#### Wallet Integration
+- **Multi-Wallet Support**: RainbowKit supports 10+ wallets
+- **Network Detection**: Automatically detects and switches networks
+- **Transaction Signing**: Seamless transaction flow
+- **Balance Display**: Real-time token balance updates
+
+#### Tournament Management
+- **Browse**: Filter and search tournaments
+- **Create**: Intuitive form with real-time validation
+- **Join**: One-click tournament registration
+- **Track**: Monitor tournament status and progress
+
+#### User Experience
+- **Loading States**: Skeleton screens and spinners
+- **Error Handling**: Toast notifications with detailed messages
+- **Form Validation**: Real-time input validation
+- **Responsive Layout**: Mobile, tablet, and desktop optimized
+- **Dark Mode**: Native dark theme support
+
+## 🧪 Testing
+
+### Smart Contract Testing
+
+```bash
+# Run contract tests
+pnpm run test
+```
+
+### Frontend Testing
+
+```bash
+# Run Next.js build
+pnpm run build
+
+# Type checking
+npx tsc --noEmit
+```
+
+## 📦 Deployment
+
+### Deploy to Local Network
+
+Contracts are already deployed to the local Hardhat network:
+- **BLZ Token**: `0x5FbDB2315678afecb367f032d93F642f64180aa3`
+- **Prize Token**: `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0`
+- **GameFactory**: `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512`
+
+### Deploy to Mantle Testnet
+
+1. Create a `.env` file:
+
+```env
 PRIVATE_KEY=your_private_key_here
 ```
 
-### 2. 部署
-
-```bash
-pnpm run deploy:testnet
-```
-
-### 3. 更新前端合约地址
-
-修改 `src/app/page.tsx` 中的合约地址：
+2. Update `src/lib/wagmi.ts` to include Mantle testnet:
 
 ```typescript
-const GAME_FACTORY_ADDRESS = "your_deployed_factory_address";
-const BLZ_TOKEN_ADDRESS = "your_deployed_blz_token_address";
-const PRIZE_TOKEN_ADDRESS = "your_deployed_prize_token_address";
+import { hardhat, mantle } from "wagmi/chains";
+
+export const config = getDefaultConfig({
+  // ...
+  chains: [hardhat, mantle],
+  // ...
+});
 ```
 
-## 注意事项
-
-1. **Gas 费用**: 本地测试网 Gas 费用为 0，但真实网络需要支付
-2. **代币授权**: 创建游戏前需要先授权代币给 Factory 合约
-3. **时间戳**: 游戏时间使用 Unix 时间戳
-4. **安全性**: 生产环境部署前请进行完整的安全审计
-
-## 技术栈
-
-- **智能合约**: Solidity ^0.8.24, OpenZeppelin Contracts
-- **前端**: Next.js 16, React 19, Tailwind CSS 4
-- **Web3**: ethers.js v6
-- **开发框架**: Hardhat
-
-## 开发命令
+3. Deploy contracts:
 
 ```bash
-# 编译合约
-pnpm run compile
-
-# 运行测试
-pnpm run test
-
-# 部署到本地
-pnpm run deploy:local
-
-# 部署到 Mantle 测试网
 pnpm run deploy:testnet
-
-# 启动 Hardhat 节点
-pnpm run node
-
-# 启动前端开发服务器
-pnpm run dev
 ```
 
-## License
+4. Update frontend contract addresses in each page file
 
-MIT
+## 🎨 Customization
+
+### Theme Colors
+
+Edit `src/app/globals.css` to customize the color scheme:
+
+```css
+.dark {
+  --primary: oklch(0.922 0 0);  /* Primary color */
+  --accent: oklch(0.269 0 0);    /* Accent color */
+  /* ... more variables */
+}
+```
+
+### Wagmi Configuration
+
+Edit `src/lib/wagmi.ts` to add more chains or wallets:
+
+```typescript
+export const config = getDefaultConfig({
+  appName: "Your App Name",
+  chains: [mainnet, polygon, arbitrum, ...],
+  // ...
+});
+```
+
+### RainbowKit Theme
+
+Edit `src/components/providers.tsx` to customize the wallet modal:
+
+```typescript
+<RainbowKitProvider
+  theme={darkTheme({
+    accentColor: "#3b82f6",
+    accentColorForeground: "white",
+  })}
+>
+```
+
+## 🔐 Security Considerations
+
+1. **Private Keys**: Never commit private keys to version control
+2. **Contract Audits**: Always audit contracts before mainnet deployment
+3. **Reentrancy Protection**: Contracts use OpenZeppelin's security patterns
+4. **Access Control**: Role-based access control with proper modifiers
+5. **Input Validation**: All contract inputs are validated
+
+## 📈 Performance Optimization
+
+- **Code Splitting**: Automatic route-based code splitting
+- **Image Optimization**: Next.js Image component for optimal loading
+- **Lazy Loading**: Components load only when needed
+- **Caching**: Aggressive caching for static assets
+- **Bundle Analysis**: Optimize bundle size with `@next/bundle-analyzer`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- [OpenZeppelin](https://openzeppelin.com/) - Smart contract security
+- [shadcn/ui](https://ui.shadcn.com/) - UI component library
+- [RainbowKit](https://www.rainbowkit.com/) - React wallet connection library
+- [Wagmi](https://wagmi.sh/) - React Hooks for Ethereum
+- [Framer Motion](https://www.framer.com/motion/) - Production-ready motion library
+
+---
+
+Built with ❤️ using Next.js, Web3, and modern design principles.

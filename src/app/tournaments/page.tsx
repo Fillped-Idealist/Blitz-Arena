@@ -1,0 +1,350 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
+import { parseUnits } from "viem";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import {
+  Trophy,
+  Users,
+  Clock,
+  Zap,
+  Filter,
+  Search,
+  Plus,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { Navbar } from "@/components/navbar";
+
+const MOCK_GAMES = [
+  {
+    address: "0x1234567890abcdef",
+    title: "Championship League",
+    description: "The ultimate battle royale competition with massive prizes",
+    gameType: "Battle Royale",
+    prize: "10000",
+    entryFee: "100",
+    maxPlayers: 128,
+    currentPlayers: 96,
+    status: "Open",
+    statusColor: "bg-blue-500",
+    startTime: Date.now() + 3600000, // 1 hour from now
+    endTime: Date.now() + 86400000, // 24 hours from now
+  },
+  {
+    address: "0xabcdef1234567890",
+    title: "Weekly Speed Challenge",
+    description: "Test your reflexes in this fast-paced tournament",
+    gameType: "Speed Challenge",
+    prize: "5000",
+    entryFee: "50",
+    maxPlayers: 64,
+    currentPlayers: 64,
+    status: "Full",
+    statusColor: "bg-red-500",
+    startTime: Date.now() + 1800000, // 30 minutes from now
+    endTime: Date.now() + 43200000, // 12 hours from now
+  },
+  {
+    address: "0x567890abcdef1234",
+    title: "Pro Strategy Series",
+    description: "Strategic gameplay competition for serious players",
+    gameType: "Strategy",
+    prize: "25000",
+    entryFee: "500",
+    maxPlayers: 32,
+    currentPlayers: 28,
+    status: "Open",
+    statusColor: "bg-blue-500",
+    startTime: Date.now() + 86400000, // 24 hours from now
+    endTime: Date.now() + 172800000, // 48 hours from now
+  },
+  {
+    address: "0x90abcdef12345678",
+    title: "Rookie Cup",
+    description: "Beginner-friendly tournament with low entry barriers",
+    gameType: "Casual",
+    prize: "1000",
+    entryFee: "10",
+    maxPlayers: 50,
+    currentPlayers: 32,
+    status: "Open",
+    statusColor: "bg-blue-500",
+    startTime: Date.now() + 7200000, // 2 hours from now
+    endTime: Date.now() + 28800000, // 8 hours from now
+  },
+];
+
+export default function TournamentsPage() {
+  const { address, isConnected } = useAccount();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTab, setSelectedTab] = useState("all");
+  const [joining, setJoining] = useState<string | null>(null);
+
+  const filteredGames = MOCK_GAMES.filter((game) => {
+    const matchesSearch =
+      game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      game.gameType.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab =
+      selectedTab === "all" ||
+      (selectedTab === "open" && game.status === "Open") ||
+      (selectedTab === "full" && game.status === "Full");
+    return matchesSearch && matchesTab;
+  });
+
+  const handleJoin = async (gameAddress: string, entryFee: string) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    setJoining(gameAddress);
+    try {
+      // Simulate blockchain transaction
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      toast.success("Successfully joined the tournament!");
+    } catch (error) {
+      toast.error("Failed to join tournament");
+    } finally {
+      setJoining(null);
+    }
+  };
+
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getTimeRemaining = (timestamp: number) => {
+    const now = Date.now();
+    const diff = timestamp - now;
+
+    if (diff <= 0) return "Started";
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d ${hours % 24}h`;
+    }
+
+    return `${hours}h ${minutes}m`;
+  };
+
+  return (
+    <div className="min-h-screen bg-black">
+      <Navbar />
+      <div className="container mx-auto px-6 pt-32 pb-20">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-12"
+        >
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+                <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                  Tournaments
+                </span>
+              </h1>
+              <p className="text-xl text-gray-400">
+                Browse and join exciting gaming competitions
+              </p>
+            </div>
+            <Link href="/create">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Tournament
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Search and Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search tournaments..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500"
+              />
+            </div>
+            <Tabs
+              value={selectedTab}
+              onValueChange={setSelectedTab}
+              className="w-full md:w-auto"
+            >
+              <TabsList className="bg-white/5 border-white/10">
+                <TabsTrigger value="all" className="text-gray-300">
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="open" className="text-gray-300">
+                  Open
+                </TabsTrigger>
+                <TabsTrigger value="full" className="text-gray-300">
+                  Full
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </motion.div>
+
+        {/* Tournament Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredGames.map((game, index) => (
+            <motion.div
+              key={game.address}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ y: -5 }}
+            >
+              <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden hover:border-white/20 transition-all duration-300 group h-full flex flex-col">
+                {/* Status Badge */}
+                <div className="p-6 pb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <Badge
+                      className={`${game.statusColor} text-white border-none`}
+                    >
+                      {game.status}
+                    </Badge>
+                    <div className="flex items-center text-sm text-gray-400">
+                      <Clock className="w-4 h-4 mr-1" />
+                      {getTimeRemaining(game.startTime)}
+                    </div>
+                  </div>
+
+                  {/* Title and Description */}
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                    {game.title}
+                  </h3>
+                  <p className="text-gray-400 text-sm mb-4">
+                    {game.description}
+                  </p>
+
+                  {/* Game Type */}
+                  <Badge
+                    variant="outline"
+                    className="border-white/20 text-gray-300 mb-4"
+                  >
+                    {game.gameType}
+                  </Badge>
+                </div>
+
+                {/* Stats */}
+                <div className="px-6 pb-4 flex-1">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/5 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Trophy className="w-4 h-4 text-yellow-400" />
+                        <span className="text-xs text-gray-400">Prize Pool</span>
+                      </div>
+                      <div className="text-lg font-bold text-white">
+                        {game.prize} tokens
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs text-gray-400">Players</span>
+                      </div>
+                      <div className="text-lg font-bold text-white">
+                        {game.currentPlayers}/{game.maxPlayers}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 pt-0 border-t border-white/10 mt-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm text-gray-400">Entry Fee:</span>
+                      <span className="text-white font-semibold">
+                        {game.entryFee} tokens
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {formatTime(game.startTime)}
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                    onClick={() => handleJoin(game.address, game.entryFee)}
+                    disabled={
+                      joining === game.address || game.status === "Full"
+                    }
+                  >
+                    {joining === game.address ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Joining...
+                      </>
+                    ) : game.status === "Full" ? (
+                      "Tournament Full"
+                    ) : (
+                      "Join Tournament"
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredGames.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-20"
+          >
+            <div className="bg-white/5 rounded-2xl p-12 max-w-md mx-auto">
+              <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-white mb-2">
+                No tournaments found
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Try adjusting your search or filters to find tournaments
+              </p>
+              <Link href="/create">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
+                  Create a Tournament
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
