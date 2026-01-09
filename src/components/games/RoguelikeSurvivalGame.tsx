@@ -1125,29 +1125,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     monsterSpawnTimerRef.current = 0;
     autoAttackTimerRef.current = 0;
 
-    // 等待 Canvas 准备好，然后启动游戏循环
-    const canvas = canvasRef.current;
-    if (canvas) {
-      console.log('Canvas found, starting game loop...');
-      // 初始化画布
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // 先绘制一次背景
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        ctx.fillStyle = '#4fc3f7';
-        ctx.beginPath();
-        ctx.arc(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, PLAYER_SIZE, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 启动游戏循环
-      lastTimeRef.current = performance.now();
-      gameLoop();
-    } else {
-      console.error('Canvas not found!');
-    }
-
     // 启动倒计时
     gameTimerRef.current = window.setInterval(() => {
       setTimeLeft(prev => {
@@ -1158,6 +1135,33 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return prev - 1;
       });
     }, 1000);
+
+    // 等待 DOM 更新后再启动游戏循环
+    setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        console.log('Canvas found, starting game loop...');
+        // 初始化画布
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // 先绘制一次背景
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.fillStyle = '#4fc3f7';
+          ctx.beginPath();
+          ctx.arc(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, PLAYER_SIZE, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 启动游戏循环
+        lastTimeRef.current = performance.now();
+        gameLoop();
+      } else {
+        console.error('Canvas still not found after timeout!');
+        toast.error('游戏启动失败，请重试');
+        endGame();
+      }
+    }, 100);
   };
 
   // 结束游戏

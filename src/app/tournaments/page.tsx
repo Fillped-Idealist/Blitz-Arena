@@ -279,7 +279,10 @@ export default function TournamentsPage() {
                       className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => handleJoin(game.id, game.entryFee)}
                       disabled={
-                        joining === game.id || game.status === "Full"
+                        joining === game.id ||
+                        game.status === "Full" ||
+                        game.status === "Ongoing" ||
+                        game.participants.includes(address || "")
                       }
                     >
                       {joining === game.id ? (
@@ -291,6 +294,11 @@ export default function TournamentsPage() {
                         "Full"
                       ) : game.status === "Ongoing" ? (
                         "In Progress"
+                      ) : game.participants.includes(address || "") ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>已参加</span>
+                        </div>
                       ) : (
                         "Join"
                       )}

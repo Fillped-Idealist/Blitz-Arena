@@ -43,10 +43,13 @@ export default function QuickClickGame({ onComplete, onCancel }: QuickClickGameP
     const minY = 15;
     const maxY = 85;
 
-    setTargetPosition({
+    console.log('Generating new target position');
+    const newPos = {
       x: Math.random() * (maxX - minX) + minX,
       y: Math.random() * (maxY - minY) + minY
-    });
+    };
+    console.log('New position:', newPos);
+    setTargetPosition(newPos);
   }, []);
 
   // 开始游戏
@@ -83,20 +86,33 @@ export default function QuickClickGame({ onComplete, onCancel }: QuickClickGameP
   };
 
   // 处理点击
-  const handleTargetClick = () => {
+  const handleTargetClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 阻止事件冒泡
+
+    console.log('Target clicked! gameStarted:', gameStarted, 'gameOver:', gameOver);
+
     if (!gameStarted || gameOver) return;
 
     const now = Date.now();
     const timeSinceLastClick = now - lastClickTimeRef.current;
 
+    console.log('Time since last click:', timeSinceLastClick);
+
     // 防作弊：最小点击间隔600ms（30秒内最多50次）
     if (timeSinceLastClick < 600) {
+      console.log('Clicking too fast!');
       toast.warning('点击太快了！');
       return;
     }
 
-    setClicks(prev => prev + 1);
+    console.log('Click registered, incrementing count');
+    setClicks(prev => {
+      console.log('Previous clicks:', prev, 'New clicks:', prev + 1);
+      return prev + 1;
+    });
     lastClickTimeRef.current = now;
+
+    console.log('Generating new target...');
     generateNewTarget();
 
     // 点击反馈
@@ -247,29 +263,31 @@ export default function QuickClickGame({ onComplete, onCancel }: QuickClickGameP
                   style={{ aspectRatio: '16/9' }}
                 >
                   {/* 游戏目标 */}
-                  <motion.div
+                  <motion.button
+                    type="button"
                     animate={{
-                      x: `calc(${targetPosition.x}% - 40px)`,
-                      y: `calc(${targetPosition.y}% - 40px)`,
+                      left: `${targetPosition.x}%`,
+                      top: `${targetPosition.y}%`,
                       scale: [1, 1.1, 1]
                     }}
                     transition={{
-                      x: { type: 'spring', stiffness: 300, damping: 25 },
-                      y: { type: 'spring', stiffness: 300, damping: 25 },
+                      left: { type: 'spring', stiffness: 300, damping: 25 },
+                      top: { type: 'spring', stiffness: 300, damping: 25 },
                       scale: { duration: 0.8, repeat: Infinity }
                     }}
                     onClick={handleTargetClick}
-                    className="absolute w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-orange-500 cursor-pointer flex items-center justify-center shadow-lg hover:shadow-red-500/50 transition-shadow"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    className="absolute w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-orange-500 cursor-pointer flex items-center justify-center shadow-lg hover:shadow-red-500/50 transition-shadow transform -translate-x-1/2 -translate-y-1/2"
                     style={{
-                      left: '50%',
-                      top: '50%'
+                      zIndex: 10
                     }}
                   >
-                    <Target className="w-10 h-10 text-white" />
-                  </motion.div>
+                    <Target className="w-10 h-10 text-white pointer-events-none" />
+                  </motion.button>
 
                   {/* 背景网格效果 */}
-                  <div className="absolute inset-0 opacity-10">
+                  <div className="absolute inset-0 opacity-10 pointer-events-none">
                     <div className="w-full h-full" style={{
                       backgroundImage: `
                         linear-gradient(to right, #ffffff 1px, transparent 1px),
