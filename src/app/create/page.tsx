@@ -50,6 +50,12 @@ const GAME_TYPES = [
     icon: "🎯",
     description: "30秒内尽可能多地点击目标"
   },
+  {
+    value: "4",
+    label: "Roguelike Survival",
+    icon: "⚔️",
+    description: "肉鸽割草生存游戏，击败无尽怪物，升级技能，生存10分钟"
+  },
 ];
 
 const PRIZE_DISTRIBUTION = [

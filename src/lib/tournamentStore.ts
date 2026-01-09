@@ -126,7 +126,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
 const GAME_TYPES = {
   '1': { label: 'Number Guess', icon: '🔢' },
   '2': { label: 'Rock Paper Scissors', icon: '✊✋✌️' },
-  '3': { label: 'Quick Click', icon: '🎯' }
+  '3': { label: 'Quick Click', icon: '🎯' },
+  '4': { label: 'Roguelike Survival', icon: '⚔️' }
 };
 
 // 获取所有比赛

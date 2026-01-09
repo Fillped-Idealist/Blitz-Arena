@@ -16,12 +16,14 @@ export enum GameType {
   None = 0,
   NumberGuess = 1,
   RockPaperScissors = 2,
-  QuickClick = 3
+  QuickClick = 3,
+  RoguelikeSurvival = 4
 }
 import { getAllTournaments, joinTournament, getUserTournaments } from '@/lib/tournamentStore';
 import NumberGuessGame, { GameResult as NumberGuessResult } from '@/components/games/NumberGuessGame';
 import RockPaperScissorsGame, { GameResult as RPSResult } from '@/components/games/RockPaperScissorsGame';
 import QuickClickGame, { GameResult as QCResult } from '@/components/games/QuickClickGame';
+import RoguelikeSurvivalGame, { GameResult as RLSResult } from '@/components/games/RoguelikeSurvivalGame';
 import { Loader2, Gamepad2 } from 'lucide-react';
 
 export default function TournamentDetailPage() {
@@ -70,23 +72,26 @@ export default function TournamentDetailPage() {
   const gameTypeLabels: Record<string, string> = {
     '1': 'Number Guess',
     '2': 'Rock Paper Scissors',
-    '3': 'Quick Click'
+    '3': 'Quick Click',
+    '4': 'Roguelike Survival'
   };
 
   const gameTypeIcons: Record<string, string> = {
     '1': '🔢',
     '2': '✊✋✌️',
-    '3': '🎯'
+    '3': '🎯',
+    '4': '⚔️'
   };
 
   const gameTypeEnum: Record<string, GameType> = {
     '1': GameType.NumberGuess,
     '2': GameType.RockPaperScissors,
-    '3': GameType.QuickClick
+    '3': GameType.QuickClick,
+    '4': GameType.RoguelikeSurvival
   };
 
   // 处理游戏结果提交
-  const handleGameComplete = async (result: NumberGuessResult | RPSResult | QCResult) => {
+  const handleGameComplete = async (result: NumberGuessResult | RPSResult | QCResult | RLSResult) => {
     try {
       // 模拟提交到链上
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -493,6 +498,9 @@ export default function TournamentDetailPage() {
                       )}
                       {activeGame === GameType.QuickClick && (
                         <QuickClickGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
+                      )}
+                      {activeGame === GameType.RoguelikeSurvival && (
+                        <RoguelikeSurvivalGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
                       )}
                     </div>
                   </Card>
