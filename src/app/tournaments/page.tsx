@@ -36,8 +36,8 @@ const MOCK_GAMES = [
     currentPlayers: 96,
     status: "Open",
     statusColor: "bg-blue-500",
-    startTime: Date.now() + 3600000, // 1 hour from now
-    endTime: Date.now() + 86400000, // 24 hours from now
+    startTimeOffset: 3600000, // 1 hour from now (using offset instead of absolute time)
+    duration: 82800000, // Total duration
   },
   {
     address: "0xabcdef1234567890",
@@ -50,8 +50,8 @@ const MOCK_GAMES = [
     currentPlayers: 64,
     status: "Full",
     statusColor: "bg-red-500",
-    startTime: Date.now() + 1800000, // 30 minutes from now
-    endTime: Date.now() + 43200000, // 12 hours from now
+    startTimeOffset: 1800000, // 30 minutes from now
+    duration: 41400000,
   },
   {
     address: "0x567890abcdef1234",
@@ -64,8 +64,8 @@ const MOCK_GAMES = [
     currentPlayers: 28,
     status: "Open",
     statusColor: "bg-blue-500",
-    startTime: Date.now() + 86400000, // 24 hours from now
-    endTime: Date.now() + 172800000, // 48 hours from now
+    startTimeOffset: 86400000, // 24 hours from now
+    duration: 86400000,
   },
   {
     address: "0x90abcdef12345678",
@@ -78,8 +78,8 @@ const MOCK_GAMES = [
     currentPlayers: 32,
     status: "Open",
     statusColor: "bg-blue-500",
-    startTime: Date.now() + 7200000, // 2 hours from now
-    endTime: Date.now() + 28800000, // 8 hours from now
+    startTimeOffset: 7200000, // 2 hours from now
+    duration: 21600000,
   },
 ];
 
@@ -88,6 +88,12 @@ export default function TournamentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("all");
   const [joining, setJoining] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Only render time-dependent content after mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const filteredGames = MOCK_GAMES.filter((game) => {
     const matchesSearch =
@@ -118,8 +124,11 @@ export default function TournamentsPage() {
     }
   };
 
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
+  // Format time - only calculate on client side
+  const formatTime = (startTimeOffset: number) => {
+    if (!isMounted) return "";
+    const startTime = Date.now() + startTimeOffset;
+    const date = new Date(startTime);
     return date.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
@@ -128,9 +137,10 @@ export default function TournamentsPage() {
     });
   };
 
-  const getTimeRemaining = (timestamp: number) => {
-    const now = Date.now();
-    const diff = timestamp - now;
+  const getTimeRemaining = (startTimeOffset: number) => {
+    if (!isMounted) return "";
+    const startTime = Date.now() + startTimeOffset;
+    const diff = startTime - Date.now();
 
     if (diff <= 0) return "Started";
 
@@ -237,7 +247,7 @@ export default function TournamentsPage() {
                     </Badge>
                     <div className="flex items-center text-sm text-gray-400">
                       <Clock className="w-4 h-4 mr-1" />
-                      {getTimeRemaining(game.startTime)}
+                      {getTimeRemaining(game.startTimeOffset)}
                     </div>
                   </div>
 
@@ -293,7 +303,7 @@ export default function TournamentsPage() {
                       </span>
                     </div>
                     <div className="text-sm text-gray-400">
-                      {formatTime(game.startTime)}
+                      {formatTime(game.startTimeOffset)}
                     </div>
                   </div>
 

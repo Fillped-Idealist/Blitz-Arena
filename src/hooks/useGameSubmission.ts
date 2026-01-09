@@ -21,27 +21,18 @@ export interface GameResult {
   metadata: number[];
 }
 
-// 计算游戏哈希（与合约的keccak256逻辑一致）
+// 同步版本的计算哈希函数（降级方案）
 export function computeGameHash(result: GameResult): string {
-  // 在实际实现中，这里应该使用ethers.js或viem的keccak256
-  // 这里简化实现，返回十六进制字符串
   const data = `${result.gameType}-${result.playerAddress}-${result.score}-${result.timestamp}-${result.metadata.join(',')}`;
 
-  // 使用Web Crypto API计算SHA-256（实际部署时应使用ethers/viem的keccak256）
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-
-  // 在浏览器环境中
-  if (typeof window !== 'undefined' && 'crypto' in window) {
-    return window.crypto.subtle.digest('SHA-256', dataBuffer).then(buffer => {
-      const hashArray = Array.from(new Uint8Array(buffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return '0x' + hashHex;
-    });
+  // 降级方案：简单的字符串哈希
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
   }
-
-  // 服务端环境或降级方案
-  return '0x' + Array.from(dataBuffer).map(b => b.toString(16).padStart(2, '0')).join('');
+  return '0x' + Math.abs(hash).toString(16).padStart(64, '0');
 }
 
 // 异步版本的计算哈希函数

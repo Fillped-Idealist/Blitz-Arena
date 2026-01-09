@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -72,6 +72,7 @@ export default function CreateTournamentPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const [loading, setLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -88,6 +89,11 @@ export default function CreateTournamentPage() {
 
   const [selectedTimePreset, setSelectedTimePreset] = useState(60);
   const [selectedGamePreset, setSelectedGamePreset] = useState("");
+
+  // Only render time-dependent content after mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -129,6 +135,7 @@ export default function CreateTournamentPage() {
   };
 
   const calculateEndTime = () => {
+    if (!isMounted) return "";
     const now = new Date();
     const totalMinutes = formData.registrationDuration + formData.gameDuration;
     now.setMinutes(now.getMinutes() + totalMinutes);
