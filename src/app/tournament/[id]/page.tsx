@@ -9,11 +9,20 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/navbar';
-import { useGetGameData, useGetPlayerGameResult, GameType } from '@/hooks/useGameSubmission';
+import { Tournament } from '@/lib/tournamentStore';
+
+// Game type enum
+export enum GameType {
+  None = 0,
+  NumberGuess = 1,
+  RockPaperScissors = 2,
+  QuickClick = 3
+}
+import { getAllTournaments, joinTournament, getUserTournaments } from '@/lib/tournamentStore';
 import NumberGuessGame, { GameResult as NumberGuessResult } from '@/components/games/NumberGuessGame';
 import RockPaperScissorsGame, { GameResult as RPSResult } from '@/components/games/RockPaperScissorsGame';
 import QuickClickGame, { GameResult as QCResult } from '@/components/games/QuickClickGame';
-import { useSubmitGameResult } from '@/hooks/useGameSubmission';
+import { Loader2, Gamepad2 } from 'lucide-react';
 
 export default function TournamentDetailPage() {
   const params = useParams();
@@ -22,81 +31,218 @@ export default function TournamentDetailPage() {
 
   const [activeGame, setActiveGame] = useState<number | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
-  const [playerScore, setPlayerScore] = useState<number | null>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
 
-  // 使用合约地址（这里需要从URL参数获取或从路由中获取）
-  const gameInstanceAddress = params.id as `0x${string}`;
+  const tournamentId = params.id as string;
 
-  // 获取比赛数据
-  const { data: gameData, isLoading: loadingGameData } = useGetGameData(gameInstanceAddress);
+  // 加载比赛数据
+  useEffect(() => {
+    const loadTournament = () => {
+      try {
+        const tournaments = getAllTournaments();
+        const found = tournaments.find(t => t.id === tournamentId);
+        if (!found) {
+          toast.error('Tournament not found');
+          router.push('/tournaments');
+          return;
+        }
+        setTournament(found);
 
-  // 获取玩家的游戏结果
-  const { data: playerGameResult, isLoading: loadingPlayerResult } = useGetPlayerGameResult(
-    gameInstanceAddress,
-    address as `0x${string}`
-  );
+        // 检查用户是否已加入
+        if (address) {
+          const userTournaments = getUserTournaments(address);
+          setHasJoined(userTournaments.some(t => t.id === tournamentId));
+        }
+      } catch (error) {
+        console.error('Failed to load tournament:', error);
+        toast.error('Failed to load tournament data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // 提交游戏结果
-  const { submitGameResult, isPending: submittingResult } = useSubmitGameResult(gameInstanceAddress);
+    loadTournament();
+  }, [tournamentId, address, router]);
 
-  // 游戏类型显示名称
-  const gameTypeLabels: Record<number, string> = {
-    [GameType.NumberGuess]: '猜数字游戏',
-    [GameType.RockPaperScissors]: '石头剪刀布',
-    [GameType.QuickClick]: '快速点击'
+  // 游戏类型映射
+  const gameTypeLabels: Record<string, string> = {
+    '1': 'Number Guess',
+    '2': 'Rock Paper Scissors',
+    '3': 'Quick Click'
   };
 
-  const gameTypeIcons: Record<number, string> = {
-    [GameType.NumberGuess]: '🔢',
-    [GameType.RockPaperScissors]: '✊✋✌️',
-    [GameType.QuickClick]: '🎯'
+  const gameTypeIcons: Record<string, string> = {
+    '1': '🔢',
+    '2': '✊✋✌️',
+    '3': '🎯'
+  };
+
+  const gameTypeEnum: Record<string, GameType> = {
+    '1': GameType.NumberGuess,
+    '2': GameType.RockPaperScissors,
+    '3': GameType.QuickClick
   };
 
   // 处理游戏结果提交
   const handleGameComplete = async (result: NumberGuessResult | RPSResult | QCResult) => {
     try {
-      await submitGameResult(result);
-      setActiveGame(null);
-      toast.success('游戏成绩已提交到链上！');
+      // 模拟提交到链上
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 提交到localStorage
+      if (address && tournament) {
+        const tournaments = getAllTournaments();
+        const updatedTournament = tournaments.find(t => t.id === tournamentId);
+        if (updatedTournament) {
+          const existingResult = updatedTournament.results.find(r => r.playerAddress === address);
+          if (existingResult) {
+            toast.error('You have already submitted your result');
+            return;
+          }
+
+          updatedTournament.results.push({
+            playerAddress: address,
+            score: result.score,
+            timestamp: Date.now()
+          });
+
+          // 保存到localStorage
+          localStorage.setItem('tournaments', JSON.stringify(tournaments));
+
+          setActiveGame(null);
+          toast.success('Game result submitted successfully!', {
+            description: `Score: ${result.score}`,
+            duration: 3000,
+          });
+        }
+      }
     } catch (error) {
       console.error('Failed to submit game result:', error);
-      toast.error('提交游戏成绩失败，请重试');
+      toast.error('Failed to submit game result', {
+        description: 'Please try again',
+      });
+    }
+  };
+
+  // 加入比赛
+  const handleJoinTournament = async () => {
+    if (!isConnected || !address) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    setJoining(true);
+    try {
+      toast.info('Processing your registration...', {
+        duration: 1000,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const success = joinTournament(tournamentId, address);
+      if (success) {
+        setHasJoined(true);
+        toast.success('Successfully joined the tournament!', {
+          duration: 3000,
+        });
+        // 重新加载比赛数据
+        const tournaments = getAllTournaments();
+        const found = tournaments.find(t => t.id === tournamentId);
+        if (found) setTournament(found);
+      }
+    } catch (error) {
+      console.error('Failed to join tournament:', error);
+      toast.error('Failed to join tournament', {
+        description: 'Please try again',
+      });
+    } finally {
+      setJoining(false);
     }
   };
 
   // 开始游戏
-  const handleStartGame = (gameType: number) => {
+  const handleStartGame = () => {
     if (!isConnected) {
-      toast.error('请先连接钱包');
+      toast.error('Please connect your wallet first');
       return;
     }
 
     if (!hasJoined) {
-      toast.error('请先报名参加比赛');
+      toast.error('Please join the tournament first');
       return;
     }
 
-    // 检查游戏是否开始（需要gameData来判断）
-    // 这里暂时直接启动游戏
-    setActiveGame(gameType);
+    if (!tournament) return;
+
+    // 检查是否已提交结果
+    if (address && tournament.results.some(r => r.playerAddress === address)) {
+      toast.info('You have already submitted your result');
+      return;
+    }
+
+    setActiveGame(gameTypeEnum[tournament.gameType] || 0);
+  };
+
+  // 取消游戏
+  const handleCancelGame = () => {
+    setActiveGame(null);
+    toast.info('Game cancelled');
   };
 
   // 状态显示
-  const statusLabels: Record<number, string> = {
-    0: 'Created',
-    1: 'Ongoing',
-    2: 'Ended',
-    3: 'Prize Distributed',
-    4: 'Canceled'
+  const statusLabels: Record<string, string> = {
+    'Open': 'Open for Registration',
+    'Full': 'Full',
+    'Ongoing': 'In Progress',
+    'Ended': 'Ended',
+    'Canceled': 'Canceled'
   };
 
-  const statusColors: Record<number, string> = {
-    0: 'bg-blue-500/20 text-blue-400',
-    1: 'bg-green-500/20 text-green-400',
-    2: 'bg-orange-500/20 text-orange-400',
-    3: 'bg-purple-500/20 text-purple-400',
-    4: 'bg-red-500/20 text-red-400'
+  const statusColors: Record<string, string> = {
+    'Open': 'bg-blue-500/20 text-blue-400',
+    'Full': 'bg-red-500/20 text-red-400',
+    'Ongoing': 'bg-green-500/20 text-green-400',
+    'Ended': 'bg-gray-500/20 text-gray-400',
+    'Canceled': 'bg-red-500/20 text-red-400'
   };
+
+  // 加载状态
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <div className="container mx-auto px-6 pt-32 pb-20">
+          <div className="text-center py-20">
+            <Loader2 className="w-12 h-12 text-blue-400 mx-auto mb-4 animate-spin" />
+            <div className="text-2xl text-gray-400">Loading tournament data...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 未找到比赛
+  if (!tournament) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <div className="container mx-auto px-6 pt-32 pb-20">
+          <Card className="max-w-2xl mx-auto bg-white/5 border-white/10 p-12 text-center">
+            <h2 className="text-3xl font-bold text-white mb-4">Tournament Not Found</h2>
+            <p className="text-gray-400 mb-6">The tournament you're looking for doesn't exist or has been removed.</p>
+            <Button
+              onClick={() => router.push('/tournaments')}
+              className="bg-gradient-to-r from-blue-600 to-purple-600"
+            >
+              Browse Tournaments
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black">
@@ -104,14 +250,14 @@ export default function TournamentDetailPage() {
 
       <div className="container mx-auto px-6 pt-32 pb-20">
         {/* Loading State */}
-        {loadingGameData && (
+        {loading && (
           <div className="text-center py-20">
-            <div className="text-2xl text-gray-400">加载比赛信息中...</div>
+            <div className="text-2xl text-gray-400">Loading tournament data...</div>
           </div>
         )}
 
-        {/* Game Data Display */}
-        {gameData && (
+        {/* Tournament Display */}
+        {!loading && tournament && (
           <>
             {/* Header */}
             <motion.div
@@ -119,49 +265,53 @@ export default function TournamentDetailPage() {
               animate={{ opacity: 1, y: 0 }}
               className="mb-8"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col md:flex-row items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
-                    <Badge className={statusColors[gameData.status as number]}>
-                      {statusLabels[gameData.status as number]}
+                    <Badge className={statusColors[tournament.status]}>
+                      {statusLabels[tournament.status]}
                     </Badge>
                     <Badge variant="outline" className="border-purple-500/50 text-purple-400">
-                      {gameTypeLabels[gameData.gameType as number]} {gameTypeIcons[gameData.gameType as number]}
+                      {gameTypeLabels[tournament.gameType]} {gameTypeIcons[tournament.gameType]}
                     </Badge>
                   </div>
 
                   <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                    {gameData.title}
+                    {tournament.title}
                   </h1>
 
                   <p className="text-lg text-gray-400 max-w-3xl">
-                    {gameData.description || '参加这场激动人心的区块链游戏竞技！'}
+                    {tournament.description || 'Join this exciting blockchain gaming tournament!'}
                   </p>
                 </div>
 
                 {/* Join Button */}
-                {gameData.status === 0 && !hasJoined && (
+                {tournament.status === 'Open' && !hasJoined && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                   >
                     <Button
                       size="lg"
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                      onClick={() => {
-                        // TODO: 实现报名逻辑
-                        setHasJoined(true);
-                        toast.success('报名成功！');
-                      }}
+                      disabled={joining}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white disabled:opacity-50"
+                      onClick={handleJoinTournament}
                     >
-                      立即报名
+                      {joining ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Joining...
+                        </>
+                      ) : (
+                        `Join Tournament (${tournament.entryFee} tokens)`
+                      )}
                     </Button>
                   </motion.div>
                 )}
 
                 {hasJoined && (
                   <Badge className="bg-green-500/20 text-green-400 text-lg py-2 px-4">
-                    已报名
+                    ✓ Joined
                   </Badge>
                 )}
               </div>
@@ -181,101 +331,129 @@ export default function TournamentDetailPage() {
                   {/* 游戏信息卡片 */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20 p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">比赛信息</h3>
+                      <h3 className="text-xl font-bold text-white mb-4">Tournament Info</h3>
                       <div className="space-y-3">
                         <div className="flex justify-between">
-                          <span className="text-gray-400">游戏类型:</span>
+                          <span className="text-gray-400">Game Type:</span>
                           <span className="text-white">
-                            {gameTypeLabels[gameData.gameType as number]}
+                            {gameTypeLabels[tournament.gameType]}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">参与人数:</span>
+                          <span className="text-gray-400">Players:</span>
                           <span className="text-white">
-                            {Number(gameData.playerCount)} / {Number(gameData.maxPlayers)}
+                            {tournament.currentPlayers} / {tournament.maxPlayers}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">报名费:</span>
+                          <span className="text-gray-400">Entry Fee:</span>
                           <span className="text-white">
-                            {Number(gameData.entryFee)} tokens
+                            {tournament.entryFee} tokens
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">奖池:</span>
+                          <span className="text-gray-400">Prize Pool:</span>
                           <span className="text-white">
-                            {Number(gameData.prizePool)} tokens
+                            {tournament.prize} tokens
                           </span>
                         </div>
                       </div>
                     </Card>
 
                     <Card className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20 p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">时间安排</h3>
+                      <h3 className="text-xl font-bold text-white mb-4">Status</h3>
                       <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">报名截止:</span>
-                          <span className="text-white">
-                            {new Date(Number(gameData.registrationEndTime) * 1000).toLocaleString()}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-white font-medium">{tournament.status}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">比赛开始:</span>
-                          <span className="text-white">
-                            {new Date(Number(gameData.gameStartTime) * 1000).toLocaleString()}
-                          </span>
+                        <div className="text-sm text-gray-400 mt-4">
+                          Tournament ID: <span className="text-white font-mono">{tournament.id}</span>
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          Created: <span className="text-white">{new Date(tournament.createdAt).toLocaleString()}</span>
                         </div>
                       </div>
                     </Card>
                   </div>
 
                   {/* 玩家成绩显示 */}
-                  {playerGameResult && playerGameResult.score > 0 && (
+                  {address && tournament.results.some(r => r.playerAddress === address) && (
                     <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">你的成绩</h3>
+                      <h3 className="text-xl font-bold text-white mb-4">Your Result</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-yellow-500/10 rounded-lg p-4 text-center">
                           <div className="text-3xl font-bold text-yellow-400">
-                            {playerGameResult.score}
+                            {tournament.results.find(r => r.playerAddress === address)?.score || 0}
                           </div>
-                          <div className="text-sm text-gray-400 mt-1">得分</div>
+                          <div className="text-sm text-gray-400 mt-1">Score</div>
                         </div>
                         <div className="bg-blue-500/10 rounded-lg p-4 text-center">
                           <div className="text-xl font-bold text-blue-400">
-                            {new Date(Number(playerGameResult.timestamp) * 1000).toLocaleString()}
+                            {new Date(tournament.results.find(r => r.playerAddress === address)?.timestamp || 0).toLocaleString()}
                           </div>
-                          <div className="text-sm text-gray-400 mt-1">提交时间</div>
+                          <div className="text-sm text-gray-400 mt-1">Submitted</div>
                         </div>
                         <div className="bg-green-500/10 rounded-lg p-4 text-center">
                           <div className="text-xl font-bold text-green-400">
-                            {gameTypeLabels[playerGameResult.gameType as number]}
+                            #{tournament.results.sort((a, b) => b.score - a.score).findIndex(r => r.playerAddress === address)! + 1}
                           </div>
-                          <div className="text-sm text-gray-400 mt-1">游戏类型</div>
+                          <div className="text-sm text-gray-400 mt-1">Rank</div>
                         </div>
                         <div className="bg-purple-500/10 rounded-lg p-4 text-center">
                           <div className="text-xl font-bold text-purple-400">
-                            ✓
+                            {gameTypeLabels[tournament.gameType]}
                           </div>
-                          <div className="text-sm text-gray-400 mt-1">已上链</div>
+                          <div className="text-sm text-gray-400 mt-1">Game</div>
                         </div>
                       </div>
                     </Card>
                   )}
 
-                  {/* 开始游戏按钮 */}
-                  {hasJoined && gameData.status === 1 && (
-                    <Card className="bg-gradient-to-r from-green-500/10 to-teal-500/10 border-green-500/20 p-8 text-center">
-                      <h3 className="text-2xl font-bold text-white mb-4">开始游戏</h3>
-                      <p className="text-gray-400 mb-6">
-                        比赛已开始！点击下方按钮开始你的挑战
+                  {/* Start Game Button */}
+                  {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) && (
+                    <Card className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/20 p-8 text-center">
+                      <h3 className="text-2xl font-bold text-white mb-4">Ready to Play?</h3>
+                      <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                        Join the {gameTypeLabels[tournament.gameType]} game and compete for the prize pool!
                       </p>
                       <Button
                         size="lg"
-                        className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white text-lg px-12"
-                        onClick={() => handleStartGame(gameData.gameType as number)}
+                        onClick={handleStartGame}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                       >
-                        开始游戏
+                        <Gamepad2 className="w-5 h-5 mr-2" />
+                        Start Game
                       </Button>
+                    </Card>
+                  )}
+
+                  {/* Leaderboard Preview */}
+                  {tournament.results.length > 0 && (
+                    <Card className="bg-white/5 backdrop-blur-sm border-white/10 overflow-hidden">
+                      <div className="p-6 border-b border-white/10">
+                        <h3 className="text-xl font-bold text-white">Current Leaderboard</h3>
+                      </div>
+                      <div className="divide-y divide-white/10">
+                        {tournament.results
+                          .sort((a, b) => b.score - a.score)
+                          .slice(0, 10)
+                          .map((result, index) => (
+                            <div key={result.playerAddress} className="flex items-center gap-4 p-4 hover:bg-white/5">
+                              <div className="w-8 text-center">
+                                <Badge className={`${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-700' : 'bg-blue-500'} text-white border-none`}>
+                                  #{index + 1}
+                                </Badge>
+                              </div>
+                              <div className="flex-1 font-mono text-sm text-white">
+                                {result.playerAddress.slice(0, 6)}...{result.playerAddress.slice(-4)}
+                              </div>
+                              <div className="text-xl font-bold text-white">
+                                {result.score}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     </Card>
                   )}
                 </motion.div>
@@ -287,24 +465,37 @@ export default function TournamentDetailPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  {activeGame === GameType.NumberGuess && (
-                    <NumberGuessGame
-                      onComplete={handleGameComplete}
-                      onCancel={() => setActiveGame(null)}
-                    />
-                  )}
-                  {activeGame === GameType.RockPaperScissors && (
-                    <RockPaperScissorsGame
-                      onComplete={handleGameComplete}
-                      onCancel={() => setActiveGame(null)}
-                    />
-                  )}
-                  {activeGame === GameType.QuickClick && (
-                    <QuickClickGame
-                      onComplete={handleGameComplete}
-                      onCancel={() => setActiveGame(null)}
-                    />
-                  )}
+                  <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden">
+                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-white">
+                          {gameTypeLabels[tournament.gameType]}
+                        </h3>
+                        <p className="text-sm text-gray-400">
+                          Tournament: {tournament.title}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveGame(null)}
+                        className="border-white/20 text-white hover:bg-white/10"
+                      >
+                        Back to Tournament
+                      </Button>
+                    </div>
+                    <div className="p-6">
+                      {activeGame === GameType.NumberGuess && (
+                        <NumberGuessGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
+                      )}
+                      {activeGame === GameType.RockPaperScissors && (
+                        <RockPaperScissorsGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
+                      )}
+                      {activeGame === GameType.QuickClick && (
+                        <QuickClickGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
+                      )}
+                    </div>
+                  </Card>
                 </motion.div>
               )}
             </AnimatePresence>

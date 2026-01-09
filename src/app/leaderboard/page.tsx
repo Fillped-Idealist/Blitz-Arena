@@ -40,7 +40,10 @@ export default function LeaderboardPage() {
       <div className="min-h-screen bg-black">
         <Navbar />
         <div className="container mx-auto px-6 pt-32 pb-20">
-          <div className="text-center">Loading...</div>
+          <div className="text-center py-20">
+            <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <div className="text-2xl text-gray-400">Loading leaderboard...</div>
+          </div>
         </div>
       </div>
     );

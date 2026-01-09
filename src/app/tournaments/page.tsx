@@ -59,18 +59,29 @@ export default function TournamentsPage() {
 
     setJoining(gameId);
     try {
-      // Simulate blockchain transaction
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Simulate blockchain transaction with clear feedback
+      toast.info("Processing your registration...", {
+        duration: 1000,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // Join tournament with real storage
       const success = joinTournament(gameId, address);
       if (success) {
-        toast.success("Successfully joined the tournament!");
+        toast.success("Successfully joined the tournament!", {
+          description: `Entry fee of ${entryFee} tokens has been paid`,
+          duration: 3000,
+        });
+
         // Reload tournaments
         setTournaments(getAllTournaments());
       }
     } catch (error) {
-      toast.error("Failed to join tournament");
+      console.error('Failed to join tournament:', error);
+      toast.error("Failed to join tournament", {
+        description: error instanceof Error ? error.message : "Please try again",
+      });
     } finally {
       setJoining(null);
     }
@@ -184,7 +195,7 @@ export default function TournamentsPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredGames.map((game, index) => (
             <motion.div
-              key={game.address}
+              key={game.id}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
@@ -205,10 +216,12 @@ export default function TournamentsPage() {
                     </div>
                   </div>
 
-                  {/* Title and Description */}
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
-                    {game.title}
-                  </h3>
+                  {/* Title and Description - Clickable */}
+                  <Link href={`/tournament/${game.id}`}>
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors cursor-pointer">
+                      {game.title}
+                    </h3>
+                  </Link>
                   <p className="text-gray-400 text-sm mb-4">
                     {game.description}
                   </p>
@@ -247,8 +260,8 @@ export default function TournamentsPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 pt-0 border-t border-white/10 mt-auto">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-6 pt-0 border-t border-white/10 mt-auto space-y-3">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Zap className="w-4 h-4 text-purple-400" />
                       <span className="text-sm text-gray-400">Entry Fee:</span>
@@ -261,24 +274,36 @@ export default function TournamentsPage() {
                     </div>
                   </div>
 
-                  <Button
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                    onClick={() => handleJoin(game.id, game.entryFee)}
-                    disabled={
-                      joining === game.id || game.status === "Full"
-                    }
-                  >
-                    {joining === game.id ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Joining...
-                      </>
-                    ) : game.status === "Full" ? (
-                      "Tournament Full"
-                    ) : (
-                      "Join Tournament"
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => handleJoin(game.id, game.entryFee)}
+                      disabled={
+                        joining === game.id || game.status === "Full"
+                      }
+                    >
+                      {joining === game.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : game.status === "Full" ? (
+                        "Full"
+                      ) : game.status === "Ongoing" ? (
+                        "In Progress"
+                      ) : (
+                        "Join"
+                      )}
+                    </Button>
+                    <Link href={`/tournament/${game.id}`} className="flex-1">
+                      <Button
+                        variant="outline"
+                        className="w-full border-white/20 text-white hover:bg-white/10"
+                      >
+                        Details
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </Card>
             </motion.div>
