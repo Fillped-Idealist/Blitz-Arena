@@ -237,6 +237,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     try {
       const ctx = audioContextRef.current;
+
+      // 确保 AudioContext 已启动（需要用户交互）
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
 
@@ -517,10 +523,293 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     playerRef.current.skills.push(skill);
     setShowLevelUp(false);
 
-    // 恢复游戏
+    // 恢复游戏循环
     lastTimeRef.current = performance.now();
-    gameLoop();
-  }, []);
+    const startLoop = () => {
+      try {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const now = performance.now();
+        const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1);
+        lastTimeRef.current = now;
+
+        // 清空画布
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // 绘制网格
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < CANVAS_WIDTH; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, CANVAS_HEIGHT);
+          ctx.stroke();
+        }
+        for (let y = 0; y < CANVAS_HEIGHT; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(CANVAS_WIDTH, y);
+          ctx.stroke();
+        }
+
+        const player = playerRef.current;
+
+        // 更新玩家位置
+        let dx = 0, dy = 0;
+        if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
+        if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
+        if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
+        if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
+
+        if (dx !== 0 || dy !== 0) {
+          const length = Math.sqrt(dx * dx + dy * dy);
+          dx /= length;
+          dy /= length;
+
+          player.x += dx * player.speed;
+          player.y += dy * player.speed;
+
+          // 边界检测
+          player.x = Math.max(PLAYER_SIZE, Math.min(CANVAS_WIDTH - PLAYER_SIZE, player.x));
+          player.y = Math.max(PLAYER_SIZE, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, player.y));
+        }
+
+        // 生成怪物
+        const difficulty = getDifficultyMultiplier();
+        monsterSpawnTimerRef.current += deltaTime;
+        const spawnInterval = Math.max(0.5, 2 - difficulty * 0.5);
+
+        if (monsterSpawnTimerRef.current >= spawnInterval) {
+          spawnMonster();
+          monsterSpawnTimerRef.current = 0;
+        }
+
+        // 自动攻击
+        autoAttackTimerRef.current += deltaTime;
+        const autoAttackInterval = 1 / player.attackSpeed;
+
+        if (autoAttackTimerRef.current >= autoAttackInterval) {
+          autoAttackTimerRef.current = 0;
+
+          // 优先近战攻击
+          let hasNearbyEnemy = false;
+          for (const monster of monstersRef.current) {
+            const mdx = monster.x - player.x;
+            const mdy = monster.y - player.y;
+            const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+
+            if (mDistance < player.attackRange) {
+              hasNearbyEnemy = true;
+              break;
+            }
+          }
+
+          if (hasNearbyEnemy) {
+            autoMeleeAttack();
+          } else {
+            autoRangedAttack();
+          }
+        }
+
+        // 更新怪物
+        monstersRef.current = monstersRef.current.filter(monster => {
+          // 向玩家移动
+          const mdx = player.x - monster.x;
+          const mdy = player.y - monster.y;
+          const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+
+          if (mDistance > 0) {
+            monster.x += (mdx / mDistance) * monster.speed;
+            monster.y += (mdy / mDistance) * monster.speed;
+          }
+
+          // 碰撞检测 - 攻击玩家
+          const now = Date.now();
+          if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
+            if (now - monster.lastAttack > 1000) {
+              player.hp -= monster.damage;
+              monster.lastAttack = now;
+              createDamageNumber(player.x, player.y, monster.damage, false);
+              playSound('damage');
+
+              if (player.hp <= 0) {
+                endGame();
+                return false;
+              }
+            }
+          }
+
+          // 绘制怪物
+          ctx.fillStyle = monster.color;
+          ctx.beginPath();
+          ctx.arc(monster.x, monster.y, monster.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 怪物血条
+          const hpPercent = monster.hp / monster.maxHp;
+          ctx.fillStyle = '#333';
+          ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 8, monster.size * 2, 4);
+          ctx.fillStyle = hpPercent > 0.3 ? '#4caf50' : '#f44336';
+          ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 8, monster.size * 2 * hpPercent, 4);
+
+          return monster.hp > 0;
+        });
+
+        // 更新投射物
+        projectilesRef.current = projectilesRef.current.filter(projectile => {
+          projectile.x += projectile.vx;
+          projectile.y += projectile.vy;
+
+          // 边界反弹
+          if (projectile.x <= 0 || projectile.x >= CANVAS_WIDTH) {
+            projectile.vx *= -1;
+            projectile.bounceCount--;
+          }
+          if (projectile.y <= 0 || projectile.y >= CANVAS_HEIGHT) {
+            projectile.vy *= -1;
+            projectile.bounceCount--;
+          }
+
+          // 绘制投射物
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 绘制拖尾
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(projectile.x, projectile.y);
+          ctx.lineTo(projectile.x - projectile.vx * 0.5, projectile.y - projectile.vy * 0.5);
+          ctx.stroke();
+
+          // 碰撞检测
+          for (const monster of monstersRef.current) {
+            if (checkCollision(projectile.x, projectile.y, 6, monster.x, monster.y, monster.size)) {
+              const isCrit = Math.random() < player.critRate;
+              const damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
+
+              monster.hp -= damage;
+              createParticles(projectile.x, projectile.y, '#87ceeb', 5);
+              createDamageNumber(monster.x, monster.y, Math.floor(damage), isCrit);
+              playSound('hit');
+
+              if (projectile.bounceCount <= 0) {
+                return false;
+              }
+
+              if (monster.hp <= 0) {
+                player.exp += monster.exp;
+                createParticles(monster.x, monster.y, monster.color, 12);
+                setScore(prev => prev + Math.floor(monster.exp));
+                playSound('kill');
+              }
+              break;
+            }
+          }
+
+          // 超出边界或没有反弹次数
+          if (projectile.x < -50 || projectile.x > CANVAS_WIDTH + 50 ||
+              projectile.y < -50 || projectile.y > CANVAS_HEIGHT + 50 ||
+              projectile.bounceCount < 0) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // 更新粒子
+        particlesRef.current = particlesRef.current.filter(particle => {
+          particle.life -= deltaTime;
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          particle.vy += 0.1; // 重力
+
+          if (particle.life <= 0) return false;
+
+          const alpha = particle.life / particle.maxLife;
+          ctx.fillStyle = particle.color;
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          return true;
+        });
+
+        // 更新伤害数字
+        damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
+          dn.life -= deltaTime;
+          dn.y -= 1;
+
+          if (dn.life <= 0) return false;
+
+          const alpha = dn.life / dn.maxLife;
+          ctx.fillStyle = dn.isCrit ? '#ff9800' : '#ffffff';
+          ctx.globalAlpha = alpha;
+          ctx.font = dn.isCrit ? 'bold 24px monospace' : '16px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(dn.damage.toString(), dn.x, dn.y);
+          ctx.globalAlpha = 1;
+
+          return true;
+        });
+
+        // 绘制玩家
+        ctx.fillStyle = '#4fc3f7';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, PLAYER_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 玩家方向指示器
+        const angle = Math.atan2(mouseRef.current.y - player.y, mouseRef.current.x - player.x);
+        ctx.strokeStyle = '#4fc3f7';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(
+          player.x + Math.cos(angle) * 30,
+          player.y + Math.sin(angle) * 30
+        );
+        ctx.stroke();
+
+        // 玩家血条
+        const hpPercent = player.hp / player.maxHp;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 12, 60, 6);
+        ctx.fillStyle = hpPercent > 0.3 ? '#4caf50' : '#f44336';
+        ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 12, 60 * hpPercent, 6);
+
+        // 经验条
+        const expPercent = player.exp / player.expToNext;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60, 4);
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60 * expPercent, 4);
+
+        // 检查升级
+        if (player.exp >= player.expToNext) {
+          handleLevelUp();
+          return;
+        }
+
+        animationFrameRef.current = requestAnimationFrame(startLoop);
+      } catch (error) {
+        console.error('Game loop error:', error);
+        lastTimeRef.current = performance.now();
+        animationFrameRef.current = requestAnimationFrame(startLoop);
+      }
+    };
+
+    startLoop();
+  }, [checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound]);
 
   // 游戏循环
   const gameLoop = useCallback(() => {
@@ -809,6 +1098,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // 开始游戏
   const startGame = () => {
+    console.log('Starting game...');
     setGameStarted(true);
     setGameOver(false);
     setTimeLeft(GAME_DURATION);
@@ -818,6 +1108,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     // 初始化音频
     initAudio();
+
+    // 确保 AudioContext 已启动
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
 
     // 初始化游戏状态
     initPlayer();
@@ -830,9 +1125,28 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     monsterSpawnTimerRef.current = 0;
     autoAttackTimerRef.current = 0;
 
-    // 启动游戏循环
-    lastTimeRef.current = performance.now();
-    gameLoop();
+    // 等待 Canvas 准备好，然后启动游戏循环
+    const canvas = canvasRef.current;
+    if (canvas) {
+      console.log('Canvas found, starting game loop...');
+      // 初始化画布
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // 先绘制一次背景
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.fillStyle = '#4fc3f7';
+        ctx.beginPath();
+        ctx.arc(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, PLAYER_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 启动游戏循环
+      lastTimeRef.current = performance.now();
+      gameLoop();
+    } else {
+      console.error('Canvas not found!');
+    }
 
     // 启动倒计时
     gameTimerRef.current = window.setInterval(() => {
