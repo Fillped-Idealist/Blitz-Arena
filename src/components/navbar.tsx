@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Users, Zap, Gamepad2 } from "lucide-react";
+import { Trophy, Users, Zap, Gamepad2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
@@ -24,6 +24,7 @@ export function Navbar() {
     { href: "/tournaments", label: "Tournaments", icon: Trophy },
     { href: "/create", label: "Create Game", icon: Zap },
     { href: "/leaderboard", label: "Leaderboard", icon: Users },
+    { href: "/profile", label: "Profile", icon: User },
   ];
 
   return (

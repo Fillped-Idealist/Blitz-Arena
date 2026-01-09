@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
+import { createTournament } from "@/lib/tournamentStore";
 
 const GAME_TYPES = [
   {
@@ -85,6 +86,7 @@ export default function CreateTournamentPage() {
     distributionType: "0",
     registrationDuration: 60,
     gameDuration: 120,
+    startImmediately: false,
   });
 
   const [selectedTimePreset, setSelectedTimePreset] = useState(60);
@@ -124,7 +126,24 @@ export default function CreateTournamentPage() {
     setLoading(true);
     try {
       // Simulate blockchain transaction
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Create tournament with real storage
+      createTournament({
+        title: formData.title,
+        description: formData.description,
+        gameType: formData.gameType,
+        entryFee: formData.entryFee,
+        prizePool: formData.prizePool,
+        minPlayers: formData.minPlayers,
+        maxPlayers: formData.maxPlayers,
+        distributionType: formData.distributionType,
+        registrationDuration: formData.registrationDuration,
+        gameDuration: formData.gameDuration,
+        creatorAddress: address || '0xcreator',
+        startImmediately: formData.startImmediately,
+      });
+
       toast.success("Tournament created successfully!");
       router.push("/tournaments");
     } catch (error) {
@@ -471,6 +490,7 @@ export default function CreateTournamentPage() {
                         onClick={() => {
                           handleInputChange("registrationDuration", preset.value);
                           setSelectedTimePreset(preset.value);
+                          handleInputChange("startImmediately", false);
                         }}
                         className={
                           selectedTimePreset === preset.value
@@ -488,15 +508,43 @@ export default function CreateTournamentPage() {
                     onValueChange={([value]) => {
                       handleInputChange("registrationDuration", value);
                       setSelectedTimePreset(value);
+                      handleInputChange("startImmediately", false);
                     }}
                     min={15}
                     max={10080} // 1 week
                     step={15}
                     className="mt-2"
+                    disabled={formData.startImmediately}
                   />
                   <p className="text-sm text-gray-400 mt-2">
                     How long players can register for the tournament
                   </p>
+                </div>
+
+                {/* Start Immediately Option */}
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="startImmediately"
+                      checked={formData.startImmediately}
+                      onChange={(e) => {
+                        handleInputChange("startImmediately", e.target.checked);
+                        if (e.target.checked) {
+                          setSelectedTimePreset(0);
+                        }
+                      }}
+                      className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-green-500 focus:ring-green-500 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="startImmediately" className="text-white cursor-pointer">
+                        Start Tournament Immediately
+                      </Label>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Skip registration phase and start the tournament right away. Perfect for quick demos and instant play!
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Game Duration */}

@@ -23,65 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
-
-const MOCK_GAMES = [
-  {
-    address: "0x1234567890abcdef",
-    title: "Championship League",
-    description: "The ultimate battle royale competition with massive prizes",
-    gameType: "Battle Royale",
-    prize: "10000",
-    entryFee: "100",
-    maxPlayers: 128,
-    currentPlayers: 96,
-    status: "Open",
-    statusColor: "bg-blue-500",
-    startTimeOffset: 3600000, // 1 hour from now (using offset instead of absolute time)
-    duration: 82800000, // Total duration
-  },
-  {
-    address: "0xabcdef1234567890",
-    title: "Weekly Speed Challenge",
-    description: "Test your reflexes in this fast-paced tournament",
-    gameType: "Speed Challenge",
-    prize: "5000",
-    entryFee: "50",
-    maxPlayers: 64,
-    currentPlayers: 64,
-    status: "Full",
-    statusColor: "bg-red-500",
-    startTimeOffset: 1800000, // 30 minutes from now
-    duration: 41400000,
-  },
-  {
-    address: "0x567890abcdef1234",
-    title: "Pro Strategy Series",
-    description: "Strategic gameplay competition for serious players",
-    gameType: "Strategy",
-    prize: "25000",
-    entryFee: "500",
-    maxPlayers: 32,
-    currentPlayers: 28,
-    status: "Open",
-    statusColor: "bg-blue-500",
-    startTimeOffset: 86400000, // 24 hours from now
-    duration: 86400000,
-  },
-  {
-    address: "0x90abcdef12345678",
-    title: "Rookie Cup",
-    description: "Beginner-friendly tournament with low entry barriers",
-    gameType: "Casual",
-    prize: "1000",
-    entryFee: "10",
-    maxPlayers: 50,
-    currentPlayers: 32,
-    status: "Open",
-    statusColor: "bg-blue-500",
-    startTimeOffset: 7200000, // 2 hours from now
-    duration: 21600000,
-  },
-];
+import { getAllTournaments, joinTournament, Tournament } from "@/lib/tournamentStore";
 
 export default function TournamentsPage() {
   const { address, isConnected } = useAccount();
@@ -89,16 +31,19 @@ export default function TournamentsPage() {
   const [selectedTab, setSelectedTab] = useState("all");
   const [joining, setJoining] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
 
-  // Only render time-dependent content after mounting
+  // Load tournaments from storage
   useEffect(() => {
     setIsMounted(true);
+    setTournaments(getAllTournaments());
   }, []);
 
-  const filteredGames = MOCK_GAMES.filter((game) => {
+  // Filter tournaments
+  const filteredGames = tournaments.filter((game) => {
     const matchesSearch =
       game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      game.gameType.toLowerCase().includes(searchQuery.toLowerCase());
+      game.gameTypeLabel.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTab =
       selectedTab === "all" ||
       (selectedTab === "open" && game.status === "Open") ||
@@ -106,17 +51,24 @@ export default function TournamentsPage() {
     return matchesSearch && matchesTab;
   });
 
-  const handleJoin = async (gameAddress: string, entryFee: string) => {
-    if (!isConnected) {
+  const handleJoin = async (gameId: string, entryFee: string) => {
+    if (!isConnected || !address) {
       toast.error("Please connect your wallet first");
       return;
     }
 
-    setJoining(gameAddress);
+    setJoining(gameId);
     try {
       // Simulate blockchain transaction
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast.success("Successfully joined the tournament!");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Join tournament with real storage
+      const success = joinTournament(gameId, address);
+      if (success) {
+        toast.success("Successfully joined the tournament!");
+        // Reload tournaments
+        setTournaments(getAllTournaments());
+      }
     } catch (error) {
       toast.error("Failed to join tournament");
     } finally {
@@ -127,7 +79,8 @@ export default function TournamentsPage() {
   // Format time - only calculate on client side
   const formatTime = (startTimeOffset: number) => {
     if (!isMounted) return "";
-    const startTime = Date.now() + startTimeOffset;
+    // startTimeOffset is in minutes, convert to milliseconds
+    const startTime = Date.now() + startTimeOffset * 60 * 1000;
     const date = new Date(startTime);
     return date.toLocaleString("en-US", {
       month: "short",
@@ -139,10 +92,11 @@ export default function TournamentsPage() {
 
   const getTimeRemaining = (startTimeOffset: number) => {
     if (!isMounted) return "";
-    const startTime = Date.now() + startTimeOffset;
+    // startTimeOffset is in minutes, convert to milliseconds
+    const startTime = Date.now() + startTimeOffset * 60 * 1000;
     const diff = startTime - Date.now();
 
-    if (diff <= 0) return "Started";
+    if (diff <= 0) return "Now";
 
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -264,7 +218,7 @@ export default function TournamentsPage() {
                     variant="outline"
                     className="border-white/20 text-gray-300 mb-4"
                   >
-                    {game.gameType}
+                    {game.gameTypeIcon} {game.gameTypeLabel}
                   </Badge>
                 </div>
 
@@ -309,12 +263,12 @@ export default function TournamentsPage() {
 
                   <Button
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                    onClick={() => handleJoin(game.address, game.entryFee)}
+                    onClick={() => handleJoin(game.id, game.entryFee)}
                     disabled={
-                      joining === game.address || game.status === "Full"
+                      joining === game.id || game.status === "Full"
                     }
                   >
-                    {joining === game.address ? (
+                    {joining === game.id ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Joining...
