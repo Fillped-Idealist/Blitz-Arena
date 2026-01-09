@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Swords, Zap, Heart, Shield, TrendingUp, Target, Play, X } from 'lucide-react';
+import { Swords, Zap, Heart, Shield, TrendingUp, Target, Play, X, Maximize2, Volume2 } from 'lucide-react';
 
 interface RoguelikeSurvivalGameProps {
   onComplete: (result: GameResult) => void;
@@ -176,7 +176,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const [score, setScore] = useState(0);
   const [showTutorial, setShowTutorial] = useState(true);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  const [availableSkill, setAvailableSkill] = useState<Skill | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // 游戏数据
   const playerRef = useRef<Player>({
@@ -206,16 +208,88 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const monsterIdCounterRef = useRef(0);
   const projectileIdCounterRef = useRef(0);
 
+  // 音频上下文
+  const audioContextRef = useRef<AudioContext | null>(null);
+
   // 输入状态
   const keysRef = useRef<Record<string, boolean>>({});
   const mouseRef = useRef({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 });
 
   // Canvas 引用
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const monsterSpawnTimerRef = useRef<number>(0);
   const gameTimerRef = useRef<number>(0);
+  const autoAttackTimerRef = useRef<number>(0);
+
+  // 初始化音频系统
+  const initAudio = useCallback(() => {
+    if (typeof window !== 'undefined' && !audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+  }, []);
+
+  // 播放音效
+  const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage') => {
+    if (!soundEnabled || !audioContextRef.current) return;
+
+    try {
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      switch (type) {
+        case 'hit':
+          oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
+          gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.1);
+          break;
+        case 'kill':
+          oscillator.frequency.setValueAtTime(300, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+          gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.15);
+          break;
+        case 'levelup':
+          oscillator.frequency.setValueAtTime(400, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.2);
+          oscillator.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.4);
+          gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.4);
+          break;
+        case 'shoot':
+          oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
+          gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.05);
+          break;
+        case 'damage':
+          oscillator.frequency.setValueAtTime(150, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.2);
+          gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.2);
+          break;
+      }
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+  }, [soundEnabled]);
 
   // 计算游戏难度系数（时间越久，怪物越强）
   const getDifficultyMultiplier = useCallback((): number => {
@@ -334,71 +408,71 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return Math.sqrt(dx * dx + dy * dy) < r1 + r2;
   }, []);
 
-  // 近战攻击
-  const meleeAttack = useCallback((mouseX: number, mouseY: number) => {
+  // 近战攻击（自动：检测范围内的敌人）
+  const autoMeleeAttack = useCallback(() => {
     const player = playerRef.current;
     const now = Date.now();
     const attackCooldown = 1000 / player.attackSpeed;
 
     if (now - player.lastAttack < attackCooldown) return;
+
+    // 检查范围内最近的敌人
+    let nearestMonster: Monster | null = null;
+    let nearestDist = Infinity;
+
+    for (const monster of monstersRef.current) {
+      const dx = monster.x - player.x;
+      const dy = monster.y - player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < player.attackRange && dist < nearestDist) {
+        nearestDist = dist;
+        nearestMonster = monster;
+      }
+    }
+
+    if (!nearestMonster) return;
+
     player.lastAttack = now;
 
-    // 计算攻击方向
-    const dx = mouseX - player.x;
-    const dy = mouseY - player.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    // 计算伤害
+    const isCrit = Math.random() < player.critRate;
+    const damage = isCrit ? player.meleeDamage * player.critMultiplier : player.meleeDamage;
 
-    if (distance > player.attackRange) return;
+    nearestMonster.hp -= damage;
+    createParticles(nearestMonster.x, nearestMonster.y, '#ffeb3b', 8);
+    createDamageNumber(nearestMonster.x, nearestMonster.y, Math.floor(damage), isCrit);
+    playSound('hit');
 
-    const angle = Math.atan2(dy, dx);
-
-    // 检查扇形范围内的敌人
-    monstersRef.current.forEach(monster => {
-      const mdx = monster.x - player.x;
-      const mdy = monster.y - player.y;
-      const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
-      const mAngle = Math.atan2(mdy, mdx);
-      const angleDiff = Math.abs(mAngle - angle);
-
-      // 90度扇形范围
-      if (mDistance < player.attackRange && angleDiff < Math.PI / 4) {
-        // 计算伤害
-        const isCrit = Math.random() < player.critRate;
-        const damage = isCrit ? player.meleeDamage * player.critMultiplier : player.meleeDamage;
-
-        monster.hp -= damage;
-        createParticles(monster.x, monster.y, '#ffeb3b', 8);
-        createDamageNumber(monster.x, monster.y, Math.floor(damage), isCrit);
-
-        if (monster.hp <= 0) {
-          player.exp += monster.exp;
-          createParticles(monster.x, monster.y, monster.color, 12);
-          setScore(prev => prev + Math.floor(monster.exp));
-        }
-      }
-    });
+    if (nearestMonster.hp <= 0) {
+      player.exp += nearestMonster.exp;
+      createParticles(nearestMonster.x, nearestMonster.y, nearestMonster.color, 12);
+      setScore(prev => prev + Math.floor(nearestMonster.exp));
+      playSound('kill');
+    }
 
     // 创建攻击特效
+    const angle = Math.atan2(nearestMonster.y - player.y, nearestMonster.x - player.x);
     const attackX = player.x + Math.cos(angle) * player.attackRange / 2;
     const attackY = player.y + Math.sin(angle) * player.attackRange / 2;
     createParticles(attackX, attackY, '#ffffff', 6);
-  }, [createParticles, createDamageNumber]);
+  }, [createParticles, createDamageNumber, playSound]);
 
-  // 远程攻击
-  const rangedAttack = useCallback((mouseX: number, mouseY: number) => {
+  // 远程攻击（自动：向鼠标方向射击）
+  const autoRangedAttack = useCallback(() => {
     const player = playerRef.current;
     const now = Date.now();
     const attackCooldown = 1000 / player.attackSpeed;
 
     if (now - player.lastAttack < attackCooldown) return;
-    player.lastAttack = now;
 
-    const dx = mouseX - player.x;
-    const dy = mouseY - player.y;
+    const dx = mouseRef.current.x - player.x;
+    const dy = mouseRef.current.y - player.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance < 1) return;
 
+    player.lastAttack = now;
     const angle = Math.atan2(dy, dx);
 
     // 限制最大投射物数量
@@ -413,8 +487,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         speed: 10,
         bounceCount: player.arrowCount
       });
+      playSound('shoot');
     }
-  }, []);
+  }, [playSound]);
 
   // 升级处理
   const handleLevelUp = useCallback(() => {
@@ -423,16 +498,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     player.exp = 0;
     player.expToNext = Math.floor(player.expToNext * 1.5);
 
-    // 随机选择3个技能
+    // 随机选择1个技能
     const shuffled = [...SKILL_POOL].sort(() => Math.random() - 0.5);
-    setAvailableSkills(shuffled.slice(0, 3));
+    setAvailableSkill(shuffled[0]);
     setShowLevelUp(true);
 
     // 暂停游戏
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
-  }, []);
+
+    playSound('levelup');
+  }, [playSound]);
 
   // 选择技能
   const selectSkill = useCallback((skill: Skill) => {
@@ -458,247 +535,277 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1); // 限制最大delta防止跳帧
       lastTimeRef.current = now;
 
-    // 清空画布
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      // 清空画布
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 绘制网格
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < CANVAS_WIDTH; x += 40) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, CANVAS_HEIGHT);
-      ctx.stroke();
-    }
-    for (let y = 0; y < CANVAS_HEIGHT; y += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(CANVAS_WIDTH, y);
-      ctx.stroke();
-    }
-
-    const player = playerRef.current;
-
-    // 更新玩家位置
-    let dx = 0, dy = 0;
-    if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
-    if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
-    if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
-    if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
-
-    if (dx !== 0 || dy !== 0) {
-      const length = Math.sqrt(dx * dx + dy * dy);
-      dx /= length;
-      dy /= length;
-
-      player.x += dx * player.speed;
-      player.y += dy * player.speed;
-
-      // 边界检测
-      player.x = Math.max(PLAYER_SIZE, Math.min(CANVAS_WIDTH - PLAYER_SIZE, player.x));
-      player.y = Math.max(PLAYER_SIZE, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, player.y));
-    }
-
-    // 生成怪物（难度越高，生成越快）
-    const difficulty = getDifficultyMultiplier();
-    monsterSpawnTimerRef.current += deltaTime;
-    const spawnInterval = Math.max(0.5, 2 - difficulty * 0.5);
-
-    if (monsterSpawnTimerRef.current >= spawnInterval) {
-      spawnMonster();
-      monsterSpawnTimerRef.current = 0;
-    }
-
-    // 更新怪物
-    monstersRef.current = monstersRef.current.filter(monster => {
-      // 向玩家移动
-      const mdx = player.x - monster.x;
-      const mdy = player.y - monster.y;
-      const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
-
-      if (mDistance > 0) {
-        monster.x += (mdx / mDistance) * monster.speed;
-        monster.y += (mdy / mDistance) * monster.speed;
+      // 绘制网格
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < CANVAS_WIDTH; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, CANVAS_HEIGHT);
+        ctx.stroke();
+      }
+      for (let y = 0; y < CANVAS_HEIGHT; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(CANVAS_WIDTH, y);
+        ctx.stroke();
       }
 
-      // 碰撞检测 - 攻击玩家
-      const now = Date.now();
-      if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
-        if (now - monster.lastAttack > 1000) {
-          player.hp -= monster.damage;
-          monster.lastAttack = now;
-          createDamageNumber(player.x, player.y, monster.damage, false);
+      const player = playerRef.current;
 
-          if (player.hp <= 0) {
-            endGame();
-            return false;
+      // 更新玩家位置
+      let dx = 0, dy = 0;
+      if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
+      if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
+      if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
+      if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
+
+      if (dx !== 0 || dy !== 0) {
+        const length = Math.sqrt(dx * dx + dy * dy);
+        dx /= length;
+        dy /= length;
+
+        player.x += dx * player.speed;
+        player.y += dy * player.speed;
+
+        // 边界检测
+        player.x = Math.max(PLAYER_SIZE, Math.min(CANVAS_WIDTH - PLAYER_SIZE, player.x));
+        player.y = Math.max(PLAYER_SIZE, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, player.y));
+      }
+
+      // 生成怪物（难度越高，生成越快）
+      const difficulty = getDifficultyMultiplier();
+      monsterSpawnTimerRef.current += deltaTime;
+      const spawnInterval = Math.max(0.5, 2 - difficulty * 0.5);
+
+      if (monsterSpawnTimerRef.current >= spawnInterval) {
+        spawnMonster();
+        monsterSpawnTimerRef.current = 0;
+      }
+
+      // 自动攻击
+      autoAttackTimerRef.current += deltaTime;
+      const autoAttackInterval = 1 / player.attackSpeed;
+
+      if (autoAttackTimerRef.current >= autoAttackInterval) {
+        autoAttackTimerRef.current = 0;
+
+        // 优先近战攻击
+        let hasNearbyEnemy = false;
+        for (const monster of monstersRef.current) {
+          const mdx = monster.x - player.x;
+          const mdy = monster.y - player.y;
+          const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+
+          if (mDistance < player.attackRange) {
+            hasNearbyEnemy = true;
+            break;
           }
+        }
+
+        if (hasNearbyEnemy) {
+          autoMeleeAttack();
+        } else {
+          autoRangedAttack();
         }
       }
 
-      // 绘制怪物
-      ctx.fillStyle = monster.color;
+      // 更新怪物
+      monstersRef.current = monstersRef.current.filter(monster => {
+        // 向玩家移动
+        const mdx = player.x - monster.x;
+        const mdy = player.y - monster.y;
+        const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+
+        if (mDistance > 0) {
+          monster.x += (mdx / mDistance) * monster.speed;
+          monster.y += (mdy / mDistance) * monster.speed;
+        }
+
+        // 碰撞检测 - 攻击玩家
+        const now = Date.now();
+        if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
+          if (now - monster.lastAttack > 1000) {
+            player.hp -= monster.damage;
+            monster.lastAttack = now;
+            createDamageNumber(player.x, player.y, monster.damage, false);
+            playSound('damage');
+
+            if (player.hp <= 0) {
+              endGame();
+              return false;
+            }
+          }
+        }
+
+        // 绘制怪物
+        ctx.fillStyle = monster.color;
+        ctx.beginPath();
+        ctx.arc(monster.x, monster.y, monster.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 怪物血条
+        const hpPercent = monster.hp / monster.maxHp;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 8, monster.size * 2, 4);
+        ctx.fillStyle = hpPercent > 0.3 ? '#4caf50' : '#f44336';
+        ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 8, monster.size * 2 * hpPercent, 4);
+
+        return monster.hp > 0;
+      });
+
+      // 更新投射物
+      projectilesRef.current = projectilesRef.current.filter(projectile => {
+        projectile.x += projectile.vx;
+        projectile.y += projectile.vy;
+
+        // 边界反弹
+        if (projectile.x <= 0 || projectile.x >= CANVAS_WIDTH) {
+          projectile.vx *= -1;
+          projectile.bounceCount--;
+        }
+        if (projectile.y <= 0 || projectile.y >= CANVAS_HEIGHT) {
+          projectile.vy *= -1;
+          projectile.bounceCount--;
+        }
+
+        // 绘制投射物
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 绘制拖尾
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(projectile.x, projectile.y);
+        ctx.lineTo(projectile.x - projectile.vx * 0.5, projectile.y - projectile.vy * 0.5);
+        ctx.stroke();
+
+        // 碰撞检测
+        for (const monster of monstersRef.current) {
+          if (checkCollision(projectile.x, projectile.y, 6, monster.x, monster.y, monster.size)) {
+            const isCrit = Math.random() < player.critRate;
+            const damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
+
+            monster.hp -= damage;
+            createParticles(projectile.x, projectile.y, '#87ceeb', 5);
+            createDamageNumber(monster.x, monster.y, Math.floor(damage), isCrit);
+            playSound('hit');
+
+            if (projectile.bounceCount <= 0) {
+              return false;
+            }
+
+            if (monster.hp <= 0) {
+              player.exp += monster.exp;
+              createParticles(monster.x, monster.y, monster.color, 12);
+              setScore(prev => prev + Math.floor(monster.exp));
+              playSound('kill');
+            }
+            break;
+          }
+        }
+
+        // 超出边界或没有反弹次数
+        if (projectile.x < -50 || projectile.x > CANVAS_WIDTH + 50 ||
+            projectile.y < -50 || projectile.y > CANVAS_HEIGHT + 50 ||
+            projectile.bounceCount < 0) {
+          return false;
+        }
+
+        return true;
+      });
+
+      // 更新粒子
+      particlesRef.current = particlesRef.current.filter(particle => {
+        particle.life -= deltaTime;
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vy += 0.1; // 重力
+
+        if (particle.life <= 0) return false;
+
+        const alpha = particle.life / particle.maxLife;
+        ctx.fillStyle = particle.color;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        return true;
+      });
+
+      // 更新伤害数字
+      damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
+        dn.life -= deltaTime;
+        dn.y -= 1;
+
+        if (dn.life <= 0) return false;
+
+        const alpha = dn.life / dn.maxLife;
+        ctx.fillStyle = dn.isCrit ? '#ff9800' : '#ffffff';
+        ctx.globalAlpha = alpha;
+        ctx.font = dn.isCrit ? 'bold 24px monospace' : '16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(dn.damage.toString(), dn.x, dn.y);
+        ctx.globalAlpha = 1;
+
+        return true;
+      });
+
+      // 绘制玩家
+      ctx.fillStyle = '#4fc3f7';
       ctx.beginPath();
-      ctx.arc(monster.x, monster.y, monster.size, 0, Math.PI * 2);
+      ctx.arc(player.x, player.y, PLAYER_SIZE, 0, Math.PI * 2);
       ctx.fill();
 
-      // 怪物血条
-      const hpPercent = monster.hp / monster.maxHp;
+      // 玩家方向指示器
+      const angle = Math.atan2(mouseRef.current.y - player.y, mouseRef.current.x - player.x);
+      ctx.strokeStyle = '#4fc3f7';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(
+        player.x + Math.cos(angle) * 30,
+        player.y + Math.sin(angle) * 30
+      );
+      ctx.stroke();
+
+      // 玩家血条
+      const hpPercent = player.hp / player.maxHp;
       ctx.fillStyle = '#333';
-      ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 8, monster.size * 2, 4);
+      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 12, 60, 6);
       ctx.fillStyle = hpPercent > 0.3 ? '#4caf50' : '#f44336';
-      ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 8, monster.size * 2 * hpPercent, 4);
+      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 12, 60 * hpPercent, 6);
 
-      return monster.hp > 0;
-    });
+      // 经验条
+      const expPercent = player.exp / player.expToNext;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60, 4);
+      ctx.fillStyle = '#ffeb3b';
+      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60 * expPercent, 4);
 
-    // 更新投射物
-    projectilesRef.current = projectilesRef.current.filter(projectile => {
-      projectile.x += projectile.vx;
-      projectile.y += projectile.vy;
-
-      // 边界反弹
-      if (projectile.x <= 0 || projectile.x >= CANVAS_WIDTH) {
-        projectile.vx *= -1;
-        projectile.bounceCount--;
-      }
-      if (projectile.y <= 0 || projectile.y >= CANVAS_HEIGHT) {
-        projectile.vy *= -1;
-        projectile.bounceCount--;
+      // 检查升级
+      if (player.exp >= player.expToNext) {
+        handleLevelUp();
+        return;
       }
 
-      // 绘制投射物
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 绘制拖尾
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(projectile.x, projectile.y);
-      ctx.lineTo(projectile.x - projectile.vx * 0.5, projectile.y - projectile.vy * 0.5);
-      ctx.stroke();
-
-      // 碰撞检测
-      for (const monster of monstersRef.current) {
-        if (checkCollision(projectile.x, projectile.y, 6, monster.x, monster.y, monster.size)) {
-          const isCrit = Math.random() < player.critRate;
-          const damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
-
-          monster.hp -= damage;
-          createParticles(projectile.x, projectile.y, '#87ceeb', 5);
-          createDamageNumber(monster.x, monster.y, Math.floor(damage), isCrit);
-
-          if (projectile.bounceCount <= 0) {
-            return false;
-          }
-
-          if (monster.hp <= 0) {
-            player.exp += monster.exp;
-            createParticles(monster.x, monster.y, monster.color, 12);
-            setScore(prev => prev + Math.floor(monster.exp));
-          }
-          break;
-        }
-      }
-
-      // 超出边界或没有反弹次数
-      if (projectile.x < -50 || projectile.x > CANVAS_WIDTH + 50 ||
-          projectile.y < -50 || projectile.y > CANVAS_HEIGHT + 50 ||
-          projectile.bounceCount < 0) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // 更新粒子
-    particlesRef.current = particlesRef.current.filter(particle => {
-      particle.life -= deltaTime;
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-      particle.vy += 0.1; // 重力
-
-      if (particle.life <= 0) return false;
-
-      const alpha = particle.life / particle.maxLife;
-      ctx.fillStyle = particle.color;
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      return true;
-    });
-
-    // 更新伤害数字
-    damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
-      dn.life -= deltaTime;
-      dn.y -= 1;
-
-      if (dn.life <= 0) return false;
-
-      const alpha = dn.life / dn.maxLife;
-      ctx.fillStyle = dn.isCrit ? '#ff9800' : '#ffffff';
-      ctx.globalAlpha = alpha;
-      ctx.font = dn.isCrit ? 'bold 24px monospace' : '16px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(dn.damage.toString(), dn.x, dn.y);
-      ctx.globalAlpha = 1;
-
-      return true;
-    });
-
-    // 绘制玩家
-    ctx.fillStyle = '#4fc3f7';
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, PLAYER_SIZE, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 玩家方向指示器
-    const angle = Math.atan2(mouseRef.current.y - player.y, mouseRef.current.x - player.x);
-    ctx.strokeStyle = '#4fc3f7';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y);
-    ctx.lineTo(
-      player.x + Math.cos(angle) * 30,
-      player.y + Math.sin(angle) * 30
-    );
-    ctx.stroke();
-
-    // 玩家血条
-    const hpPercent = player.hp / player.maxHp;
-    ctx.fillStyle = '#333';
-    ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 12, 60, 6);
-    ctx.fillStyle = hpPercent > 0.3 ? '#4caf50' : '#f44336';
-    ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 12, 60 * hpPercent, 6);
-
-    // 经验条
-    const expPercent = player.exp / player.expToNext;
-    ctx.fillStyle = '#333';
-    ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60, 4);
-    ctx.fillStyle = '#ffeb3b';
-    ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60 * expPercent, 4);
-
-    // 检查升级
-    if (player.exp >= player.expToNext) {
-      handleLevelUp();
-      return;
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
+    } catch (error) {
+      console.error('Game loop error:', error);
+      // 出错时尝试继续游戏循环
+      lastTimeRef.current = performance.now();
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
-
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
-  } catch (error) {
-    console.error('Game loop error:', error);
-    // 出错时尝试继续游戏循环
-    lastTimeRef.current = performance.now();
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
-  }
-  }, [checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, meleeAttack, rangedAttack, spawnMonster]);
+  }, [checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound]);
 
   // 开始游戏
   const startGame = () => {
@@ -709,6 +816,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     setShowTutorial(false);
     setShowLevelUp(false);
 
+    // 初始化音频
+    initAudio();
+
     // 初始化游戏状态
     initPlayer();
     monstersRef.current = [];
@@ -718,6 +828,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     monsterIdCounterRef.current = 0;
     projectileIdCounterRef.current = 0;
     monsterSpawnTimerRef.current = 0;
+    autoAttackTimerRef.current = 0;
 
     // 启动游戏循环
     lastTimeRef.current = performance.now();
@@ -750,6 +861,26 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     toast.success(`游戏结束！得分：${score}`);
   };
 
+  // 全屏切换
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  // 监听全屏变化
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // 清理
   useEffect(() => {
     return () => {
@@ -758,6 +889,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
       }
     };
   }, []);
@@ -792,32 +926,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       mouseRef.current.y = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
     };
 
-    const handleMouseDown = (e: MouseEvent) => {
-      if (!gameStarted || showLevelUp) return;
-
-      if (e.button === 0) {
-        // 左键 - 近战攻击
-        meleeAttack(mouseRef.current.x, mouseRef.current.y);
-      } else if (e.button === 2) {
-        // 右键 - 远程攻击
-        rangedAttack(mouseRef.current.x, mouseRef.current.y);
-      }
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-
     canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [gameStarted, showLevelUp, meleeAttack, rangedAttack]);
+  }, [gameStarted, showLevelUp]);
 
   // 提交结果
   const handleSubmit = async () => {
@@ -876,7 +990,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-5xl mx-auto"
+      className="w-full max-w-6xl mx-auto"
     >
       <Card className="p-6 bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/20">
         <div className="space-y-6">
@@ -908,9 +1022,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                         <p className="font-semibold mb-2">操作方式</p>
                         <ul className="space-y-1 text-gray-400">
                           <li>• WASD 或 方向键：移动</li>
-                          <li>• 鼠标左键：近战攻击（剑）</li>
-                          <li>• 鼠标右键：远程攻击（弓箭）</li>
-                          <li>• 鼠标：控制攻击方向</li>
+                          <li>• 鼠标：控制瞄准方向</li>
+                          <li>• 近战：靠近怪物自动攻击</li>
+                          <li>• 远程：自动向鼠标方向射击</li>
                         </ul>
                       </div>
                       <div>
@@ -918,7 +1032,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                         <ul className="space-y-1 text-gray-400">
                           <li>• 游戏时间：10分钟</li>
                           <li>• 击杀怪物获得经验升级</li>
-                          <li>• 升级可选择强化技能</li>
+                          <li>• 每次升级选择1个技能</li>
                           <li>• 难度随时间逐渐增加</li>
                         </ul>
                       </div>
@@ -946,7 +1060,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 className="space-y-4"
               >
                 {/* 状态显示 */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div className="bg-purple-500/10 rounded-lg p-3 text-center">
                     <div className="text-2xl font-bold text-purple-400">{formatTime(timeLeft)}</div>
                     <div className="text-xs text-gray-400 mt-1">剩余时间</div>
@@ -963,10 +1077,28 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                     <div className="text-xl font-bold text-red-400">{Math.floor(player.hp)}/{player.maxHp}</div>
                     <div className="text-xs text-gray-400 mt-1">生命值</div>
                   </div>
+                  <div className="bg-green-500/10 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleFullscreen}
+                      className="text-white hover:bg-white/10"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSoundEnabled(!soundEnabled)}
+                      className="text-white hover:bg-white/10"
+                    >
+                      <Volume2 className={`w-4 h-4 ${!soundEnabled ? 'opacity-50' : ''}`} />
+                    </Button>
+                  </div>
                 </div>
 
                 {/* 游戏画布 */}
-                <div className="relative rounded-xl overflow-hidden border border-purple-500/20">
+                <div ref={containerRef} className="relative rounded-xl overflow-hidden border border-purple-500/20">
                   <canvas
                     ref={canvasRef}
                     width={CANVAS_WIDTH}
@@ -1053,7 +1185,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           {/* 升级选择界面 */}
           <AnimatePresence>
-            {showLevelUp && (
+            {showLevelUp && availableSkill && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1063,28 +1195,23 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 <motion.div
                   initial={{ scale: 0.9, y: 20 }}
                   animate={{ scale: 1, y: 0 }}
-                  className="bg-gray-900 rounded-xl p-6 max-w-2xl w-full"
+                  className="bg-gray-900 rounded-xl p-6 max-w-md w-full"
                 >
                   <h3 className="text-2xl font-bold text-center text-yellow-400 mb-6">
                     🎉 升级了！选择一个技能
                   </h3>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    {availableSkills.map((skill, index) => (
-                      <Button
-                        key={skill.id}
-                        onClick={() => selectSkill(skill)}
-                        className="h-auto p-6 bg-gradient-to-br from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-500/30 flex flex-col items-center gap-3"
-                      >
-                        <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                          {skill.icon}
-                        </div>
-                        <div className="text-center">
-                          <p className="font-semibold text-white">{skill.name}</p>
-                          <p className="text-xs text-gray-400 mt-1">{skill.description}</p>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
+                  <Button
+                    onClick={() => selectSkill(availableSkill)}
+                    className="w-full h-auto p-6 bg-gradient-to-br from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-500/30 flex items-center gap-4"
+                  >
+                    <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                      {availableSkill.icon}
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-white text-lg">{availableSkill.name}</p>
+                      <p className="text-sm text-gray-400 mt-1">{availableSkill.description}</p>
+                    </div>
+                  </Button>
                 </motion.div>
               </motion.div>
             )}
