@@ -1,0 +1,17 @@
+{
+  "frames": [
+    {"filename": "idle_0", "frame": {"x": 0, "y": 0, "w": 32, "h": 32}},
+    {"filename": "idle_1", "frame": {"x": 32, "y": 0, "w": 32, "h": 32}},
+    {"filename": "run_0", "frame": {"x": 64, "y": 0, "w": 32, "h": 32}},
+    {"filename": "run_1", "frame": {"x": 96, "y": 0, "w": 32, "h": 32}}
+  ],
+  "animations": {
+    "idle": ["idle_0", "idle_1"],
+    "run": ["run_0", "run_1"]
+  },
+  "meta": {
+    "format": "RGBA8888",
+    "size": {"w": 128, "h": 64},
+    "scale": "1"
+  }
+}

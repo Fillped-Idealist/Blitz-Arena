@@ -1,0 +1,19 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="magicGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <radialGradient id="magicGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#9B59B6" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#6C3483" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="8" cy="8" r="5" fill="url(#magicGradient)" filter="url(#magicGlow)"/>
+  <!-- 魔法星形 -->
+  <path d="M8,3 L9,7 L13,7 L10,9 L11,13 L8,11 L5,13 L6,9 L3,7 L7,7 Z" fill="#E74C3C" opacity="0.8" filter="url(#magicGlow)"/>
+</svg>

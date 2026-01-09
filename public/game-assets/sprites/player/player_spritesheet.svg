@@ -1,0 +1,126 @@
+<svg width="128" height="64" viewBox="0 0 128 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义滤镜和渐变 -->
+  <defs>
+    <filter id="playerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <radialGradient id="bodyGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF6B6B"/>
+      <stop offset="100%" stop-color="#C92A2A"/>
+    </radialGradient>
+    
+    <linearGradient id="capeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B6B" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#C92A2A" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 第1帧：Idle 1 -->
+  <g transform="translate(0, 0)">
+    <!-- 披风 -->
+    <path d="M8,24 Q12,40 8,52" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    <path d="M24,24 Q20,42 24,52" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    
+    <!-- 身体 -->
+    <ellipse cx="16" cy="24" rx="8" ry="10" fill="url(#bodyGradient)" filter="url(#playerGlow)"/>
+    <ellipse cx="16" cy="24" rx="8" ry="10" fill="none" stroke="#C92A2A" stroke-width="1.5"/>
+    
+    <!-- 头盔 -->
+    <path d="M8,20 Q16,10 24,20" fill="#2D3436" stroke="#636E72" stroke-width="1"/>
+    <rect x="14" y="18" width="4" height="6" rx="1" fill="#74B9FF"/>
+    
+    <!-- 眼睛 -->
+    <ellipse cx="12" cy="24" rx="2" ry="1.5" fill="#FFF"/>
+    <ellipse cx="20" cy="24" rx="2" ry="1.5" fill="#FFF"/>
+    
+    <!-- 剑 -->
+    <rect x="24" y="18" width="3" height="16" fill="#DFE6E9"/>
+    <rect x="24" y="34" width="3" height="6" fill="#636E72"/>
+    <rect x="21" y="16" width="9" height="3" fill="#B2BEC3"/>
+  </g>
+
+  <!-- 第2帧：Idle 2 -->
+  <g transform="translate(32, 0)">
+    <!-- 披风（轻微摆动） -->
+    <path d="M8,24 Q10,42 6,52" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    <path d="M24,24 Q22,40 26,52" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    
+    <!-- 身体（轻微上下移动） -->
+    <ellipse cx="16" cy="23" rx="8" ry="10" fill="url(#bodyGradient)" filter="url(#playerGlow)"/>
+    <ellipse cx="16" cy="23" rx="8" ry="10" fill="none" stroke="#C92A2A" stroke-width="1.5"/>
+    
+    <!-- 头盔 -->
+    <path d="M8,19 Q16,9 24,19" fill="#2D3436" stroke="#636E72" stroke-width="1"/>
+    <rect x="14" y="17" width="4" height="6" rx="1" fill="#74B9FF"/>
+    
+    <!-- 眼睛 -->
+    <ellipse cx="12" cy="23" rx="2" ry="1.5" fill="#FFF"/>
+    <ellipse cx="20" cy="23" rx="2" ry="1.5" fill="#FFF"/>
+    
+    <!-- 剑（轻微摆动） -->
+    <rect x="24" y="17" width="3" height="16" fill="#DFE6E9"/>
+    <rect x="24" y="33" width="3" height="6" fill="#636E72"/>
+    <rect x="21" y="15" width="9" height="3" fill="#B2BEC3"/>
+  </g>
+
+  <!-- 第3帧：Run 1 -->
+  <g transform="translate(64, 0)">
+    <!-- 披风（向后飘动） -->
+    <path d="M8,24 Q4,38 2,50" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    <path d="M24,24 Q26,38 28,48" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    
+    <!-- 身体（前倾） -->
+    <ellipse cx="16" cy="24" rx="8" ry="10" fill="url(#bodyGradient)" filter="url(#playerGlow)"/>
+    <ellipse cx="16" cy="24" rx="8" ry="10" fill="none" stroke="#C92A2A" stroke-width="1.5"/>
+    
+    <!-- 头盔 -->
+    <path d="M9,20 Q16,10 23,20" fill="#2D3436" stroke="#636E72" stroke-width="1"/>
+    <rect x="14" y="18" width="4" height="6" rx="1" fill="#74B9FF"/>
+    
+    <!-- 眼睛 -->
+    <ellipse cx="12" cy="24" rx="2" ry="1.5" fill="#FFF"/>
+    <ellipse cx="20" cy="24" rx="2" ry="1.5" fill="#FFF"/>
+    
+    <!-- 腿部运动 -->
+    <line x1="14" y1="32" x2="12" y2="44" stroke="#2D3436" stroke-width="3" stroke-linecap="round"/>
+    <line x1="18" y1="32" x2="20" y2="40" stroke="#2D3436" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- 剑（举起） -->
+    <rect x="24" y="14" width="3" height="18" fill="#DFE6E9"/>
+    <rect x="24" y="32" width="3" height="6" fill="#636E72"/>
+    <rect x="20" y="11" width="11" height="3" fill="#B2BEC3"/>
+  </g>
+
+  <!-- 第4帧：Run 2 -->
+  <g transform="translate(96, 0)">
+    <!-- 披风（向后飘动更明显） -->
+    <path d="M8,24 Q2,36 0,48" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    <path d="M24,24 Q28,36 30,46" stroke="#FF6B6B" stroke-width="3" fill="url(#capeGradient)" filter="url(#playerGlow)"/>
+    
+    <!-- 身体（更前倾） -->
+    <ellipse cx="16" cy="25" rx="8" ry="10" fill="url(#bodyGradient)" filter="url(#playerGlow)"/>
+    <ellipse cx="16" cy="25" rx="8" ry="10" fill="none" stroke="#C92A2A" stroke-width="1.5"/>
+    
+    <!-- 头盔 -->
+    <path d="M10,21 Q16,11 22,21" fill="#2D3436" stroke="#636E72" stroke-width="1"/>
+    <rect x="14" y="19" width="4" height="6" rx="1" fill="#74B9FF"/>
+    
+    <!-- 眼睛 -->
+    <ellipse cx="12" cy="25" rx="2" ry="1.5" fill="#FFF"/>
+    <ellipse cx="20" cy="25" rx="2" ry="1.5" fill="#FFF"/>
+    
+    <!-- 腿部运动（另一侧） -->
+    <line x1="14" y1="33" x2="18" y2="42" stroke="#2D3436" stroke-width="3" stroke-linecap="round"/>
+    <line x1="18" y1="33" x2="16" y2="45" stroke="#2D3436" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- 剑（向前挥） -->
+    <rect x="24" y="16" width="3" height="18" fill="#DFE6E9" transform="rotate(-15, 24, 25)"/>
+    <rect x="23" y="32" width="4" height="6" fill="#636E72"/>
+    <rect x="18" y="13" width="10" height="3" fill="#B2BEC3" transform="rotate(-15, 21, 14)"/>
+  </g>
+</svg>

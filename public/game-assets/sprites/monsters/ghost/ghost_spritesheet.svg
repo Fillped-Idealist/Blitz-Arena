@@ -1,0 +1,59 @@
+<svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="ghostGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <radialGradient id="ghostGradient" cx="50%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#A0AEC0" stop-opacity="0.4"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 第1帧：Idle 1 -->
+  <g transform="translate(0, 0)">
+    <ellipse cx="16" cy="18" rx="10" ry="12" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+    <!-- 眼睛 -->
+    <circle cx="12" cy="14" r="3" fill="#2D3436"/>
+    <circle cx="20" cy="14" r="3" fill="#2D3436"/>
+    <!-- 嘴巴 -->
+    <path d="M12,22 Q16,26 20,22" stroke="#2D3436" stroke-width="2" fill="none"/>
+    <!-- 飘动的尾巴 -->
+    <path d="M10,28 Q6,32 8,36" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+    <path d="M22,28 Q26,32 24,36" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+  </g>
+
+  <!-- 第2帧：Idle 2 (上升) -->
+  <g transform="translate(64, 0)">
+    <ellipse cx="16" cy="16" rx="11" ry="13" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+    <circle cx="12" cy="12" r="3" fill="#2D3436"/>
+    <circle cx="20" cy="12" r="3" fill="#2D3436"/>
+    <path d="M12,20 Q16,24 20,20" stroke="#2D3436" stroke-width="2" fill="none"/>
+    <path d="M9,26 Q4,30 6,34" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+    <path d="M23,26 Q28,30 26,34" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+  </g>
+
+  <!-- 第3帧：Move 1 (向左) -->
+  <g transform="translate(128, 0)">
+    <ellipse cx="14" cy="18" rx="11" ry="12" fill="url(#ghostGradient)" filter="url(#ghostGlow)" transform="rotate(-5, 14, 18)"/>
+    <circle cx="10" cy="14" r="3" fill="#FF6B6B"/>
+    <circle cx="18" cy="14" r="3" fill="#FF6B6B"/>
+    <path d="M10,22 Q14,26 18,22" stroke="#2D3436" stroke-width="2" fill="none"/>
+    <path d="M8,28 Q2,32 4,38" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+    <path d="M20,28 Q26,32 24,38" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+  </g>
+
+  <!-- 第4帧：Move 2 (向右) -->
+  <g transform="translate(192, 0)">
+    <ellipse cx="18" cy="18" rx="11" ry="12" fill="url(#ghostGradient)" filter="url(#ghostGlow)" transform="rotate(5, 18, 18)"/>
+    <circle cx="14" cy="14" r="3" fill="#2D3436"/>
+    <circle cx="22" cy="14" r="3" fill="#2D3436"/>
+    <path d="M14,22 Q18,26 22,22" stroke="#2D3436" stroke-width="2" fill="none"/>
+    <path d="M12,28 Q6,32 8,38" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+    <path d="M24,28 Q30,32 28,38" stroke="#FFFFFF" stroke-width="2" fill="url(#ghostGradient)" filter="url(#ghostGlow)"/>
+  </g>
+</svg>

@@ -434,6 +434,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     }
   }, []);
 
+  // ==================== 屏幕震动 ====================
+
   // ==================== 伤害数字 ====================
   const createDamageNumber = useCallback((x: number, y: number, damage: number, isCrit: boolean) => {
     const color = isCrit ? '#FF6B6B' : '#FFFFFF';
@@ -666,7 +668,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       }
 
       const player = playerRef.current;
-
       // 更新玩家位置
       let dx = 0, dy = 0;
       if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;

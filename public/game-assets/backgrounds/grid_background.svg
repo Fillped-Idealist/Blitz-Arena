@@ -1,0 +1,27 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="gridPattern" width="64" height="64" patternUnits="userSpaceOnUse">
+      <!-- 深色背景 -->
+      <rect width="64" height="64" fill="#1a1a2e"/>
+      
+      <!-- 网格线 -->
+      <line x1="0" y1="32" x2="64" y2="32" stroke="#2d2d44" stroke-width="1"/>
+      <line x1="32" y1="0" x2="32" y2="64" stroke="#2d2d44" stroke-width="1"/>
+      
+      <!-- 中心装饰点 -->
+      <circle cx="32" cy="32" r="2" fill="#3d3d5c"/>
+    </pattern>
+  </defs>
+  
+  <!-- 使用pattern填充 -->
+  <rect width="64" height="64" fill="url(#gridPattern)"/>
+  
+  <!-- 添加渐变叠加 -->
+  <defs>
+    <radialGradient id="gridOverlay" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1a1a2e" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0d0d1a" stop-opacity="0.3"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#gridOverlay)"/>
+</svg>

@@ -1,0 +1,20 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="floorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d2d44"/>
+      <stop offset="50%" stop-color="#3d3d5c"/>
+      <stop offset="100%" stop-color="#2d2d44"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 瓷砖主体 -->
+  <rect x="0.5" y="0.5" width="31" height="31" fill="url(#floorGradient)" stroke="#4d4d6c" stroke-width="1"/>
+  
+  <!-- 砖缝 -->
+  <rect x="15.5" y="0" width="1" height="32" fill="#1a1a2e"/>
+  <rect x="0" y="15.5" width="32" height="1" fill="#1a1a2e"/>
+  
+  <!-- 砖面纹理 -->
+  <rect x="2" y="2" width="11" height="11" fill="#3d3d5c" opacity="0.3"/>
+  <rect x="19" y="19" width="11" height="11" fill="#3d3d5c" opacity="0.3"/>
+</svg>
