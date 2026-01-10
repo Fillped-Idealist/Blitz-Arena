@@ -103,7 +103,8 @@ interface Player {
   gameTime: number;
   invincible: boolean;
   invincibleTime: number;
-  autoLockLevel: number;  // 自动锁敌技能等级（0=未解锁）
+  autoLockLevel: number;  // 自动锁敌技能等级（0=未解锁，1=已解锁）
+  trackingMasteryLevel: number;  // 追踪精通等级（每级+20%伤害）
 }
 
 interface Monster {
@@ -616,51 +617,125 @@ const SKILL_POOL: Skill[] = [
   },
   // 自动锁敌被动技能（多等级可升级）
   {
-    id: 'auto_lock_lv1',
-    name: '自动追踪（Lv1）',
-    description: '每10秒自动发射1枚追踪导弹攻击最近的敌人（被动）',
+    id: 'auto_tracking',
+    name: '自动追踪',
+    description: '每6秒自动发射1枚追踪导弹攻击最近的敌人（被动）',
     type: 'passive',
-    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 1) }),
+    apply: (p) => ({ ...p, autoLockLevel: 1 }),
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.bolt
+  },
+  // 追踪精通系列（增加伤害）
+  {
+    id: 'tracking_mastery_1',
+    name: '追踪精通 I',
+    description: '自动追踪伤害 +20%（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
+    rarity: 'rare',
+    color: COLORS.rare,
+    icon: SKILL_ICONS.bolt
+  },
+  {
+    id: 'tracking_mastery_2',
+    name: '追踪精通 II',
+    description: '自动追踪伤害 +20%（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'epic',
     color: COLORS.epic,
     icon: SKILL_ICONS.bolt
   },
   {
-    id: 'auto_lock_lv2',
-    name: '自动追踪（Lv2）',
-    description: '每8秒自动发射2枚追踪导弹攻击最近的2个敌人（被动）',
+    id: 'tracking_mastery_3',
+    name: '追踪精通 III',
+    description: '自动追踪伤害 +20%（被动）',
     type: 'passive',
-    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 2) }),
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'legendary',
     color: COLORS.legendary,
     icon: SKILL_ICONS.bolt
   },
   {
-    id: 'auto_lock_lv3',
-    name: '自动追踪（Lv3）',
-    description: '每6秒自动发射3枚追踪导弹攻击最近的3个敌人，伤害x1.5（被动）',
+    id: 'tracking_mastery_4',
+    name: '追踪精通 IV',
+    description: '自动追踪伤害 +20%（被动）',
     type: 'passive',
-    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 3) }),
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'mythic',
     color: COLORS.mythic,
     icon: SKILL_ICONS.bolt
   },
+  // 追踪频率系列（缩短冷却）
   {
-    id: 'auto_lock_lv4',
-    name: '自动追踪（Lv4）',
-    description: '每5秒自动发射3枚追踪导弹攻击最近的3个敌人，伤害x2，穿透+2（被动）',
+    id: 'tracking_speed_1',
+    name: '追踪速度 I',
+    description: '自动追踪冷却时间 -1秒（被动）',
     type: 'passive',
-    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 4) }),
+    apply: (p) => p,
+    rarity: 'rare',
+    color: COLORS.rare,
+    icon: SKILL_ICONS.bolt
+  },
+  {
+    id: 'tracking_speed_2',
+    name: '追踪速度 II',
+    description: '自动追踪冷却时间 -1秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.bolt
+  },
+  {
+    id: 'tracking_speed_3',
+    name: '追踪速度 III',
+    description: '自动追踪冷却时间 -1秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.bolt
+  },
+  // 追踪多重（增加数量）
+  {
+    id: 'tracking_multishot_1',
+    name: '追踪多重 I',
+    description: '自动追踪同时攻击 +1个敌人（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.bolt
+  },
+  {
+    id: 'tracking_multishot_2',
+    name: '追踪多重 II',
+    description: '自动追踪同时攻击 +1个敌人（被动）',
+    type: 'passive',
+    apply: (p) => p,
     rarity: 'mythic',
     color: COLORS.mythic,
     icon: SKILL_ICONS.bolt
   },
+  // 追踪穿透系列
   {
-    id: 'auto_lock_lv5',
-    name: '自动追踪（Lv5）',
-    description: '每4秒自动发射4枚追踪导弹攻击最近的4个敌人，伤害x2.5，穿透+3（被动）',
+    id: 'tracking_pierce_1',
+    name: '追踪穿透 I',
+    description: '自动追踪导弹穿透 +1（被动）',
     type: 'passive',
-    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 5) }),
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.bolt
+  },
+  {
+    id: 'tracking_pierce_2',
+    name: '追踪穿透 II',
+    description: '自动追踪导弹穿透 +1（被动）',
+    type: 'passive',
+    apply: (p) => p,
     rarity: 'mythic',
     color: COLORS.mythic,
     icon: SKILL_ICONS.bolt
@@ -1245,10 +1320,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 过滤掉需要前置技能的选项
       const filteredSkills = SKILL_POOL.filter(skill => {
-        // 自动锁敌技能需要前置等级
-        if (skill.id.startsWith('auto_lock_')) {
-          const requiredLevel = parseInt(skill.id.split('_lv')[1]);
-          return player.autoLockLevel >= requiredLevel - 1;
+        // 追踪相关技能需要先解锁自动追踪
+        if (skill.id.startsWith('tracking_mastery') ||
+            skill.id.startsWith('tracking_speed') ||
+            skill.id.startsWith('tracking_multishot') ||
+            skill.id.startsWith('tracking_pierce')) {
+          // 检查是否已经拥有该技能
+          const hasSkill = player.skills.some(s => s.id === skill.id);
+          if (hasSkill) return false;
+          // 需要先解锁自动追踪
+          return player.autoLockLevel >= 1;
         }
         return true;
       });
@@ -2275,21 +2356,26 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             }
           }
 
-          // 自动锁敌被动技能（根据等级触发）
+          // 自动锁敌被动技能
           if (player.autoLockLevel > 0 && monstersRef.current.length > 0) {
             autoLockUltimateTimerRef.current += deltaTime;
 
-            const autoLockConfig = {
-              1: { interval: 10, count: 1, damageMult: 1, pierce: 0 },
-              2: { interval: 8, count: 2, damageMult: 1, pierce: 0 },
-              3: { interval: 6, count: 3, damageMult: 1.5, pierce: 1 },
-              4: { interval: 5, count: 3, damageMult: 2, pierce: 2 },
-              5: { interval: 4, count: 4, damageMult: 2.5, pierce: 3 }
-            };
+            // 计算技能等级效果
+            const trackingMasteryBonus = 1 + player.trackingMasteryLevel * 0.2; // 每级+20%伤害
 
-            const config = autoLockConfig[player.autoLockLevel as keyof typeof autoLockConfig];
+            // 计算速度加成（从技能中统计tracking_speed数量）
+            const speedReduction = player.skills.filter(s => s.id.startsWith('tracking_speed')).length;
+            const interval = Math.max(2, 6 - speedReduction); // 基础6秒，每级减少1秒，最低2秒
 
-            if (autoLockUltimateTimerRef.current >= config.interval) {
+            // 计算多重攻击（从技能中统计tracking_multishot数量）
+            const multishotBonus = player.skills.filter(s => s.id.startsWith('tracking_multishot')).length;
+            const targetCount = 1 + multishotBonus; // 基础1个目标
+
+            // 计算穿透加成（从技能中统计tracking_pierce数量）
+            const pierceBonus = player.skills.filter(s => s.id.startsWith('tracking_pierce')).length;
+            const pierceCount = pierceBonus; // 基础0穿透
+
+            if (autoLockUltimateTimerRef.current >= interval) {
               autoLockUltimateTimerRef.current = 0;
 
               // 找到最近的N个怪物
@@ -2299,7 +2385,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   distance: Math.sqrt(Math.pow(m.x - player.x, 2) + Math.pow(m.y - player.y, 2))
                 }))
                 .sort((a, b) => a.distance - b.distance)
-                .slice(0, config.count);
+                .slice(0, targetCount);
 
               sortedMonsters.forEach(({ monster }) => {
                 const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
@@ -2310,19 +2396,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   y: player.y,
                   vx: Math.cos(angle) * 12,
                   vy: Math.sin(angle) * 12,
-                  damage: Math.floor(player.rangedDamage * config.damageMult),
+                  damage: Math.floor(player.rangedDamage * trackingMasteryBonus),
                   speed: 12,
                   bounceCount: 0,
                   angle,
                   trail: [],
                   type: 'lightning',
-                  pierceCount: config.pierce,
+                  pierceCount: pierceCount,
                   owner: 'player'
                 });
               });
 
               createParticles(player.x, player.y, '#F1C40F', 20, 'magic');
-              triggerScreenShake(2 * player.autoLockLevel / 5, 0.06);
+              triggerScreenShake(2 * player.trackingMasteryLevel / 5, 0.06);
               playSound('levelup');
             }
           }
@@ -3164,6 +3250,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       totalDamage: 0,
       gameTime: 0,
       autoLockLevel: 0,
+      trackingMasteryLevel: 0,
       invincible: false,
       invincibleTime: 0
     };
