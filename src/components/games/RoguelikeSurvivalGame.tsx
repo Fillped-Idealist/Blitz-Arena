@@ -1524,7 +1524,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     });
   }, []);
 
-  // ==================== 绘制背景 ====================
+  // ==================== 绘制背景（用于游戏世界） ====================
   const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
     // 深空渐变背景（覆盖整个世界）
     const gradient = ctx.createRadialGradient(
@@ -1564,6 +1564,52 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const x = ((i * 137) % WORLD_WIDTH);
       const y = ((i * 97) % WORLD_HEIGHT);
       const twinkle = (Math.sin(gameTimeRef.current * 2.5 + i * 0.5) + 1) * 0.5;
+      const size = (twinkle * 1.2 + 0.5);
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }, []);
+
+  // ==================== 绘制静态背景（用于开始和结束界面） ====================
+  const drawStaticBackground = useCallback((ctx: CanvasRenderingContext2D) => {
+    // 深空渐变背景（仅覆盖画布）
+    const gradient = ctx.createRadialGradient(
+      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
+      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH
+    );
+    gradient.addColorStop(0, COLORS.backgroundStart);
+    gradient.addColorStop(0.5, '#16213E');
+    gradient.addColorStop(1, COLORS.backgroundEnd);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 静态网格（覆盖画布）
+    const tileSize = 60;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x <= CANVAS_WIDTH; x += tileSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, CANVAS_HEIGHT);
+      ctx.stroke();
+    }
+
+    for (let y = 0; y <= CANVAS_HEIGHT; y += tileSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(CANVAS_WIDTH, y);
+      ctx.stroke();
+    }
+
+    // 闪烁的星星（覆盖画布）
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    for (let i = 0; i < 50; i++) {
+      const x = ((i * 137) % CANVAS_WIDTH);
+      const y = ((i * 97) % CANVAS_HEIGHT);
+      const twinkle = (Math.sin(Date.now() / 500 + i * 0.5) + 1) * 0.5;
       const size = (twinkle * 1.2 + 0.5);
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -1913,7 +1959,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制开始屏幕 ====================
   const drawStartScreen = useCallback((ctx: CanvasRenderingContext2D) => {
-    drawBackground(ctx);
+    drawStaticBackground(ctx);
 
     // 标题
     ctx.fillStyle = '#FF4757';
@@ -3158,33 +3204,34 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key.toLowerCase()] = true;
 
-      // 游戏控制
-      if (e.key === ' ' || e.code === 'Space') {
-        e.preventDefault();
-        if (gameStateRef.current === GameState.START) {
-          gameStateRef.current = GameState.PLAYING;
-          playSound('select');
-        } else if (gameStateRef.current === GameState.GAME_OVER) {
-          initializeGame();
-          playSound('select');
+      // 游戏控制（仅在游戏初始化后才响应）
+      if (gameInitialized) {
+        if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          if (gameStateRef.current === GameState.START) {
+            gameStateRef.current = GameState.PLAYING;
+            playSound('select');
+          } else if (gameStateRef.current === GameState.GAME_OVER) {
+            initializeGame();
+            playSound('select');
+          }
         }
-      }
 
-      if (e.key.toLowerCase() === 'r') {
-        if (gameStateRef.current === GameState.GAME_OVER) {
-          initializeGame();
-          playSound('select');
+        if (e.key.toLowerCase() === 'r') {
+          if (gameStateRef.current === GameState.GAME_OVER) {
+            initializeGame();
+            playSound('select');
+          }
         }
-      }
 
-      if (e.key.toLowerCase() === 'q') {
-        if (gameStateRef.current === GameState.GAME_OVER) {
-          onCancel();
-          playSound('select');
+        if (e.key.toLowerCase() === 'q') {
+          if (gameStateRef.current === GameState.GAME_OVER) {
+            onCancel();
+            playSound('select');
+          }
         }
-      }
 
-      // 升级面板选择
+        // 升级面板选择
       if (gameStateRef.current === GameState.LEVEL_UP) {
         console.log('[Keyboard] Level Up input', {
           key: e.key,
@@ -3248,6 +3295,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               console.error('[Keyboard] Error applying skill:', error);
             }
           }
+        }
         }
       }
     };
