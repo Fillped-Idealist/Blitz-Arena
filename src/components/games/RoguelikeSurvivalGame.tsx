@@ -27,7 +27,7 @@ const WORLD_WIDTH = 3200;  // 游戏世界总宽度
 const WORLD_HEIGHT = 1800;  // 游戏世界总高度
 const PLAYER_SIZE = 20;
 const MAX_MONSTERS = 120;
-const MAX_PROJECTILES = 100;
+const MAX_PROJECTILES = 300;
 const MAX_PARTICLES = 500;
 const MAX_DAMAGE_NUMBERS = 80;
 const MONSTER_SPAWN_MARGIN = 250;
@@ -1709,7 +1709,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 72, color: '#E74C3C' } // 近战Boss：体型比远程Boss大60%（45 * 1.6 = 72）
+      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 94, color: '#E74C3C' } // 近战Boss：体型比远程Boss大（45*2=90，约94）
     };
 
     const stats = monsterStats[type];
@@ -1781,7 +1781,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 非线性冲刺速度：先慢后快，模拟真实的冲刺加速
           const sprintProgress = (chargeElapsed - 1000) / 500; // 0到1
           const accelerationCurve = Math.pow(sprintProgress, 0.7); // 非线性加速曲线
-          const currentSpeed = 15 + accelerationCurve * 20; // 从15加速到35
+          const currentSpeed = 25 + accelerationCurve * 35; // 从25加速到60（更猛烈）
 
           monster.vx = monster.chargeDirection.x * currentSpeed;
           monster.vy = monster.chargeDirection.y * currentSpeed;
@@ -1845,12 +1845,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monster.chargeDirection = { x: dx / distance, y: dy / distance };
           }
 
-          // 前摇阶段的后退动作（模拟蓄力）
+          // 前摇阶段的后退动作（模拟蓄力，更明显）
           const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
-          const retreatDistance = retreatProgress * 40; // 最多后退40像素
+          const retreatDistance = retreatProgress * 100; // 最多后退100像素（增大效果）
 
-          monster.vx = -monster.chargeDirection.x * retreatDistance * 2;
-          monster.vy = -monster.chargeDirection.y * retreatDistance * 2;
+          monster.vx = -monster.chargeDirection.x * retreatDistance * 3; // 增大后退速度
+          monster.vy = -monster.chargeDirection.y * retreatDistance * 3;
         }
       } else {
         // 检查是否开始冲刺（CD结束且玩家在攻击范围内）
@@ -1859,8 +1859,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const dy = player.y - monster.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // 攻击范围内开始冲刺
-          if (distance < 250) {
+          // 攻击范围内开始冲刺（扩大范围到400）
+          if (distance < 400) {
+            console.log('[MeleeBoss] Starting charge', {
+              distance: distance,
+              abilityCooldown: monster.abilityCooldown
+            });
             monster.isCharging = true;
             monster.chargeStartTime = now;
           }
@@ -2762,10 +2766,17 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monsterSpawnTimerRef.current = 0;
           }
 
-          // 近战Boss刷新逻辑：6分钟后每75秒刷新一个，属性递增100%
+          // 近战Boss刷新逻辑：6分钟后立即刷新第一个，然后每75秒刷新一个，属性递增100%
           if (player.gameTime >= 360) { // 6分钟后开始刷新
             meleeBossSpawnTimerRef.current += deltaTime;
-            if (meleeBossSpawnTimerRef.current >= 75) { // 每75秒刷新一个
+            
+            // 第一次立即刷新（在6分钟刚到达的0.1秒内）
+            const isFirstSpawn = player.gameTime >= 360 && player.gameTime < 360.1 && meleeBossSpawnTimerRef.current < 0.1;
+            
+            if (isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) { // 第一次或每75秒刷新一个
+              if (!isFirstSpawn) {
+                meleeBossSpawnTimerRef.current = 0;
+              }
               meleeBossSpawnTimerRef.current = 0;
               console.log('[MeleeBoss] Spawning melee boss', {
                 gameTime: player.gameTime,
@@ -2827,7 +2838,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 shieldMaxHp: Math.floor(25000 * growthMultiplier * difficulty),
                 currentPhase: 0,
                 phaseTimer: 0,
-                abilityCooldown: 8, // 近战Boss冲刺CD
+                abilityCooldown: 5, // 近战Boss冲刺CD（缩短到5秒）
                 lastAbilityTime: 0,
                 // 近战Boss冲刺技能相关属性
                 isCharging: false,
@@ -3593,10 +3604,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.save();
           ctx.translate(circleScreenX, circleScreenY);
 
-          // 外圈（金色，顺时针旋转）- 缩小至20%
+          // 外圈（金色，顺时针旋转）- 调整大小至120像素半径
           ctx.save();
           ctx.rotate(circle.rotation);
-          ctx.scale(0.2, 0.2); // 缩小至20%，使其更精致
+          ctx.scale(2.5, 2.5); // 缩放至2.5倍，使外圈半径达到120像素（12*2.5*4=120）
           const outerRing = PIXEL_ART.magicCircle.outerRing;
           outerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3605,10 +3616,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 中圈（紫色，逆时针旋转）- 缩小至20%
+          // 中圈（紫色，逆时针旋转）- 调整大小至与外圈协调
           ctx.save();
           ctx.rotate(-circle.rotation * 1.2);
-          ctx.scale(0.2, 0.2); // 缩小至20%，与外圈协调
+          ctx.scale(2.5, 2.5); // 缩放至2.5倍，与外圈协调
           const middleRing = PIXEL_ART.magicCircle.middleRing;
           middleRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3629,10 +3640,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 装饰性三角形（随外圈旋转）- 缩小至20%
+          // 装饰性三角形（随外圈旋转）- 调整大小至与外圈协调
           ctx.save();
           ctx.rotate(circle.rotation * 0.5);
-          ctx.scale(0.2, 0.2); // 缩小至20%
+          ctx.scale(2.5, 2.5); // 缩放至2.5倍，与外圈协调
           const triangles = PIXEL_ART.magicCircle.triangles;
           triangles.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3641,9 +3652,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 光点装饰（闪烁效果）- 缩小至20%
+          // 光点装饰（闪烁效果）- 调整大小至与外圈协调
           ctx.save();
-          ctx.scale(0.2, 0.2); // 缩小至20%
+          ctx.scale(2.5, 2.5); // 缩放至2.5倍，与外圈协调
           const dots = PIXEL_ART.magicCircle.dots;
           const twinkle = (Math.sin(elapsedSeconds * 8) + 1) * 0.5;
           dots.forEach((pixel, index) => {
@@ -3654,10 +3665,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 中心符文（慢速脉冲）- 缩小至20%
+          // 中心符文（慢速脉冲）- 调整大小至与外圈协调
           const pulse = 1 + Math.sin(elapsedSeconds * 6) * 0.2;
           ctx.save();
-          ctx.scale(0.2 * pulse, 0.2 * pulse); // 缩小至20%
+          ctx.scale(2.5 * pulse, 2.5 * pulse); // 缩放至2.5倍，与外圈协调
           const centerRune = PIXEL_ART.magicCircle.centerRune;
           centerRune.forEach(pixel => {
             ctx.fillStyle = pixel.color;
