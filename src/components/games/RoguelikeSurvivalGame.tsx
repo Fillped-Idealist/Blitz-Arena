@@ -356,6 +356,98 @@ const PIXEL_ART = {
       { x: -2, y: 2, color: '#9B59B6' }, { x: -1, y: 2, color: '#9B59B6' }, { x: 0, y: 2, color: '#9B59B6' },
       { x: 1, y: 2, color: '#9B59B6' }, { x: 2, y: 2, color: '#9B59B6' },
     ]
+  },
+  magicCircle: {
+    // 外圈（金色）
+    outerRing: [
+      // 上方弧
+      { x: -12, y: 0, color: '#F1C40F' }, { x: -11, y: -3, color: '#FFD700' },
+      { x: -10, y: -5, color: '#F1C40F' }, { x: -9, y: -6, color: '#FFD700' },
+      { x: -8, y: -7, color: '#F1C40F' }, { x: -7, y: -8, color: '#FFD700' },
+      { x: -6, y: -9, color: '#F1C40F' }, { x: -5, y: -10, color: '#FFD700' },
+      { x: -4, y: -11, color: '#F1C40F' }, { x: -3, y: -11, color: '#FFD700' },
+      { x: -2, y: -12, color: '#F1C40F' }, { x: -1, y: -12, color: '#FFD700' },
+      { x: 0, y: -12, color: '#F1C40F' }, { x: 1, y: -12, color: '#FFD700' },
+      { x: 2, y: -12, color: '#F1C40F' }, { x: 3, y: -11, color: '#FFD700' },
+      { x: 4, y: -11, color: '#F1C40F' }, { x: 5, y: -10, color: '#FFD700' },
+      { x: 6, y: -9, color: '#F1C40F' }, { x: 7, y: -8, color: '#FFD700' },
+      { x: 8, y: -7, color: '#F1C40F' }, { x: 9, y: -6, color: '#FFD700' },
+      { x: 10, y: -5, color: '#F1C40F' }, { x: 11, y: -3, color: '#FFD700' },
+      { x: 12, y: 0, color: '#F1C40F' },
+      // 下方弧
+      { x: 11, y: 3, color: '#FFD700' }, { x: 10, y: 5, color: '#F1C40F' },
+      { x: 9, y: 6, color: '#FFD700' }, { x: 8, y: 7, color: '#F1C40F' },
+      { x: 7, y: 8, color: '#FFD700' }, { x: 6, y: 9, color: '#F1C40F' },
+      { x: 5, y: 10, color: '#FFD700' }, { x: 4, y: 11, color: '#F1C40F' },
+      { x: 3, y: 11, color: '#FFD700' }, { x: 2, y: 12, color: '#F1C40F' },
+      { x: 1, y: 12, color: '#FFD700' }, { x: 0, y: 12, color: '#F1C40F' },
+      { x: -1, y: 12, color: '#FFD700' }, { x: -2, y: 12, color: '#F1C40F' },
+      { x: -3, y: 11, color: '#FFD700' }, { x: -4, y: 11, color: '#F1C40F' },
+      { x: -5, y: 10, color: '#FFD700' }, { x: -6, y: 9, color: '#F1C40F' },
+      { x: -7, y: 8, color: '#FFD700' }, { x: -8, y: 7, color: '#F1C40F' },
+      { x: -9, y: 6, color: '#FFD700' }, { x: -10, y: 5, color: '#F1C40F' },
+      { x: -11, y: 3, color: '#FFD700' },
+    ],
+    // 中圈（紫色）
+    middleRing: [
+      { x: -8, y: 0, color: '#9B59B6' }, { x: -7, y: -2, color: '#BB6BB6' },
+      { x: -6, y: -4, color: '#9B59B6' }, { x: -5, y: -5, color: '#BB6BB6' },
+      { x: -4, y: -6, color: '#9B59B6' }, { x: -3, y: -6, color: '#BB6BB6' },
+      { x: -2, y: -7, color: '#9B59B6' }, { x: -1, y: -7, color: '#BB6BB6' },
+      { x: 0, y: -7, color: '#9B59B6' }, { x: 1, y: -7, color: '#BB6BB6' },
+      { x: 2, y: -7, color: '#9B59B6' }, { x: 3, y: -6, color: '#BB6BB6' },
+      { x: 4, y: -6, color: '#9B59B6' }, { x: 5, y: -5, color: '#BB6BB6' },
+      { x: 6, y: -4, color: '#9B59B6' }, { x: 7, y: -2, color: '#BB6BB6' },
+      { x: 8, y: 0, color: '#9B59B6' },
+      { x: 7, y: 2, color: '#BB6BB6' }, { x: 6, y: 4, color: '#9B59B6' },
+      { x: 5, y: 5, color: '#BB6BB6' }, { x: 4, y: 6, color: '#9B59B6' },
+      { x: 3, y: 6, color: '#BB6BB6' }, { x: 2, y: 7, color: '#9B59B6' },
+      { x: 1, y: 7, color: '#BB6BB6' }, { x: 0, y: 7, color: '#9B59B6' },
+      { x: -1, y: 7, color: '#BB6BB6' }, { x: -2, y: 7, color: '#9B59B6' },
+      { x: -3, y: 6, color: '#BB6BB6' }, { x: -4, y: 6, color: '#9B59B6' },
+      { x: -5, y: 5, color: '#BB6BB6' }, { x: -6, y: 4, color: '#9B59B6' },
+      { x: -7, y: 2, color: '#BB6BB6' },
+    ],
+    // 内圈（金色）
+    innerRing: [
+      { x: -4, y: 0, color: '#F1C40F' }, { x: -3, y: -1, color: '#FFD700' },
+      { x: -2, y: -2, color: '#F1C40F' }, { x: -1, y: -3, color: '#FFD700' },
+      { x: 0, y: -3, color: '#F1C40F' }, { x: 1, y: -3, color: '#FFD700' },
+      { x: 2, y: -2, color: '#F1C40F' }, { x: 3, y: -1, color: '#FFD700' },
+      { x: 4, y: 0, color: '#F1C40F' },
+      { x: 3, y: 1, color: '#FFD700' }, { x: 2, y: 2, color: '#F1C40F' },
+      { x: 1, y: 3, color: '#FFD700' }, { x: 0, y: 3, color: '#F1C40F' },
+      { x: -1, y: 3, color: '#FFD700' }, { x: -2, y: 2, color: '#F1C40F' },
+      { x: -3, y: 1, color: '#FFD700' },
+    ],
+    // 中心符文（紫色）
+    centerRune: [
+      { x: 0, y: -2, color: '#9B59B6' },
+      { x: -1, y: -1, color: '#BB6BB6' }, { x: 0, y: -1, color: '#F1C40F' }, { x: 1, y: -1, color: '#BB6BB6' },
+      { x: -1, y: 0, color: '#F1C40F' }, { x: 0, y: 0, color: '#9B59B6' }, { x: 1, y: 0, color: '#F1C40F' },
+      { x: -1, y: 1, color: '#BB6BB6' }, { x: 0, y: 1, color: '#F1C40F' }, { x: 1, y: 1, color: '#BB6BB6' },
+      { x: 0, y: 2, color: '#9B59B6' },
+    ],
+    // 装饰性三角形（四个方向）
+    triangles: [
+      // 上
+      { x: 0, y: -9, color: '#FFD700' }, { x: -1, y: -8, color: '#F1C40F' }, { x: 1, y: -8, color: '#F1C40F' },
+      // 下
+      { x: 0, y: 9, color: '#FFD700' }, { x: -1, y: 8, color: '#F1C40F' }, { x: 1, y: 8, color: '#F1C40F' },
+      // 左
+      { x: -9, y: 0, color: '#FFD700' }, { x: -8, y: -1, color: '#F1C40F' }, { x: -8, y: 1, color: '#F1C40F' },
+      // 右
+      { x: 9, y: 0, color: '#FFD700' }, { x: 8, y: -1, color: '#F1C40F' }, { x: 8, y: 1, color: '#F1C40F' },
+    ],
+    // 光点装饰（在圈之间）
+    dots: [
+      { x: -10, y: -5, color: '#BB6BB6' }, { x: 10, y: -5, color: '#BB6BB6' },
+      { x: -10, y: 5, color: '#BB6BB6' }, { x: 10, y: 5, color: '#BB6BB6' },
+      { x: -5, y: -10, color: '#BB6BB6' }, { x: 5, y: -10, color: '#BB6BB6' },
+      { x: -5, y: 10, color: '#BB6BB6' }, { x: 5, y: 10, color: '#BB6BB6' },
+      { x: -6, y: -6, color: '#FFD700' }, { x: 6, y: -6, color: '#FFD700' },
+      { x: -6, y: 6, color: '#FFD700' }, { x: 6, y: 6, color: '#FFD700' },
+    ]
   }
 };
 
@@ -1649,6 +1741,25 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         4 * scale
       );
     });
+  }, []);
+
+  // ==================== 重置Canvas上下文状态 ====================
+  const resetContext = useCallback((ctx: CanvasRenderingContext2D) => {
+    // 强制重置所有可能被修改的Canvas状态
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#000000';
+    ctx.strokeStyle = '#000000';
   }, []);
 
   // ==================== 绘制背景（使用屏幕坐标） ====================
@@ -2965,42 +3076,81 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 更新法阵旋转
           circle.rotation += deltaTime * 2;
 
-          // 绘制法阵
+          // 绘制法阵（使用像素风格）
           const circleScreenX = worldToScreenX(circle.x);
           const circleScreenY = worldToScreenY(circle.y);
           const alpha = 1 - progress;
 
           ctx.globalAlpha = alpha;
 
-          // 简化版法阵：只绘制两个旋转圆环
           ctx.save();
           ctx.translate(circleScreenX, circleScreenY);
 
           // 外圈（金色，顺时针旋转）
           ctx.save();
           ctx.rotate(circle.rotation);
-          ctx.beginPath();
-          ctx.arc(0, 0, circle.radius, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(241, 196, 15, ${alpha * 0.6})`;
-          ctx.lineWidth = 3;
-          ctx.stroke();
+          const outerRing = PIXEL_ART.magicCircle.outerRing;
+          outerRing.forEach(pixel => {
+            ctx.fillStyle = pixel.color;
+            ctx.globalAlpha = alpha * 0.6;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+          });
           ctx.restore();
 
-          // 内圈（紫色，逆时针旋转）
+          // 中圈（紫色，逆时针旋转）
           ctx.save();
           ctx.rotate(-circle.rotation * 1.2);
-          ctx.beginPath();
-          ctx.arc(0, 0, circle.radius * 0.5, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(155, 89, 182, ${alpha * 0.5})`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          const middleRing = PIXEL_ART.magicCircle.middleRing;
+          middleRing.forEach(pixel => {
+            ctx.fillStyle = pixel.color;
+            ctx.globalAlpha = alpha * 0.5;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+          });
           ctx.restore();
 
-          // 中心点
-          ctx.beginPath();
-          ctx.arc(0, 0, 5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(241, 196, 15, ${alpha})`;
-          ctx.fill();
+          // 内圈（金色，快速旋转）
+          ctx.save();
+          ctx.rotate(circle.rotation * 1.5);
+          const innerRing = PIXEL_ART.magicCircle.innerRing;
+          innerRing.forEach(pixel => {
+            ctx.fillStyle = pixel.color;
+            ctx.globalAlpha = alpha * 0.7;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+          });
+          ctx.restore();
+
+          // 装饰性三角形（随外圈旋转）
+          ctx.save();
+          ctx.rotate(circle.rotation * 0.5);
+          const triangles = PIXEL_ART.magicCircle.triangles;
+          triangles.forEach(pixel => {
+            ctx.fillStyle = pixel.color;
+            ctx.globalAlpha = alpha * 0.8;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+          });
+          ctx.restore();
+
+          // 光点装饰（闪烁效果）
+          const dots = PIXEL_ART.magicCircle.dots;
+          const twinkle = (Math.sin(elapsedSeconds * 8) + 1) * 0.5;
+          dots.forEach((pixel, index) => {
+            const dotAlpha = alpha * (0.3 + twinkle * 0.7) * (0.8 + Math.sin(index + elapsedSeconds * 5) * 0.2);
+            ctx.fillStyle = pixel.color;
+            ctx.globalAlpha = dotAlpha;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+          });
+
+          // 中心符文（慢速脉冲）
+          const pulse = 1 + Math.sin(elapsedSeconds * 6) * 0.2;
+          ctx.save();
+          ctx.scale(pulse, pulse);
+          const centerRune = PIXEL_ART.magicCircle.centerRune;
+          centerRune.forEach(pixel => {
+            ctx.fillStyle = pixel.color;
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+          });
+          ctx.restore();
 
           ctx.restore();
           ctx.globalAlpha = 1;
@@ -3269,9 +3419,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       }
 
       ctx.restore();
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-      ctx.shadowColor = 'transparent';
+
+      // 强制重置Canvas上下文状态，防止shadow等效果残留导致边框问题
+      resetContext(ctx);
 
       // 绘制升级面板（不受摄像机影响，使用Canvas坐标）
       if (gameState === GameState.LEVEL_UP) {
