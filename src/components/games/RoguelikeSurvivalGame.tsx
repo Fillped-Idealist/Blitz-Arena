@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Swords, Zap, Heart, Shield, TrendingUp, Target, Play, X, Maximize2, Volume2, Flame, Sparkles, Skull } from 'lucide-react';
+import { Swords, Zap, Heart, Shield, TrendingUp, Target, Play, X, Maximize2, Volume2, Flame, Sparkles, Skull, RotateCcw } from 'lucide-react';
 
 interface RoguelikeSurvivalGameProps {
   onComplete: (result: GameResult) => void;
@@ -29,34 +29,43 @@ const CANVAS_HEIGHT = 720;
 const PLAYER_SIZE = 32;
 const MAX_MONSTERS = 80;
 const MAX_PROJECTILES = 60;
-const MAX_PARTICLES = 300;
+const MAX_PARTICLES = 400;
+const MAX_DAMAGE_NUMBERS = 50;
 
 // ==================== 颜色配置 ====================
 const COLORS = {
   // 玩家颜色
   player: '#FF6B6B',
-  playerGlow: 'rgba(255, 107, 107, 0.3)',
+  playerGlow: 'rgba(255, 107, 107, 0.4)',
   playerOutline: '#C92A2A',
 
-  // 怪物颜色 - 不同类型
-  meleeMonster: '#FF4757',
-  rangedMonster: '#70A1FF',
+  // 怪物颜色
+  slimeMonster: '#7BED9F',
+  skeletonMonster: '#A4B0BE',
+  ghostMonster: '#70A1FF',
   bossMonster: '#9B59B6',
 
   // 投射物颜色
   projectile: '#FFEAA7',
   projectileGlow: 'rgba(255, 234, 167, 0.6)',
+  fireball: '#FF6B6B',
+  lightning: '#00FF00',
 
   // 特效颜色
   blood: '#8B0000',
   spark: '#FFD700',
   levelUp: '#00FF00',
+  slash: '#FFFFFF',
 
   // UI颜色
   hpBar: '#00CEC9',
   hpBarLow: '#FF7675',
   expBar: '#00FF00',
-  expBarBackground: '#2D3436'
+  expBarBackground: '#2D3436',
+  common: '#BDC3C7',
+  rare: '#3498DB',
+  epic: '#9B59B6',
+  legendary: '#F1C40F'
 };
 
 // ==================== 游戏状态接口 ====================
@@ -77,6 +86,7 @@ interface Player {
   critMultiplier: number;
   attackRange: number;
   arrowCount: number;
+  regenRate: number;
   skills: Skill[];
 }
 
@@ -92,7 +102,7 @@ interface Monster {
   lastAttack: number;
   size: number;
   color: string;
-  type: 'melee' | 'ranged' | 'boss';
+  type: 'slime' | 'skeleton' | 'ghost' | 'boss';
   scale: number;
   angle: number;
   animationOffset: number;
@@ -123,8 +133,10 @@ interface Particle {
   maxLife: number;
   color: string;
   size: number;
-  type: 'blood' | 'spark' | 'explosion' | 'magic' | 'dust';
+  type: 'blood' | 'spark' | 'explosion' | 'magic' | 'dust' | 'slash';
   alpha: number;
+  rotation: number;
+  rotationSpeed: number;
 }
 
 interface DamageNumber {
@@ -142,6 +154,14 @@ interface ScreenShake {
   duration: number;
   x: number;
   y: number;
+}
+
+interface SlashEffect {
+  x: number;
+  y: number;
+  angle: number;
+  life: number;
+  maxLife: number;
 }
 
 interface Skill {
@@ -163,7 +183,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Swords className="w-6 h-6" />,
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.25 }),
     rarity: 'common',
-    color: '#BDC3C7'
+    color: COLORS.common
   },
   {
     id: 'ranged_damage',
@@ -172,7 +192,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Target className="w-6 h-6" />,
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.25 }),
     rarity: 'common',
-    color: '#BDC3C7'
+    color: COLORS.common
   },
   {
     id: 'attack_speed',
@@ -181,7 +201,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Zap className="w-6 h-6" />,
     apply: (p) => ({ ...p, attackSpeed: p.attackSpeed * 1.2 }),
     rarity: 'rare',
-    color: '#3498DB'
+    color: COLORS.rare
   },
   {
     id: 'movement_speed',
@@ -190,7 +210,7 @@ const SKILL_POOL: Skill[] = [
     icon: <TrendingUp className="w-6 h-6" />,
     apply: (p) => ({ ...p, speed: p.speed * 1.15 }),
     rarity: 'rare',
-    color: '#3498DB'
+    color: COLORS.rare
   },
   {
     id: 'max_hp',
@@ -199,7 +219,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Heart className="w-6 h-6" />,
     apply: (p) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
     rarity: 'common',
-    color: '#BDC3C7'
+    color: COLORS.common
   },
   {
     id: 'crit_rate',
@@ -208,7 +228,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Target className="w-6 h-6" />,
     apply: (p) => ({ ...p, critRate: Math.min(p.critRate + 0.15, 1) }),
     rarity: 'epic',
-    color: '#9B59B6'
+    color: COLORS.epic
   },
   {
     id: 'attack_range',
@@ -217,7 +237,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Shield className="w-6 h-6" />,
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.25 }),
     rarity: 'rare',
-    color: '#3498DB'
+    color: COLORS.rare
   },
   {
     id: 'arrow_bounce',
@@ -226,7 +246,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Sparkles className="w-6 h-6" />,
     apply: (p) => ({ ...p, arrowCount: p.arrowCount + 2 }),
     rarity: 'epic',
-    color: '#9B59B6'
+    color: COLORS.epic
   },
   {
     id: 'fire_mastery',
@@ -235,7 +255,7 @@ const SKILL_POOL: Skill[] = [
     icon: <Flame className="w-6 h-6" />,
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.5 }),
     rarity: 'legendary',
-    color: '#E74C3C'
+    color: COLORS.legendary
   },
   {
     id: 'critical_mastery',
@@ -244,7 +264,16 @@ const SKILL_POOL: Skill[] = [
     icon: <Skull className="w-6 h-6" />,
     apply: (p) => ({ ...p, critMultiplier: p.critMultiplier * 1.5 }),
     rarity: 'legendary',
-    color: '#E74C3C'
+    color: COLORS.legendary
+  },
+  {
+    id: 'regen_boost',
+    name: '生命恢复',
+    description: '每秒回复生命值 +2',
+    icon: <Heart className="w-6 h-6" />,
+    apply: (p) => ({ ...p, regenRate: p.regenRate + 2 }),
+    rarity: 'rare',
+    color: COLORS.rare
   }
 ];
 
@@ -257,9 +286,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const [score, setScore] = useState(0);
   const [showTutorial, setShowTutorial] = useState(true);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [availableSkill, setAvailableSkill] = useState<Skill | null>(null);
+  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [playerData, setPlayerData] = useState<Player | null>(null);
 
   // 游戏数据引用
   const playerRef = useRef<Player>({
@@ -279,6 +309,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     critMultiplier: 2,
     attackRange: 80,
     arrowCount: 0,
+    regenRate: 1,
     skills: []
   });
 
@@ -286,10 +317,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const projectilesRef = useRef<Projectile[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const damageNumbersRef = useRef<DamageNumber[]>([]);
+  const slashEffectsRef = useRef<SlashEffect[]>([]);
   const screenShakeRef = useRef<ScreenShake>({ intensity: 0, duration: 0, x: 0, y: 0 });
   const monsterIdCounterRef = useRef(0);
   const projectileIdCounterRef = useRef(0);
   const gameTimeRef = useRef(0);
+  const lastRegenTimeRef = useRef(0);
 
   // 音频上下文
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -314,7 +347,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     }
   }, []);
 
-  const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage' | 'crit' | 'explosion') => {
+  const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage' | 'crit' | 'explosion' | 'slash') => {
     if (!soundEnabled || !audioContextRef.current) return;
 
     try {
@@ -330,6 +363,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       gainNode.connect(ctx.destination);
 
       switch (type) {
+        case 'slash':
+          oscillator.type = 'sawtooth';
+          oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
+          gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.05);
+          break;
         case 'hit':
           oscillator.frequency.setValueAtTime(300, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.08);
@@ -429,15 +471,30 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         color,
         size,
         type,
-        alpha: 1
+        alpha: 1,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.2
       });
     }
   }, []);
 
-  // ==================== 屏幕震动 ====================
+  // ==================== 刀光特效 ====================
+  const createSlashEffect = useCallback((x: number, y: number, angle: number) => {
+    slashEffectsRef.current.push({
+      x,
+      y,
+      angle,
+      life: 1,
+      maxLife: 0.3
+    });
+  }, []);
 
   // ==================== 伤害数字 ====================
   const createDamageNumber = useCallback((x: number, y: number, damage: number, isCrit: boolean) => {
+    if (damageNumbersRef.current.length >= MAX_DAMAGE_NUMBERS) {
+      damageNumbersRef.current.shift();
+    }
+
     const color = isCrit ? '#FF6B6B' : '#FFFFFF';
     damageNumbersRef.current.push({
       x: x + (Math.random() - 0.5) * 20,
@@ -485,14 +542,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const isCrit = Math.random() < player.critRate;
     const damage = isCrit ? player.meleeDamage * player.critMultiplier : player.meleeDamage;
 
+    // 创建刀光特效
+    const angle = Math.atan2(nearestMonster.y - player.y, nearestMonster.x - player.x);
+    createSlashEffect(player.x, player.y, angle);
+
     nearestMonster.hp -= damage;
     nearestMonster.isStunned = true;
     nearestMonster.stunnedTime = 500;
 
     createParticles(nearestMonster.x, nearestMonster.y, COLORS.blood, 12, 'blood');
     createDamageNumber(nearestMonster.x, nearestMonster.y, damage, isCrit);
-    triggerScreenShake(3, 0.1);
-    playSound(isCrit ? 'crit' : 'hit');
+    triggerScreenShake(isCrit ? 5 : 3, isCrit ? 0.15 : 0.1);
+    playSound(isCrit ? 'crit' : 'slash');
 
     if (nearestMonster.hp <= 0) {
       player.exp += nearestMonster.exp;
@@ -501,7 +562,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       setScore(prev => prev + Math.floor(nearestMonster.exp));
       playSound('kill');
     }
-  }, [createParticles, createDamageNumber, playSound, triggerScreenShake]);
+  }, [createParticles, createDamageNumber, createSlashEffect, playSound, triggerScreenShake]);
 
   const autoRangedAttack = useCallback(() => {
     const player = playerRef.current;
@@ -520,6 +581,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const angle = Math.atan2(dy, dx);
 
     if (projectilesRef.current.length < MAX_PROJECTILES) {
+      const isFireball = player.rangedDamage > 22.5; // 如果远程伤害高，使用火球
       projectilesRef.current.push({
         id: projectileIdCounterRef.current++,
         x: player.x,
@@ -531,7 +593,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         bounceCount: player.arrowCount,
         angle,
         trail: [],
-        type: 'arrow'
+        type: isFireball ? 'fireball' : 'arrow'
       });
       playSound('shoot');
     }
@@ -544,8 +606,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     player.exp = 0;
     player.expToNext = Math.floor(player.expToNext * 1.6);
 
+    // 随机选择3个技能
     const shuffled = [...SKILL_POOL].sort(() => Math.random() - 0.5);
-    setAvailableSkill(shuffled[0]);
+    const selectedSkills = shuffled.slice(0, 3);
+    setAvailableSkills(selectedSkills);
     setShowLevelUp(true);
 
     if (animationFrameRef.current) {
@@ -581,30 +645,32 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     }
 
     const typeRoll = Math.random();
-    let type: Monster['type'] = 'melee';
-    if (typeRoll > 0.85) type = 'ranged';
+    let type: Monster['type'] = 'slime';
+    if (typeRoll > 0.70) type = 'skeleton';
+    if (typeRoll > 0.88) type = 'ghost';
     if (typeRoll > 0.98) type = 'boss';
 
-    const baseHp = type === 'boss' ? 200 : type === 'ranged' ? 25 : 40;
-    const baseDamage = type === 'boss' ? 20 : type === 'ranged' ? 8 : 12;
-    const baseSpeed = type === 'boss' ? 1.5 : type === 'ranged' ? 2.5 : 2;
-    const baseExp = type === 'boss' ? 100 : type === 'ranged' ? 15 : 10;
-    const baseSize = type === 'boss' ? 45 : type === 'ranged' ? 20 : 28;
+    const monsterStats = {
+      slime: { baseHp: 40, baseDamage: 12, baseSpeed: 2, baseExp: 10, baseSize: 28, color: COLORS.slimeMonster },
+      skeleton: { baseHp: 35, baseDamage: 18, baseSpeed: 2.2, baseExp: 15, baseSize: 26, color: COLORS.skeletonMonster },
+      ghost: { baseHp: 25, baseDamage: 14, baseSpeed: 2.8, baseExp: 20, baseSize: 24, color: COLORS.ghostMonster },
+      boss: { baseHp: 200, baseDamage: 20, baseSpeed: 1.5, baseExp: 100, baseSize: 45, color: COLORS.bossMonster }
+    };
 
-    const color = type === 'boss' ? COLORS.bossMonster : type === 'ranged' ? COLORS.rangedMonster : COLORS.meleeMonster;
+    const stats = monsterStats[type];
 
     const monster: Monster = {
       id: monsterIdCounterRef.current++,
       x,
       y,
-      hp: baseHp * difficulty,
-      maxHp: baseHp * difficulty,
-      damage: baseDamage * difficulty,
-      speed: baseSpeed * (0.8 + Math.random() * 0.4),
-      exp: Math.floor(baseExp * difficulty),
+      hp: stats.baseHp * difficulty,
+      maxHp: stats.baseHp * difficulty,
+      damage: stats.baseDamage * difficulty,
+      speed: stats.baseSpeed * (0.8 + Math.random() * 0.4),
+      exp: Math.floor(stats.baseExp * difficulty),
       lastAttack: 0,
-      size: baseSize,
-      color,
+      size: stats.baseSize,
+      color: stats.color,
       type,
       scale: 1,
       angle: 0,
@@ -618,11 +684,55 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     }
   }, [getDifficultyMultiplier]);
 
+  // ==================== 绘制背景 ====================
+  const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
+    // 渐变背景
+    const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    gradient.addColorStop(0, '#1A1A2E');
+    gradient.addColorStop(0.3, '#16213E');
+    gradient.addColorStop(0.7, '#1A1A3E');
+    gradient.addColorStop(1, '#0F3460');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 绘制地面瓷砖
+    const tileSize = 40;
+    const gridOffset = (gameTimeRef.current * 10) % tileSize;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+    ctx.lineWidth = 1;
+
+    for (let x = -tileSize + gridOffset; x < CANVAS_WIDTH + tileSize; x += tileSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, CANVAS_HEIGHT);
+      ctx.stroke();
+    }
+
+    for (let y = -tileSize + gridOffset; y < CANVAS_HEIGHT + tileSize; y += tileSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(CANVAS_WIDTH, y);
+      ctx.stroke();
+    }
+
+    // 绘制装饰性元素（星星）
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let i = 0; i < 30; i++) {
+      const x = ((i * 137) % CANVAS_WIDTH);
+      const y = ((i * 89) % CANVAS_HEIGHT);
+      const size = (Math.sin(gameTimeRef.current * 2 + i) + 1) * 1.5 + 1;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }, []);
+
   // ==================== 游戏主循环 ====================
   const gameLoop = useCallback(() => {
     try {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas || !gameStarted) return;
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -643,31 +753,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.save();
       ctx.translate(shakeX, shakeY);
 
-      // 清空画布 - 使用渐变背景
-      const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      gradient.addColorStop(0, '#1A1A2E');
-      gradient.addColorStop(0.5, '#16213E');
-      gradient.addColorStop(1, '#0F3460');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      // 绘制网格背景
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.lineWidth = 1;
-      for (let x = 0; x < CANVAS_WIDTH; x += 60) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, CANVAS_HEIGHT);
-        ctx.stroke();
-      }
-      for (let y = 0; y < CANVAS_HEIGHT; y += 60) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(CANVAS_WIDTH, y);
-        ctx.stroke();
-      }
+      // 绘制背景
+      drawBackground(ctx);
 
       const player = playerRef.current;
+
       // 更新玩家位置
       let dx = 0, dy = 0;
       if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
@@ -685,7 +775,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         player.x = Math.max(PLAYER_SIZE, Math.min(CANVAS_WIDTH - PLAYER_SIZE, player.x));
         player.y = Math.max(PLAYER_SIZE, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, player.y));
+
+        // 移动时产生尘埃粒子
+        if (Math.random() < 0.3) {
+          createParticles(player.x, player.y + PLAYER_SIZE, '#888888', 1, 'dust');
+        }
       }
+
+      // 生命回复
+      lastRegenTimeRef.current += deltaTime;
+      if (lastRegenTimeRef.current >= 1) {
+        lastRegenTimeRef.current = 0;
+        if (player.hp < player.maxHp && player.regenRate > 0) {
+          player.hp = Math.min(player.hp + player.regenRate, player.maxHp);
+        }
+      }
+
+      // 更新UI显示
+      setPlayerData({ ...player });
 
       // 生成怪物
       const difficulty = getDifficultyMultiplier();
@@ -730,8 +837,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
 
         if (mDistance > 0) {
-          monster.x += (mdx / mDistance) * monster.speed * (monster.isStunned ? 0 : 1);
-          monster.y += (mdy / mDistance) * monster.speed * (monster.isStunned ? 0 : 1);
+          const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
+          // 幽灵可以穿透墙壁，其他怪物正常移动
+          if (monster.type === 'ghost') {
+            monster.x += (mdx / mDistance) * moveSpeed;
+            monster.y += (mdy / mDistance) * moveSpeed;
+          } else {
+            monster.x += (mdx / mDistance) * moveSpeed;
+            monster.y += (mdy / mDistance) * moveSpeed;
+          }
         }
 
         if (monster.isStunned) {
@@ -767,41 +881,92 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         // 绘制怪物
         monster.angle += deltaTime * 2;
-        const bounce = Math.sin(gameTimeRef.current * 5 + monster.animationOffset) * 2;
+        const bounce = Math.sin(gameTimeRef.current * 5 + monster.animationOffset) * 3;
 
         ctx.save();
         ctx.translate(monster.x, monster.y + bounce);
         ctx.scale(monster.scale, monster.scale);
 
-        // 怪物身体
-        ctx.fillStyle = monster.color;
-        ctx.beginPath();
-        if (monster.type === 'boss') {
-          // Boss - 复杂形状
+        // 根据怪物类型绘制不同形状
+        if (monster.type === 'slime') {
+          // 史莱姆 - 圆形带波纹效果
+          ctx.fillStyle = monster.color;
+          ctx.globalAlpha = 0.7;
+          ctx.beginPath();
           ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
-        } else {
-          // 普通怪物
-          ctx.moveTo(0, -monster.size);
-          ctx.lineTo(monster.size * 0.7, monster.size * 0.5);
-          ctx.lineTo(-monster.size * 0.7, monster.size * 0.5);
-          ctx.closePath();
-        }
-        ctx.fill();
+          ctx.fill();
 
-        // 怪物边框
+          // 内部高光
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.beginPath();
+          ctx.arc(-monster.size * 0.3, -monster.size * 0.3, monster.size * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        } else if (monster.type === 'skeleton') {
+          // 骷髅 - 头骨形状
+          ctx.fillStyle = monster.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 眼睛
+          ctx.fillStyle = '#FF6B6B';
+          ctx.beginPath();
+          ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.15, 0, Math.PI * 2);
+          ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.15, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 嘴巴
+          ctx.beginPath();
+          ctx.arc(0, monster.size * 0.3, monster.size * 0.2, 0, Math.PI);
+          ctx.stroke();
+        } else if (monster.type === 'ghost') {
+          // 幽灵 - 半透明漂浮
+          ctx.fillStyle = monster.color;
+          ctx.globalAlpha = 0.6;
+          ctx.beginPath();
+          ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 眼睛
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.2, 0, Math.PI * 2);
+          ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        } else if (monster.type === 'boss') {
+          // Boss - 复杂形状
+          ctx.fillStyle = monster.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 角
+          ctx.fillStyle = '#FF6B6B';
+          ctx.beginPath();
+          ctx.moveTo(-monster.size * 0.5, -monster.size * 0.8);
+          ctx.lineTo(-monster.size * 0.3, -monster.size * 0.3);
+          ctx.lineTo(-monster.size * 0.7, -monster.size * 0.3);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(monster.size * 0.5, -monster.size * 0.8);
+          ctx.lineTo(monster.size * 0.3, -monster.size * 0.3);
+          ctx.lineTo(monster.size * 0.7, -monster.size * 0.3);
+          ctx.fill();
+
+          // 眼睛
+          ctx.fillStyle = '#FF0000';
+          ctx.beginPath();
+          ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.2, 0, Math.PI * 2);
+          ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 怪物边框（被击中时闪烁）
         ctx.strokeStyle = monster.isStunned ? '#FFFFFF' : 'rgba(0, 0, 0, 0.3)';
         ctx.lineWidth = 2;
         ctx.stroke();
-
-        // 怪物眼睛
-        ctx.fillStyle = monster.isStunned ? '#FFFFFF' : '#FF6B6B';
-        const eyeOffset = monster.size * 0.3;
-        const eyeSize = monster.size * 0.15;
-
-        ctx.beginPath();
-        ctx.arc(-eyeOffset, -eyeOffset, eyeSize, 0, Math.PI * 2);
-        ctx.arc(eyeOffset, -eyeOffset, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
 
         ctx.restore();
 
@@ -822,7 +987,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         // 添加拖尾
         projectile.trail.push({ x: projectile.x, y: projectile.y, life: 1 });
-        if (projectile.trail.length > 10) projectile.trail.shift();
+        if (projectile.trail.length > 15) projectile.trail.shift();
         projectile.trail.forEach(t => t.life -= deltaTime * 8);
 
         // 边界反弹
@@ -836,13 +1001,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
 
         // 绘制拖尾
-        ctx.strokeStyle = COLORS.projectileGlow;
+        ctx.strokeStyle = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectileGlow;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
         ctx.beginPath();
         projectile.trail.forEach((t, i) => {
           if (t.life > 0) {
-            ctx.globalAlpha = t.life * 0.5;
+            ctx.globalAlpha = t.life * 0.6;
             if (i === 0) {
               ctx.moveTo(t.x, t.y);
             } else {
@@ -854,23 +1019,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.globalAlpha = 1;
 
         // 绘制投射物光晕
-        const glow = ctx.createRadialGradient(projectile.x, projectile.y, 0, projectile.x, projectile.y, 15);
-        glow.addColorStop(0, COLORS.projectileGlow);
+        const glowColor = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectileGlow;
+        const glow = ctx.createRadialGradient(projectile.x, projectile.y, 0, projectile.x, projectile.y, projectile.type === 'fireball' ? 20 : 15);
+        glow.addColorStop(0, glowColor);
         glow.addColorStop(1, 'rgba(255, 234, 167, 0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, 15, 0, Math.PI * 2);
+        ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 20 : 15, 0, Math.PI * 2);
         ctx.fill();
 
         // 绘制投射物
-        ctx.fillStyle = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectile;
+        ctx.fillStyle = projectile.type === 'fireball' ? COLORS.fireball : COLORS.projectile;
         ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
+        ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 8 : 6, 0, Math.PI * 2);
         ctx.fill();
 
         // 碰撞检测
         for (const monster of monstersRef.current) {
-          if (checkCollision(projectile.x, projectile.y, 8, monster.x, monster.y, monster.size)) {
+          if (checkCollision(projectile.x, projectile.y, projectile.type === 'fireball' ? 10 : 8, monster.x, monster.y, monster.size)) {
             const isCrit = Math.random() < player.critRate;
             const damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
 
@@ -903,12 +1069,44 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return true;
       });
 
+      // 更新和绘制刀光特效
+      slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
+        slash.life -= deltaTime / slash.maxLife;
+
+        if (slash.life <= 0) return false;
+
+        const alpha = slash.life;
+        ctx.globalAlpha = alpha;
+
+        ctx.save();
+        ctx.translate(slash.x, slash.y);
+        ctx.rotate(slash.angle);
+
+        // 绘制新月形刀光
+        ctx.strokeStyle = COLORS.slash;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = COLORS.slash;
+        ctx.shadowBlur = 10;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(40, -30, 80, 0);
+        ctx.quadraticCurveTo(40, 10, 0, 0);
+        ctx.stroke();
+
+        ctx.restore();
+        ctx.globalAlpha = 1;
+
+        return true;
+      });
+
       // 更新和绘制粒子
       particlesRef.current = particlesRef.current.filter(particle => {
         particle.life -= deltaTime;
         particle.x += particle.vx;
         particle.y += particle.vy;
         particle.vy += 0.15;
+        particle.rotation += particle.rotationSpeed;
 
         if (particle.life <= 0) return false;
 
@@ -941,6 +1139,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.beginPath();
           ctx.arc(particle.x, particle.y, particle.size * alpha * 2, 0, Math.PI * 2);
           ctx.fill();
+        } else if (particle.type === 'dust') {
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (particle.type === 'slash') {
+          ctx.save();
+          ctx.translate(particle.x, particle.y);
+          ctx.rotate(particle.rotation);
+          ctx.fillStyle = particle.color;
+          ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size * 2);
+          ctx.restore();
         }
 
         ctx.globalAlpha = 1;
@@ -957,7 +1167,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         const alpha = dn.life / dn.maxLife;
         ctx.globalAlpha = alpha;
         ctx.fillStyle = dn.color;
-        ctx.font = dn.isCrit ? 'bold 32px "Press Start 2P", monospace' : 'bold 24px "Press Start 2P", monospace';
+        ctx.font = dn.isCrit ? 'bold 32px "Arial", sans-serif' : 'bold 24px "Arial", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = dn.color;
@@ -995,7 +1205,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // 玩家方向指示器
+      // 玩家方向指示器（立即响应鼠标）
       const angle = Math.atan2(mouseRef.current.y - player.y, mouseRef.current.x - player.x);
       ctx.strokeStyle = COLORS.player;
       ctx.lineWidth = 4;
@@ -1036,7 +1246,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       lastTimeRef.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound, triggerScreenShake]);
+  }, [gameStarted, checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound, triggerScreenShake, createSlashEffect, drawBackground]);
 
   // ==================== 游戏控制 ====================
   const startGame = () => {
@@ -1047,6 +1257,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     setScore(0);
     setShowTutorial(false);
     setShowLevelUp(false);
+    setPlayerData(null);
 
     initAudio();
 
@@ -1071,6 +1282,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       critMultiplier: 2,
       attackRange: 80,
       arrowCount: 0,
+      regenRate: 1,
       skills: []
     };
 
@@ -1078,12 +1290,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     projectilesRef.current = [];
     particlesRef.current = [];
     damageNumbersRef.current = [];
+    slashEffectsRef.current = [];
     screenShakeRef.current = { intensity: 0, duration: 0, x: 0, y: 0 };
     monsterIdCounterRef.current = 0;
     projectileIdCounterRef.current = 0;
     monsterSpawnTimerRef.current = 0;
     autoAttackTimerRef.current = 0;
     gameTimeRef.current = 0;
+    lastRegenTimeRef.current = 0;
 
     gameTimerRef.current = window.setInterval(() => {
       setTimeLeft(prev => {
@@ -1101,11 +1315,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         console.log('Canvas found, starting game loop...');
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-          gradient.addColorStop(0, '#1A1A2E');
-          gradient.addColorStop(1, '#0F3460');
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          drawBackground(ctx);
         }
 
         lastTimeRef.current = performance.now();
@@ -1197,7 +1407,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [gameStarted, showLevelUp]);
+  }, []); // 移除依赖，避免重复绑定
 
   // ==================== 提交结果 ====================
   const handleSubmit = async () => {
@@ -1246,7 +1456,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const player = playerRef.current;
+  const player = playerData || playerRef.current;
 
   return (
     <motion.div
@@ -1310,9 +1520,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                         <ul className="space-y-2 text-gray-300">
                           <li>• 游戏时间：10分钟</li>
                           <li>• 击杀怪物获得经验升级</li>
-                          <li>• 每次升级选择 1 个技能</li>
+                          <li>• 每次升级从3个技能中选择1个</li>
                           <li>• 难度随时间逐渐增加</li>
-                          <li>• 不同类型怪物：近战、远程、Boss</li>
+                          <li>• 主角会缓慢恢复生命值</li>
+                          <li>• 4种怪物类型：史莱姆、骷髅、幽灵、Boss</li>
                         </ul>
                       </div>
                     </div>
@@ -1456,44 +1667,51 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             )}
           </AnimatePresence>
 
-          {/* 升级选择界面 */}
+          {/* 升级选择界面 - 修复z-index问题 */}
           <AnimatePresence>
-            {showLevelUp && availableSkill && (
+            {showLevelUp && availableSkills.length > 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+                className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
               >
                 <motion.div
                   initial={{ scale: 0.9, y: 20 }}
                   animate={{ scale: 1, y: 0 }}
-                  className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl"
+                  className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 max-w-4xl w-full border border-purple-500/30 shadow-2xl"
                 >
                   <h3 className="text-2xl font-bold text-center text-yellow-400 mb-6 flex items-center justify-center gap-2">
                     <Sparkles className="w-6 h-6" />
-                    升级了！
+                    升级了！选择一个技能
                   </h3>
-                  <Button
-                    onClick={() => selectSkill(availableSkill)}
-                    className="w-full h-auto p-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 flex items-center gap-4 transition-all hover:scale-105"
-                  >
-                    <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg">
-                      {availableSkill.icon}
-                    </div>
-                    <div className="text-left">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-white text-lg">{availableSkill.name}</p>
-                        <div
-                          className="px-2 py-0.5 rounded text-xs font-semibold"
-                          style={{ backgroundColor: availableSkill.color, color: '#FFFFFF' }}
-                        >
-                          {availableSkill.rarity.toUpperCase()}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {availableSkills.map((skill, index) => (
+                      <Button
+                        key={skill.id}
+                        onClick={() => selectSkill(skill)}
+                        className="h-auto p-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 flex flex-col items-center gap-4 transition-all hover:scale-105"
+                      >
+                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg">
+                          {skill.icon}
                         </div>
-                      </div>
-                      <p className="text-sm text-gray-400">{availableSkill.description}</p>
-                    </div>
-                  </Button>
+                        <div className="text-left w-full">
+                          <div className="flex items-center gap-2 mb-1 justify-center">
+                            <p className="font-semibold text-white text-lg">{skill.name}</p>
+                          </div>
+                          <div className="flex justify-center mb-2">
+                            <div
+                              className="px-2 py-0.5 rounded text-xs font-semibold"
+                              style={{ backgroundColor: skill.color, color: '#FFFFFF' }}
+                            >
+                              {skill.rarity.toUpperCase()}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-400 text-center">{skill.description}</p>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
                 </motion.div>
               </motion.div>
             )}
