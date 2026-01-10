@@ -1116,30 +1116,84 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 升级处理 ====================
   const handleLevelUp = useCallback((player: Player) => {
-    player.level++;
-    player.exp = 0;
-    player.expToNext = Math.floor(player.expToNext * 1.5);
+    try {
+      console.log('[Level Up] Starting level up process', {
+        currentLevel: player.level,
+        currentExp: player.exp,
+        expToNext: player.expToNext,
+        gameStateBefore: gameStateRef.current
+      });
 
-    // 过滤掉需要前置技能的选项
-    const filteredSkills = SKILL_POOL.filter(skill => {
-      // 自动锁敌技能需要前置等级
-      if (skill.id.startsWith('auto_lock_')) {
-        const requiredLevel = parseInt(skill.id.split('_lv')[1]);
-        return player.autoLockLevel >= requiredLevel - 1;
+      // 更新玩家等级
+      const oldLevel = player.level;
+      player.level++;
+      player.exp = 0;
+      player.expToNext = Math.floor(player.expToNext * 1.5);
+
+      console.log('[Level Up] Player stats updated', {
+        oldLevel,
+        newLevel: player.level,
+        newExpToNext: player.expToNext
+      });
+
+      // 过滤掉需要前置技能的选项
+      const filteredSkills = SKILL_POOL.filter(skill => {
+        // 自动锁敌技能需要前置等级
+        if (skill.id.startsWith('auto_lock_')) {
+          const requiredLevel = parseInt(skill.id.split('_lv')[1]);
+          return player.autoLockLevel >= requiredLevel - 1;
+        }
+        return true;
+      });
+
+      console.log('[Level Up] Skill pool filtered', {
+        totalSkills: SKILL_POOL.length,
+        filteredCount: filteredSkills.length,
+        autoLockLevel: player.autoLockLevel
+      });
+
+      // 随机选择3个技能
+      const shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
+      const selectedSkills = shuffled.slice(0, 3);
+
+      console.log('[Level Up] Skills selected', {
+        skillCount: selectedSkills.length,
+        skills: selectedSkills.map(s => ({ id: s.id, name: s.name, rarity: s.rarity }))
+      });
+
+      availableSkillsRef.current = selectedSkills;
+      selectedSkillIndexRef.current = -1;
+
+      // 切换到升级状态
+      gameStateRef.current = GameState.LEVEL_UP;
+
+      console.log('[Level Up] Game state changed to LEVEL_UP', {
+        newGameState: gameStateRef.current,
+        availableSkills: availableSkillsRef.current.length
+      });
+
+      // 创建升级特效
+      try {
+        createParticles(player.x, player.y, COLORS.levelUp, 40, 'magic');
+      } catch (error) {
+        console.error('[Level Up] Error creating particles:', error);
+        // 粒子特效失败不影响升级流程
       }
-      return true;
-    });
 
-    // 随机选择3个技能
-    const shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
-    const selectedSkills = shuffled.slice(0, 3);
-    availableSkillsRef.current = selectedSkills;
-    selectedSkillIndexRef.current = -1;
+      // 播放升级音效
+      try {
+        playSound('levelup');
+      } catch (error) {
+        console.error('[Level Up] Error playing levelup sound:', error);
+        // 音效失败不影响升级流程
+      }
 
-    gameStateRef.current = GameState.LEVEL_UP;
-
-    createParticles(player.x, player.y, COLORS.levelUp, 40, 'magic');
-    playSound('levelup');
+      console.log('[Level Up] Level up completed successfully');
+    } catch (error) {
+      console.error('[Level Up] Fatal error in level up process:', error);
+      // 出现严重错误时，保持游戏继续运行
+      gameStateRef.current = GameState.PLAYING;
+    }
   }, [createParticles, playSound]);
 
   // ==================== 生成障碍物 ====================
@@ -1484,6 +1538,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制升级面板 ====================
   const drawLevelUpPanel = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
+    console.log('[Draw Level Up Panel] Called', {
+      playerLevel: player.level,
+      availableSkills: availableSkillsRef.current.length,
+      skills: availableSkillsRef.current.map(s => ({ id: s.id, name: s.name }))
+    });
+
     // 半透明遮罩
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1493,9 +1553,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.font = 'bold 36px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('升级了！选择一个技能', CANVAS_WIDTH / 2, 120);
+    ctx.fillText(`升级了！Lv.${player.level} → Lv.${player.level + 1}`, CANVAS_WIDTH / 2, 100);
+    ctx.font = '24px Arial, sans-serif';
+    ctx.fillStyle = '#BDC3C7';
+    ctx.fillText('选择一个技能', CANVAS_WIDTH / 2, 140);
 
     const skills = availableSkillsRef.current;
+
+    // 检查技能数量
+    if (skills.length === 0) {
+      console.error('[Draw Level Up Panel] No skills available!');
+      ctx.fillStyle = '#FF6B6B';
+      ctx.font = 'bold 24px Arial, sans-serif';
+      ctx.fillText('错误：没有可选择的技能', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+      return;
+    }
+
+    console.log('[Draw Level Up Panel] Drawing skill cards', { skillCount: skills.length });
+
     const panelWidth = 350;
     const panelHeight = 420;
     const panelGap = 30;
@@ -2467,7 +2542,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 绘制升级面板
       if (gameState === GameState.LEVEL_UP) {
-        drawLevelUpPanel(ctx, player);
+        console.log('[Game Loop] Drawing level up panel', {
+          availableSkills: availableSkillsRef.current.length,
+          skills: availableSkillsRef.current.map(s => s.name),
+          playerLevel: player.level
+        });
+
+        try {
+          drawLevelUpPanel(ctx, player);
+        } catch (error) {
+          console.error('[Game Loop] Error drawing level up panel:', error);
+          // 如果绘制失败，切换回游戏状态
+          gameStateRef.current = GameState.PLAYING;
+        }
       } else {
         // 绘制UI
         drawUI(ctx, player);
@@ -2480,15 +2567,32 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       ctx.restore();
 
-      // 检查升级
+      // 检查升级（只在PLAYING状态下）
       if (gameState === GameState.PLAYING && player.exp >= player.expToNext) {
+        console.log('[Game Loop] Level up condition met', {
+          playerExp: player.exp,
+          expToNext: player.expToNext,
+          currentLevel: player.level,
+          currentState: gameState
+        });
+
         try {
           handleLevelUp(player);
+
+          // 验证状态是否成功切换
+          if (gameStateRef.current !== GameState.LEVEL_UP) {
+            console.error('[Game Loop] Level up failed - state not changed to LEVEL_UP');
+            // 如果状态切换失败，继续游戏
+          } else {
+            console.log('[Game Loop] Level up successful, game paused for skill selection');
+            // 升级成功，本帧结束（不再继续处理）
+            animationFrameRef.current = requestAnimationFrame(gameLoop);
+            return;
+          }
         } catch (error) {
-          console.error('Error handling level up:', error);
+          console.error('[Game Loop] Error in level up process:', error);
           // 即使升级出错，也要继续游戏循环
         }
-        return;
       }
 
       // 继续游戏循环
@@ -2679,20 +2783,43 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 升级面板选择
       if (gameStateRef.current === GameState.LEVEL_UP) {
+        console.log('[Keyboard] Level Up input', {
+          key: e.key,
+          availableSkills: availableSkillsRef.current.length,
+          selectedIndex: selectedSkillIndexRef.current
+        });
+
         if (e.key === '1' || e.key === '2' || e.key === '3') {
           const index = parseInt(e.key) - 1;
           if (availableSkillsRef.current[index]) {
+            console.log('[Keyboard] Selecting skill', {
+              index,
+              skill: availableSkillsRef.current[index]
+            });
+
             selectedSkillIndexRef.current = index;
             playSound('select');
 
             setTimeout(() => {
-              const skill = availableSkillsRef.current[index];
-              if (playerRef.current) {
-                playerRef.current = skill.apply(playerRef.current);
-                playerRef.current.skills.push(skill);
+              try {
+                const skill = availableSkillsRef.current[index];
+                console.log('[Keyboard] Applying skill', { skill });
+
+                if (playerRef.current) {
+                  playerRef.current = skill.apply(playerRef.current);
+                  playerRef.current.skills.push(skill);
+
+                  console.log('[Keyboard] Skill applied, resuming game', {
+                    newLevel: playerRef.current.level,
+                    totalSkills: playerRef.current.skills.length
+                  });
+                }
+
+                gameStateRef.current = GameState.PLAYING;
+                lastTimeRef.current = performance.now();
+              } catch (error) {
+                console.error('[Keyboard] Error applying skill:', error);
               }
-              gameStateRef.current = GameState.PLAYING;
-              lastTimeRef.current = performance.now();
             }, 200);
           }
         }
@@ -2701,10 +2828,22 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         if (e.key === 'Enter' || e.key === ' ') {
           const selectedSkill = availableSkillsRef.current[selectedSkillIndexRef.current];
           if (selectedSkill && playerRef.current) {
-            playerRef.current = selectedSkill.apply(playerRef.current);
-            playerRef.current.skills.push(selectedSkill);
-            gameStateRef.current = GameState.PLAYING;
-            lastTimeRef.current = performance.now();
+            console.log('[Keyboard] Confirming skill selection', {
+              selectedSkill,
+              selectedIndex: selectedSkillIndexRef.current
+            });
+
+            try {
+              playerRef.current = selectedSkill.apply(playerRef.current);
+              playerRef.current.skills.push(selectedSkill);
+
+              console.log('[Keyboard] Skill applied via confirm, resuming game');
+
+              gameStateRef.current = GameState.PLAYING;
+              lastTimeRef.current = performance.now();
+            } catch (error) {
+              console.error('[Keyboard] Error applying skill:', error);
+            }
           }
         }
       }
@@ -2734,16 +2873,42 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
 
-      // 计算鼠标角度并存储
-      const dx = mouseX - playerRef.current!.x;
-      const dy = mouseY - playerRef.current!.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      // 在升级面板中，检测鼠标悬停的技能卡片
+      if (gameStateRef.current === GameState.LEVEL_UP) {
+        const panelWidth = 350;
+        const panelGap = 30;
+        const totalWidth = panelWidth * 3 + panelGap * 2;
+        const startX = (CANVAS_WIDTH - totalWidth) / 2;
+        const startY = 180;
 
-      if (distance > 1) {
-        const angle = Math.atan2(dy, dx);
-        mouseRef.current.x = mouseX;
-        mouseRef.current.y = mouseY;
-        mouseRef.current.angle = angle;
+        let hoveredIndex = -1;
+
+        availableSkillsRef.current.forEach((skill, index) => {
+          const x = startX + index * (panelWidth + panelGap);
+          const panelHeight = 420;
+
+          if (mouseX >= x && mouseX <= x + panelWidth &&
+              mouseY >= startY && mouseY <= startY + panelHeight) {
+            hoveredIndex = index;
+          }
+        });
+
+        if (hoveredIndex !== selectedSkillIndexRef.current && hoveredIndex !== -1) {
+          selectedSkillIndexRef.current = hoveredIndex;
+          playSound('hover');
+        }
+      } else {
+        // 计算鼠标角度并存储
+        const dx = mouseX - playerRef.current!.x;
+        const dy = mouseY - playerRef.current!.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 1) {
+          const angle = Math.atan2(dy, dx);
+          mouseRef.current.x = mouseX;
+          mouseRef.current.y = mouseY;
+          mouseRef.current.angle = angle;
+        }
       }
     };
 
@@ -2755,6 +2920,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const scaleY = CANVAS_HEIGHT / rect.height;
       const clickX = (e.clientX - rect.left) * scaleX;
       const clickY = (e.clientY - rect.top) * scaleY;
+
+      console.log('[Mouse Click] Canvas click', {
+        clickX,
+        clickY,
+        gameState: gameStateRef.current,
+        availableSkills: availableSkillsRef.current.length
+      });
 
       // 检查点击的是哪个技能面板
       const panelWidth = 350;
@@ -2769,16 +2941,34 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         if (clickX >= x && clickX <= x + panelWidth &&
             clickY >= startY && clickY <= startY + panelHeight) {
+          console.log('[Mouse Click] Clicked on skill panel', {
+            index,
+            skill: skill.name,
+            panelBounds: { x, y: startY, width: panelWidth, height: panelHeight }
+          });
+
           selectedSkillIndexRef.current = index;
           playSound('hover');
 
           setTimeout(() => {
-            if (playerRef.current) {
-              playerRef.current = skill.apply(playerRef.current);
-              playerRef.current.skills.push(skill);
+            try {
+              if (playerRef.current) {
+                console.log('[Mouse Click] Applying skill', { skill });
+
+                playerRef.current = skill.apply(playerRef.current);
+                playerRef.current.skills.push(skill);
+
+                console.log('[Mouse Click] Skill applied, resuming game', {
+                  newLevel: playerRef.current.level,
+                  totalSkills: playerRef.current.skills.length
+                });
+              }
+
+              gameStateRef.current = GameState.PLAYING;
+              lastTimeRef.current = performance.now();
+            } catch (error) {
+              console.error('[Mouse Click] Error applying skill:', error);
             }
-            gameStateRef.current = GameState.PLAYING;
-            lastTimeRef.current = performance.now();
           }, 150);
         }
       });
