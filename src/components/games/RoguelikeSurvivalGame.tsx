@@ -21,14 +21,14 @@ export interface GameResult {
 }
 
 // ==================== 游戏常量 ====================
-const CANVAS_WIDTH = 1280;
-const CANVAS_HEIGHT = 720;
+const CANVAS_WIDTH = 1600;
+const CANVAS_HEIGHT = 900;
 const PLAYER_SIZE = 20;
-const MAX_MONSTERS = 100;
-const MAX_PROJECTILES = 100;
-const MAX_PARTICLES = 600;
-const MAX_DAMAGE_NUMBERS = 80;
-const MONSTER_SPAWN_MARGIN = 200;
+const MAX_MONSTERS = 150;
+const MAX_PROJECTILES = 120;
+const MAX_PARTICLES = 800;
+const MAX_DAMAGE_NUMBERS = 100;
+const MONSTER_SPAWN_MARGIN = 250;
 
 // ==================== 颜色配置 ====================
 const COLORS = {
@@ -209,6 +209,7 @@ interface Skill {
   apply: (player: Player) => Player;
   rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
   color: string;
+  icon?: { x: number; y: number; color: string }[];
 }
 
 // ==================== 像素艺术数据 ====================
@@ -342,6 +343,72 @@ const PIXEL_ART = {
   }
 };
 
+// ==================== 技能图标数据 ====================
+const SKILL_ICONS = {
+  sword: [
+    { x: 0, y: -3, color: '#C0C0C0' },
+    { x: 0, y: -2, color: '#E8E8E8' }, { x: -1, y: -2, color: '#C0C0C0' }, { x: 1, y: -2, color: '#C0C0C0' },
+    { x: 0, y: -1, color: '#C0C0C0' },
+    { x: 0, y: 0, color: '#DAA520' },
+    { x: 0, y: 1, color: '#8B4513' }
+  ],
+  arrow: [
+    { x: 0, y: -3, color: '#8B4513' },
+    { x: 0, y: -2, color: '#A0522D' },
+    { x: 0, y: -1, color: '#FFFFFF' },
+    { x: 0, y: 0, color: '#8B4513' }
+  ],
+  heart: [
+    { x: -1, y: 0, color: '#FF4757' }, { x: 1, y: 0, color: '#FF4757' },
+    { x: 0, y: -1, color: '#FF4757' },
+    { x: 0, y: 1, color: '#FF4757' }
+  ],
+  shield: [
+    { x: 0, y: -2, color: '#3498DB' },
+    { x: -2, y: -1, color: '#3498DB' }, { x: -1, y: -1, color: '#5DADE2' }, { x: 0, y: -1, color: '#3498DB' }, { x: 1, y: -1, color: '#5DADE2' }, { x: 2, y: -1, color: '#3498DB' },
+    { x: -2, y: 0, color: '#3498DB' }, { x: 2, y: 0, color: '#3498DB' },
+    { x: -1, y: 1, color: '#3498DB' }, { x: 1, y: 1, color: '#3498DB' }
+  ],
+  star: [
+    { x: 0, y: -3, color: '#FFD700' },
+    { x: -1, y: -1, color: '#FFD700' }, { x: 1, y: -1, color: '#FFD700' },
+    { x: -2, y: 0, color: '#FFD700' }, { x: 0, y: 0, color: '#FFD700' }, { x: 2, y: 0, color: '#FFD700' },
+    { x: -1, y: 1, color: '#FFD700' }, { x: 1, y: 1, color: '#FFD700' },
+    { x: 0, y: 2, color: '#FFD700' }
+  ],
+  fire: [
+    { x: 0, y: -3, color: '#FF6B6B' },
+    { x: -1, y: -2, color: '#FF4757' }, { x: 0, y: -2, color: '#FFD93D' }, { x: 1, y: -2, color: '#FF4757' },
+    { x: -1, y: -1, color: '#FFD93D' }, { x: 1, y: -1, color: '#FFD93D' },
+    { x: 0, y: 0, color: '#FF4757' }
+  ],
+  speed: [
+    { x: -2, y: -1, color: '#2ECC71' }, { x: -1, y: -1, color: '#2ECC71' }, { x: 0, y: -1, color: '#2ECC71' },
+    { x: -1, y: 0, color: '#2ECC71' }, { x: 0, y: 0, color: '#2ECC71' }, { x: 1, y: 0, color: '#2ECC71' },
+    { x: 0, y: 1, color: '#2ECC71' }, { x: 1, y: 1, color: '#2ECC71' }
+  ],
+  magic: [
+    { x: 0, y: -3, color: '#9B59B6' },
+    { x: -2, y: -1, color: '#9B59B6' }, { x: 2, y: -1, color: '#9B59B6' },
+    { x: -1, y: 0, color: '#BB6BB6' }, { x: 0, y: 0, color: '#9B59B6' }, { x: 1, y: 0, color: '#BB6BB6' },
+    { x: 0, y: 2, color: '#9B59B6' }
+  ],
+  skull: [
+    { x: -1, y: -2, color: '#FFFFFF' }, { x: 0, y: -2, color: '#FFFFFF' }, { x: 1, y: -2, color: '#FFFFFF' },
+    { x: -2, y: -1, color: '#FFFFFF' }, { x: -1, y: -1, color: '#FF4757' }, { x: 1, y: -1, color: '#FF4757' }, { x: 2, y: -1, color: '#FFFFFF' },
+    { x: -1, y: 0, color: '#FFFFFF' }, { x: 0, y: 0, color: '#FFFFFF' }, { x: 1, y: 0, color: '#FFFFFF' },
+    { x: -1, y: 1, color: '#FFFFFF' }, { x: 1, y: 1, color: '#FFFFFF' }
+  ],
+  bolt: [
+    { x: -1, y: -3, color: '#F1C40F' },
+    { x: 0, y: -2, color: '#FFD700' },
+    { x: -1, y: -1, color: '#F1C40F' }, { x: 1, y: -1, color: '#F1C40F' },
+    { x: -1, y: 0, color: '#FFD700' }, { x: 0, y: 0, color: '#F1C40F' },
+    { x: 1, y: 1, color: '#FFD700' },
+    { x: 2, y: 2, color: '#F1C40F' }
+  ]
+};
+
 // ==================== 技能池 ====================
 const SKILL_POOL: Skill[] = [
   // 基础属性提升（主动）
@@ -352,7 +419,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.25 }),
     rarity: 'common',
-    color: COLORS.common
+    color: COLORS.common,
+    icon: SKILL_ICONS.sword
   },
   {
     id: 'ranged_damage',
@@ -361,7 +429,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.25 }),
     rarity: 'common',
-    color: COLORS.common
+    color: COLORS.common,
+    icon: SKILL_ICONS.arrow
   },
   {
     id: 'max_hp',
@@ -370,7 +439,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
     rarity: 'common',
-    color: COLORS.common
+    color: COLORS.common,
+    icon: SKILL_ICONS.heart
   },
   // 进阶属性提升（稀有）
   {
@@ -380,7 +450,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, attackSpeed: p.attackSpeed * 1.25 }),
     rarity: 'rare',
-    color: COLORS.rare
+    color: COLORS.rare,
+    icon: SKILL_ICONS.star
   },
   {
     id: 'movement_speed',
@@ -389,7 +460,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, baseSpeed: p.baseSpeed * 1.2, speed: p.speed * 1.2 }),
     rarity: 'rare',
-    color: COLORS.rare
+    color: COLORS.rare,
+    icon: SKILL_ICONS.speed
   },
   {
     id: 'attack_range',
@@ -398,7 +470,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.3 }),
     rarity: 'rare',
-    color: COLORS.rare
+    color: COLORS.rare,
+    icon: SKILL_ICONS.star
   },
   {
     id: 'regen_boost',
@@ -407,7 +480,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, regenRate: p.regenRate + 3 }),
     rarity: 'rare',
-    color: COLORS.rare
+    color: COLORS.rare,
+    icon: SKILL_ICONS.heart
   },
   // 史诗技能
   {
@@ -417,7 +491,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, critRate: Math.min(p.critRate + 0.2, 1) }),
     rarity: 'epic',
-    color: COLORS.epic
+    color: COLORS.epic,
+    icon: SKILL_ICONS.skull
   },
   {
     id: 'arrow_bounce',
@@ -426,7 +501,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, arrowCount: p.arrowCount + 4 }),
     rarity: 'epic',
-    color: COLORS.epic
+    color: COLORS.epic,
+    icon: SKILL_ICONS.arrow
   },
   {
     id: 'critical_mastery',
@@ -435,7 +511,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, critMultiplier: p.critMultiplier * 1.75 }),
     rarity: 'epic',
-    color: COLORS.epic
+    color: COLORS.epic,
+    icon: SKILL_ICONS.star
   },
   {
     id: 'blade_dance',
@@ -444,7 +521,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.6 }),
     rarity: 'epic',
-    color: COLORS.epic
+    color: COLORS.epic,
+    icon: SKILL_ICONS.sword
   },
   {
     id: 'vampirism',
@@ -453,7 +531,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, regenRate: p.regenRate + 8 }),
     rarity: 'epic',
-    color: COLORS.epic
+    color: COLORS.epic,
+    icon: SKILL_ICONS.heart
   },
   // 传说技能
   {
@@ -463,7 +542,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.75 }),
     rarity: 'legendary',
-    color: COLORS.legendary
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.fire
   },
   {
     id: 'giant_slayer',
@@ -472,7 +552,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.5, rangedDamage: p.rangedDamage * 1.5 }),
     rarity: 'legendary',
-    color: COLORS.legendary
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.sword
   },
   {
     id: 'berserker',
@@ -481,7 +562,8 @@ const SKILL_POOL: Skill[] = [
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.75, rangedDamage: p.rangedDamage * 1.75 }),
     rarity: 'legendary',
-    color: COLORS.legendary
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.skull
   },
   // 神话技能
   {
@@ -499,7 +581,8 @@ const SKILL_POOL: Skill[] = [
       speed: p.speed * 1.2
     }),
     rarity: 'mythic',
-    color: COLORS.mythic
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.star
   },
   // 武器切换（主动）
   {
@@ -537,7 +620,8 @@ const SKILL_POOL: Skill[] = [
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 1) }),
     rarity: 'epic',
-    color: COLORS.epic
+    color: COLORS.epic,
+    icon: SKILL_ICONS.bolt
   },
   {
     id: 'auto_lock_lv2',
@@ -546,7 +630,8 @@ const SKILL_POOL: Skill[] = [
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 2) }),
     rarity: 'legendary',
-    color: COLORS.legendary
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.bolt
   },
   {
     id: 'auto_lock_lv3',
@@ -555,7 +640,8 @@ const SKILL_POOL: Skill[] = [
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 3) }),
     rarity: 'mythic',
-    color: COLORS.mythic
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.bolt
   },
   {
     id: 'auto_lock_lv4',
@@ -564,7 +650,8 @@ const SKILL_POOL: Skill[] = [
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 4) }),
     rarity: 'mythic',
-    color: COLORS.mythic
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.bolt
   },
   {
     id: 'auto_lock_lv5',
@@ -573,7 +660,8 @@ const SKILL_POOL: Skill[] = [
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 5) }),
     rarity: 'mythic',
-    color: COLORS.mythic
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.bolt
   },
   // 被动技能
   {
@@ -1199,28 +1287,42 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   // ==================== 生成障碍物 ====================
   const spawnObstacles = useCallback(() => {
     obstaclesRef.current = [];
-    const numObstacles = 8 + Math.floor(gameTimeRef.current / 30);
+    const numObstacles = 12 + Math.floor(gameTimeRef.current / 30);
 
     for (let i = 0; i < numObstacles; i++) {
       let x, y, width, height;
-      const type = Math.random() > 0.5 ? 'rock' : 'wall';
+      const typeRoll = Math.random();
+
+      // 增加障碍物类型多样性
+      let type: Obstacle['type'];
+      if (typeRoll < 0.4) {
+        type = 'rock';
+      } else if (typeRoll < 0.7) {
+        type = 'wall';
+      } else {
+        type = 'tree';
+      }
 
       // 确保障碍物不在玩家初始位置附近
       do {
-        x = 100 + Math.random() * (CANVAS_WIDTH - 200);
-        y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
-      } while (Math.sqrt(Math.pow(x - CANVAS_WIDTH / 2, 2) + Math.pow(y - CANVAS_HEIGHT / 2, 2)) < 150);
+        x = 120 + Math.random() * (CANVAS_WIDTH - 240);
+        y = 120 + Math.random() * (CANVAS_HEIGHT - 240);
+      } while (Math.sqrt(Math.pow(x - CANVAS_WIDTH / 2, 2) + Math.pow(y - CANVAS_HEIGHT / 2, 2)) < 180);
 
       if (type === 'rock') {
-        width = 40 + Math.random() * 40;
-        height = 30 + Math.random() * 30;
+        width = 50 + Math.random() * 50;
+        height = 40 + Math.random() * 40;
+      } else if (type === 'wall') {
+        width = 25 + Math.random() * 25;
+        height = 100 + Math.random() * 50;
       } else {
-        width = 20 + Math.random() * 20;
-        height = 80 + Math.random() * 40;
+        // 树木 - 圆形障碍物（用矩形模拟）
+        width = 40 + Math.random() * 30;
+        height = 40 + Math.random() * 30;
       }
 
       obstaclesRef.current.push({
-        x, y, width, height, type, health: type === 'wall' ? 100 : 50
+        x, y, width, height, type, health: type === 'wall' ? 100 : (type === 'tree' ? 80 : 60)
       });
     }
   }, []);
@@ -1464,76 +1566,161 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制UI ====================
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
-    const padding = 12;
+    const padding = 16;
+    const uiHeight = 60;
 
-    // 顶部信息栏背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, 55);
+    // 顶部信息栏背景（渐变）
+    const uiGradient = ctx.createLinearGradient(0, 0, 0, uiHeight);
+    uiGradient.addColorStop(0, 'rgba(20, 15, 30, 0.85)');
+    uiGradient.addColorStop(1, 'rgba(10, 10, 20, 0.85)');
+    ctx.fillStyle = uiGradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, uiHeight);
+
+    // 顶部边框装饰
+    ctx.strokeStyle = 'rgba(155, 89, 182, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, uiHeight);
+    ctx.lineTo(CANVAS_WIDTH, uiHeight);
+    ctx.stroke();
 
     // 左侧：等级和血量
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 20px Arial, sans-serif';
+    ctx.font = 'bold 22px Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Lv.${player.level}`, padding, 18);
 
-    // 血量条
-    const hpBarWidth = 200;
-    const hpBarHeight = 14;
-    const hpBarY = 32;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(padding, hpBarY - 1, hpBarWidth + 2, hpBarHeight + 2);
+    // 等级徽章
+    const levelBgGradient = ctx.createRadialGradient(padding + 20, 20, 0, padding + 20, 20, 25);
+    levelBgGradient.addColorStop(0, '#9B59B6');
+    levelBgGradient.addColorStop(1, 'rgba(155, 89, 182, 0.6)');
+    ctx.fillStyle = levelBgGradient;
+    ctx.beginPath();
+    ctx.arc(padding + 20, 20, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(`Lv.${player.level}`, padding + 20, 21);
+
+    // 血量条背景
+    const hpBarX = padding + 50;
+    const hpBarWidth = 240;
+    const hpBarHeight = 16;
+    const hpBarY = 28;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.beginPath();
+    ctx.roundRect(hpBarX - 2, hpBarY - 2, hpBarWidth + 4, hpBarHeight + 4, 8);
+    ctx.fill();
 
     const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
-    ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
-    ctx.fillRect(padding, hpBarY, hpBarWidth * hpPercent, hpBarHeight);
+
+    // 血量条渐变
+    const hpGradient = ctx.createLinearGradient(hpBarX, hpBarY, hpBarX + hpBarWidth * hpPercent, hpBarY);
+    if (hpPercent > 0.5) {
+      hpGradient.addColorStop(0, '#2ECC71');
+      hpGradient.addColorStop(1, '#27AE60');
+    } else if (hpPercent > 0.3) {
+      hpGradient.addColorStop(0, '#F39C12');
+      hpGradient.addColorStop(1, '#E67E22');
+    } else {
+      hpGradient.addColorStop(0, '#E74C3C');
+      hpGradient.addColorStop(1, '#C0392B');
+    }
+
+    ctx.fillStyle = hpGradient;
+    ctx.beginPath();
+    ctx.roundRect(hpBarX, hpBarY, hpBarWidth * hpPercent, hpBarHeight, 6);
+    ctx.fill();
 
     // 血量文字
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 11px Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(player.hp)}/${player.maxHp}`, padding + hpBarWidth / 2, hpBarY + hpBarHeight / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.floor(player.hp)}/${player.maxHp}`, hpBarX + hpBarWidth / 2, hpBarY + hpBarHeight / 2);
 
     // 经验条（血量下方）
-    const expBarWidth = 200;
-    const expBarHeight = 6;
-    const expBarY = hpBarY + hpBarHeight + 4;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(padding, expBarY - 1, expBarWidth + 2, expBarHeight + 2);
+    const expBarX = hpBarX;
+    const expBarWidth = hpBarWidth;
+    const expBarHeight = 8;
+    const expBarY = hpBarY + hpBarHeight + 6;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.beginPath();
+    ctx.roundRect(expBarX - 1, expBarY - 1, expBarWidth + 2, expBarHeight + 2, 4);
+    ctx.fill();
 
     const expPercent = Math.max(0, Math.min(1, player.exp / player.expToNext));
-    ctx.fillStyle = '#7ED6DF';
-    ctx.fillRect(padding, expBarY, expBarWidth * expPercent, expBarHeight);
+    const expGradient = ctx.createLinearGradient(expBarX, expBarY, expBarX + expBarWidth * expPercent, expBarY);
+    expGradient.addColorStop(0, '#7ED6DF');
+    expGradient.addColorStop(1, '#5DADE2');
+    ctx.fillStyle = expGradient;
+    ctx.beginPath();
+    ctx.roundRect(expBarX, expBarY, expBarWidth * expPercent, expBarHeight, 4);
+    ctx.fill();
 
-    // 经验文字
-    ctx.fillStyle = '#BDC3C7';
-    ctx.font = '10px Arial, sans-serif';
-    ctx.fillText(`${Math.floor(player.exp)}/${player.expToNext}`, padding + expBarWidth / 2, expBarY + expBarHeight / 2);
+    // 中间：击杀数和总伤害（更精美的设计）
+    const centerX = CANVAS_WIDTH / 2;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 14px Arial, sans-serif';
+    ctx.textAlign = 'center';
+
+    // 击杀数
+    const killsGradient = ctx.createLinearGradient(centerX - 80, 0, centerX - 80, 25);
+    killsGradient.addColorStop(0, '#E74C3C');
+    killsGradient.addColorStop(1, '#C0392B');
+    ctx.fillStyle = killsGradient;
+    ctx.beginPath();
+    ctx.roundRect(centerX - 60, 8, 120, 18, 9);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 12px Arial, sans-serif';
+    ctx.fillText(`Kills: ${player.totalKills}`, centerX, 18);
+
+    // 总伤害
+    const damageGradient = ctx.createLinearGradient(centerX - 80, 0, centerX - 80, 25);
+    damageGradient.addColorStop(0, '#F39C12');
+    damageGradient.addColorStop(1, '#E67E22');
+    ctx.fillStyle = damageGradient;
+    ctx.beginPath();
+    ctx.roundRect(centerX - 70, 32, 140, 18, 9);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 12px Arial, sans-serif';
+    ctx.fillText(`Damage: ${Math.floor(player.totalDamage)}`, centerX, 42);
 
     // 右侧：分数、时间、难度
     const difficulty = getDifficultyMultiplier(player.gameTime);
+    const rightX = CANVAS_WIDTH - padding - 10;
 
     ctx.textAlign = 'right';
 
+    // 分数（金色）
+    ctx.save();
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 10;
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 18px Arial, sans-serif';
-    ctx.fillText(`Score: ${scoreRef.current}`, CANVAS_WIDTH - padding - 10, 18);
+    ctx.font = 'bold 20px Arial, sans-serif';
+    ctx.fillText(`⭐ ${scoreRef.current}`, rightX, 18);
+    ctx.restore();
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '12px Arial, sans-serif';
-    ctx.fillText(`Time: ${Math.floor(player.gameTime)}s`, CANVAS_WIDTH - padding - 10, 36);
+    // 时间
+    ctx.fillStyle = '#BDC3C7';
+    ctx.font = 'bold 12px Arial, sans-serif';
+    const minutes = Math.floor(player.gameTime / 60);
+    const seconds = Math.floor(player.gameTime % 60);
+    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    ctx.fillText(`⏱ ${timeStr}`, rightX, 36);
 
-    ctx.fillStyle = '#FF6B6B';
-    ctx.fillText(`Difficulty: ${difficulty.toFixed(1)}x`, CANVAS_WIDTH - padding - 10, 52);
-
-    // 中间：击杀数和总伤害
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#E74C3C';
-    ctx.font = 'bold 14px Arial, sans-serif';
-    ctx.fillText(`Kills: ${player.totalKills}`, CANVAS_WIDTH / 2, 18);
-
-    ctx.fillStyle = '#F39C12';
-    ctx.fillText(`Damage: ${Math.floor(player.totalDamage)}`, CANVAS_WIDTH / 2, 36);
+    // 难度（带颜色指示）
+    const diffColor = difficulty < 2 ? '#2ECC71' : (difficulty < 4 ? '#F39C12' : '#E74C3C');
+    ctx.fillStyle = diffColor;
+    ctx.font = 'bold 12px Arial, sans-serif';
+    ctx.fillText(`⚡ ${difficulty.toFixed(1)}x`, rightX, 52);
   }, [getDifficultyMultiplier]);
 
   // ==================== 绘制升级面板 ====================
@@ -1544,19 +1731,42 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       skills: availableSkillsRef.current.map(s => ({ id: s.id, name: s.name }))
     });
 
-    // 半透明遮罩
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    // 半透明遮罩（渐变背景）
+    const gradient = ctx.createRadialGradient(
+      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
+      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH
+    );
+    gradient.addColorStop(0, 'rgba(30, 20, 40, 0.95)');
+    gradient.addColorStop(1, 'rgba(10, 10, 20, 0.95)');
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 标题
+    // 动态背景粒子
+    ctx.fillStyle = 'rgba(155, 89, 182, 0.03)';
+    for (let i = 0; i < 30; i++) {
+      const px = (Math.sin(Date.now() / 1000 + i * 0.5) + 1) * CANVAS_WIDTH / 2;
+      const py = (Math.cos(Date.now() / 1500 + i * 0.7) + 1) * CANVAS_HEIGHT / 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 30 + Math.sin(Date.now() / 500 + i) * 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 标题（带光晕）
+    ctx.save();
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 20;
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 36px Arial, sans-serif';
+    ctx.font = 'bold 48px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`升级了！Lv.${player.level} → Lv.${player.level + 1}`, CANVAS_WIDTH / 2, 100);
-    ctx.font = '24px Arial, sans-serif';
+    ctx.fillText(`LEVEL UP`, CANVAS_WIDTH / 2, 60);
+    ctx.font = 'bold 32px Arial, sans-serif';
+    ctx.fillText(`Lv.${player.level} → Lv.${player.level + 1}`, CANVAS_WIDTH / 2, 110);
+    ctx.restore();
+
+    ctx.font = 'bold 24px Arial, sans-serif';
     ctx.fillStyle = '#BDC3C7';
-    ctx.fillText('选择一个技能', CANVAS_WIDTH / 2, 140);
+    ctx.fillText('选择一个技能', CANVAS_WIDTH / 2, 155);
 
     const skills = availableSkillsRef.current;
 
@@ -1571,24 +1781,33 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     console.log('[Draw Level Up Panel] Drawing skill cards', { skillCount: skills.length });
 
-    const panelWidth = 350;
-    const panelHeight = 420;
-    const panelGap = 30;
+    const panelWidth = 380;
+    const panelHeight = 480;
+    const panelGap = 40;
     const totalWidth = panelWidth * 3 + panelGap * 2;
     const startX = (CANVAS_WIDTH - totalWidth) / 2;
-    const startY = 180;
+    const startY = 190;
 
     skills.forEach((skill, index) => {
       const x = startX + index * (panelWidth + panelGap);
       const isSelected = selectedSkillIndexRef.current === index;
 
-      // 背景面板
-      ctx.fillStyle = isSelected ? 'rgba(155, 89, 182, 0.4)' : 'rgba(30, 30, 50, 0.95)';
-      ctx.strokeStyle = isSelected ? '#9B59B6' : 'rgba(155, 89, 182, 0.5)';
-      ctx.lineWidth = isSelected ? 4 : 2;
+      // 背景面板（渐变）
+      const panelGradient = ctx.createLinearGradient(x, startY, x, startY + panelHeight);
+      if (isSelected) {
+        panelGradient.addColorStop(0, 'rgba(155, 89, 182, 0.5)');
+        panelGradient.addColorStop(1, 'rgba(155, 89, 182, 0.3)');
+      } else {
+        panelGradient.addColorStop(0, 'rgba(40, 35, 55, 0.95)');
+        panelGradient.addColorStop(1, 'rgba(30, 25, 45, 0.95)');
+      }
+      ctx.fillStyle = panelGradient;
+
+      ctx.strokeStyle = isSelected ? '#FFD700' : 'rgba(155, 89, 182, 0.6)';
+      ctx.lineWidth = isSelected ? 5 : 2;
 
       // 绘制圆角矩形
-      const radius = 10;
+      const radius = 16;
       ctx.beginPath();
       ctx.moveTo(x + radius, startY);
       ctx.lineTo(x + panelWidth - radius, startY);
@@ -1603,52 +1822,95 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.fill();
       ctx.stroke();
 
+      // 选中时的光晕效果
+      if (isSelected) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+        ctx.lineWidth = 12;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 技能图标背景
+      const iconBgX = x + panelWidth / 2 - 50;
+      const iconBgY = startY + 40;
+      const iconBgGradient = ctx.createRadialGradient(
+        iconBgX + 50, iconBgY + 50, 0,
+        iconBgX + 50, iconBgY + 50, 50
+      );
+      iconBgGradient.addColorStop(0, skill.color);
+      iconBgGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+      ctx.fillStyle = iconBgGradient;
+      ctx.beginPath();
+      ctx.arc(iconBgX + 50, iconBgY + 50, 48, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 绘制技能图标
+      if (skill.icon) {
+        ctx.save();
+        ctx.translate(iconBgX + 50, iconBgY + 50);
+        ctx.scale(6, 6);
+        skill.icon.forEach(pixel => {
+          ctx.fillStyle = pixel.color;
+          ctx.fillRect(pixel.x, pixel.y, 1, 1);
+        });
+        ctx.restore();
+      }
+
       // 稀有度标签
       ctx.fillStyle = skill.color;
-      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.font = 'bold 14px Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(skill.rarity.toUpperCase(), x + panelWidth / 2, startY + 30);
+      ctx.fillText(skill.rarity.toUpperCase(), x + panelWidth / 2, startY + 150);
 
       // 技能名称
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 20px Arial, sans-serif';
-      ctx.fillText(skill.name, x + panelWidth / 2, startY + 70);
+      ctx.font = 'bold 22px Arial, sans-serif';
+      ctx.fillText(skill.name, x + panelWidth / 2, startY + 180);
 
       // 技能描述
-      ctx.fillStyle = '#BDC3C7';
-      ctx.font = '14px Arial, sans-serif';
+      ctx.fillStyle = '#D5D8DC';
+      ctx.font = '15px Arial, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
       // 文字换行处理
-      const maxWidth = panelWidth - 30;
+      const maxWidth = panelWidth - 40;
       const words = skill.description.split('');
       let line = '';
-      let lineY = startY + 110;
+      let lineY = startY + 220;
 
       for (let i = 0; i < words.length; i++) {
         const testLine = line + words[i];
         const metrics = ctx.measureText(testLine);
         if (metrics.width > maxWidth && i > 0) {
-          ctx.fillText(line, x + 15, lineY);
+          ctx.fillText(line, x + 20, lineY);
           line = words[i];
-          lineY += 20;
+          lineY += 22;
         } else {
           line = testLine;
         }
       }
-      ctx.fillText(line, x + 15, lineY);
+      ctx.fillText(line, x + 20, lineY);
 
-      // 技能类型
+      // 技能类型标签
       ctx.fillStyle = skill.type === 'passive' ? '#2ECC71' : '#3498DB';
       ctx.font = 'bold 12px Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(skill.type === 'passive' ? '被动' : '主动', x + panelWidth / 2, startY + panelHeight - 50);
+      const typeBgGradient = ctx.createLinearGradient(x + panelWidth / 2 - 50, startY + panelHeight - 70, x + panelWidth / 2 + 50, startY + panelHeight - 70);
+      typeBgGradient.addColorStop(0, skill.type === 'passive' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(52, 152, 219, 0.3)');
+      typeBgGradient.addColorStop(1, skill.type === 'passive' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(52, 152, 219, 0.1)');
+      ctx.fillStyle = typeBgGradient;
+      ctx.beginPath();
+      ctx.roundRect(x + panelWidth / 2 - 50, startY + panelHeight - 82, 100, 24, 12);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(skill.type === 'passive' ? '被动' : '主动', x + panelWidth / 2, startY + panelHeight - 70);
 
       // 键盘快捷键提示
       ctx.fillStyle = '#7F8C8D';
-      ctx.font = '12px Arial, sans-serif';
-      ctx.fillText(`按 ${index + 1} 选择`, x + panelWidth / 2, startY + panelHeight - 25);
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.fillText(`按 ${index + 1} 或点击选择`, x + panelWidth / 2, startY + panelHeight - 30);
     });
   }, []);
 
@@ -1967,13 +2229,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
         }
 
-        // 更新怪物
-        monstersRef.current = monstersRef.current.filter(monster => {
-          const mdx = player.x - monster.x;
-          const mdy = player.y - monster.y;
-          const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+        // 更新怪物（仅在PLAYING状态下，升级时暂停怪物移动）
+        if (gameState === GameState.PLAYING) {
+          monstersRef.current = monstersRef.current.filter(monster => {
+            const mdx = player.x - monster.x;
+            const mdy = player.y - monster.y;
+            const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
 
-          if (mDistance > 1) {
+            if (mDistance > 1) {
             const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
 
             // 避障AI
@@ -2025,8 +2288,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // Boss AI
           updateBossAI(monster, player, deltaTime);
 
-          // 玩家与怪物碰撞
-          if (gameState === GameState.PLAYING && checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
+          // 玩家与怪物碰撞（仅在PLAYING状态下）
+          if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
             if (performance.now() - monster.lastAttack > 700) {
               // 护盾优先吸收伤害
               let damage = Math.floor(monster.damage);
@@ -2138,12 +2401,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
 
           return monster.hp > 0;
-        });
+          });
+        }
 
-        // 更新投射物
-        projectilesRef.current = projectilesRef.current.filter(projectile => {
-          projectile.x += projectile.vx;
-          projectile.y += projectile.vy;
+        // 更新投射物（仅在PLAYING状态下，升级时暂停投射物）
+        if (gameState === GameState.PLAYING) {
+          projectilesRef.current = projectilesRef.current.filter(projectile => {
+            projectile.x += projectile.vx;
+            projectile.y += projectile.vy;
 
           projectile.trail.push({ x: projectile.x, y: projectile.y, life: 1 });
           if (projectile.trail.length > 25) projectile.trail.shift();
@@ -2365,7 +2630,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
 
           return true;
-        });
+          });
+        }
 
         // 更新刀光特效
         slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
@@ -2476,13 +2742,47 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         // 绘制障碍物
         obstaclesRef.current.forEach(obs => {
-          ctx.fillStyle = obs.type === 'rock' ? '#57606F' : '#636E72';
-          ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+          if (obs.type === 'tree') {
+            // 树木特殊绘制
+            const centerX = obs.x + obs.width / 2;
+            const centerY = obs.y + obs.height / 2;
+            const radius = obs.width / 2;
 
-          // 高光
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-          ctx.fillRect(obs.x, obs.y, obs.width, 4);
-          ctx.fillRect(obs.x, obs.y, 4, obs.height);
+            // 树影
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.ellipse(centerX + 5, obs.y + obs.height, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 树干
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(centerX - 6, centerY - 10, 12, 20);
+
+            // 树冠
+            const treeColors = ['#228B22', '#32CD32', '#2E8B57'];
+            for (let i = 0; i < 3; i++) {
+              ctx.fillStyle = treeColors[i];
+              ctx.beginPath();
+              ctx.arc(centerX - 10 + i * 10, centerY - 20 - i * 8, radius * 0.4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          } else {
+            // 石头和墙壁
+            ctx.fillStyle = obs.type === 'rock' ? '#57606F' : '#636E72';
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+            // 高光
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillRect(obs.x, obs.y, obs.width, 4);
+            ctx.fillRect(obs.x, obs.y, 4, obs.height);
+
+            // 岩石纹理
+            if (obs.type === 'rock') {
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+              ctx.fillRect(obs.x + 10, obs.y + 10, obs.width - 20, 4);
+              ctx.fillRect(obs.x + obs.width / 2 - 8, obs.y + obs.height / 2, 16, 4);
+            }
+          }
         });
 
         // 绘制玩家
@@ -2563,6 +2863,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       // 绘制游戏结束屏幕
       if (gameState === GameState.GAME_OVER) {
         drawGameOverScreen(ctx, player);
+      }
+
+      // 统一死亡检测（确保玩家死亡后正确切换状态）
+      if (gameState === GameState.PLAYING && player.hp <= 0) {
+        console.log('[Game Loop] Player died, switching to GAME_OVER state', {
+          playerHp: player.hp,
+          gameTime: player.gameTime,
+          score: scoreRef.current
+        });
+        gameStateRef.current = GameState.GAME_OVER;
+        player.hp = 0;
+        playSound('explosion');
+        createParticles(player.x, player.y, COLORS.blood, 30, 'explosion');
+        triggerScreenShake(5, 0.2);
       }
 
       ctx.restore();
