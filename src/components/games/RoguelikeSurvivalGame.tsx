@@ -1711,7 +1711,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 200, color: '#E74C3C' } // 近战Boss：体型200像素
+      melee_boss: { baseHp: 50000, baseDamage: 300, baseSpeed: 1.5, baseExp: 1000, baseSize: 140, color: '#E74C3C' } // 近战Boss：体型140像素
     };
 
     const stats = monsterStats[type];
@@ -1784,7 +1784,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 实际冲刺阶段（0.5秒）- 沿着锁定的直线移动
           const sprintProgress = (chargeElapsed - 1000) / 500; // 0到1
           const accelerationCurve = Math.pow(sprintProgress, 0.7); // 非线性加速曲线
-          const currentSpeed = 25 + accelerationCurve * 35; // 从25加速到60（更猛烈）
+          const currentSpeed = 40 + accelerationCurve * 40; // 从40加速到80（更猛烈）
 
           // 沿着锁定的直线从起点向终点移动
           monster.vx = monster.chargeDirection.x * currentSpeed;
@@ -1848,9 +1848,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const distance = Math.sqrt(dx * dx + dy * dy);
             monster.chargeDirection = { x: dx / distance, y: dy / distance };
             monster.chargeStartPos = { x: monster.x, y: monster.y }; // 记录起点
-            // 计算终点（冲刺距离按体型比例增加）
-            const sizeMultiplier = monster.size / 45; // 相对于普通Boss体型（45像素）的倍数
-            const chargeDistance = 200 * sizeMultiplier;
+            // 计算终点（冲刺距离按体型比例增加，但调整得更合理）
+            const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
+            const chargeDistance = 120 * sizeMultiplier; // 基础冲刺距离120像素
             monster.chargeEndPos = {
               x: monster.x + monster.chargeDirection.x * chargeDistance,
               y: monster.y + monster.chargeDirection.y * chargeDistance
@@ -1859,10 +1859,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           // 前摇阶段的后退动作（模拟蓄力，不改变实际冲刺路线）
           const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
-          const retreatDistance = retreatProgress * 100; // 最多后退100像素（增大效果）
+          const retreatDistance = retreatProgress * 50; // 最多后退50像素
 
-          monster.vx = -monster.chargeDirection.x * retreatDistance * 3; // 增大后退速度
-          monster.vy = -monster.chargeDirection.y * retreatDistance * 3;
+          monster.vx = -monster.chargeDirection.x * retreatDistance * 2; // 后退速度
+          monster.vy = -monster.chargeDirection.y * retreatDistance * 2;
         }
       } else {
         // 检查是否开始冲刺（CD结束且玩家在攻击范围内）
@@ -1871,8 +1871,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const dy = player.y - monster.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // 攻击范围内开始冲刺（扩大范围到400）
-          if (distance < 400) {
+          // 攻击范围内开始冲刺（范围250）
+          if (distance < 250) {
             console.log('[MeleeBoss] Starting charge', {
               distance: distance,
               abilityCooldown: monster.abilityCooldown
@@ -2819,10 +2819,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               const existingMeleeBossCount = monstersRef.current.filter(m => m.type === 'melee_boss').length;
               const meleeBossStats = {
                 baseHp: 50000,
-                baseDamage: 1200,
-                baseSpeed: 2.0,
+                baseDamage: 300,
+                baseSpeed: 1.5,
                 baseExp: 1000,
-                baseSize: 200,
+                baseSize: 140,
                 color: '#E74C3C'
               };
 
@@ -3094,7 +3094,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             ctx.fill();
 
             // 怪物动画
-            const animOffset = Math.sin(gameTimeRef.current * 5 + monster.animationOffset) * 2;
+            // 近战Boss浮动更明显（8像素），普通怪物浮动较小（2像素）
+            const floatAmplitude = monster.type === 'melee_boss' ? 8 : 2;
+            const animOffset = Math.sin(gameTimeRef.current * 5 + monster.animationOffset) * floatAmplitude;
 
             // 根据怪物类型绘制
             const monsterPixels = PIXEL_ART.monsters[monster.type];
@@ -3103,7 +3105,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               ctx.translate(monsterScreenX, monsterScreenY + animOffset);
 
               // 近战Boss使用更大的缩放比例，使其显示大小与碰撞大小匹配
-              const scaleMultiplier = monster.type === 'melee_boss' ? 3.5 : 1.2;
+              // melee_boss像素艺术中心到边缘约12像素，目标140像素需要约5.8倍缩放
+              const scaleMultiplier = monster.type === 'melee_boss' ? 5.8 : 1.2;
               ctx.scale(monster.scale * scaleMultiplier, monster.scale * scaleMultiplier);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
               ctx.restore();
@@ -3139,9 +3142,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 const chargeElapsed = performance.now() - monster.chargeStartTime;
                 if (chargeElapsed <= 1000) { // 前摇阶段
                   // 根据Boss体型调整冲刺距离和宽度
-                  const sizeMultiplier = monster.size / 45; // 相对于普通Boss体型（45像素）的倍数
-                  const pathLength = 200 * sizeMultiplier; // 冲刺距离按体型比例增加
-                  const pathWidth = 60 * sizeMultiplier; // 冲刺宽度按体型比例增加
+                  const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
+                  const pathLength = 120 * sizeMultiplier; // 冲刺距离按体型比例调整
+                  const pathWidth = 40 * sizeMultiplier; // 冲刺宽度按体型比例调整
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
                   const progress = chargeElapsed / 1000;
