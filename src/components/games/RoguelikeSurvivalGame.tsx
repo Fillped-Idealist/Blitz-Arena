@@ -105,6 +105,7 @@ interface Player {
   invincibleTime: number;
   autoLockLevel: number;  // 自动锁敌技能等级（0=未解锁，1=已解锁）
   trackingMasteryLevel: number;  // 追踪精通等级（每级+20%伤害）
+  damageReduction: number;  // 减伤百分比（0-0.8，上限80%）
 }
 
 interface Monster {
@@ -620,9 +621,9 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'max_hp',
     name: '钢铁之躯',
-    description: '最大生命值永久+50（可累加）',
+    description: '最大生命值永久+1000（可累加）',
     type: 'active',
-    apply: (p) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
+    apply: (p) => ({ ...p, maxHp: p.maxHp + 1000, hp: p.hp + 1000 }),
     rarity: 'common',
     color: COLORS.common,
     icon: SKILL_ICONS.heart
@@ -926,9 +927,9 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'passive_armor',
     name: '坚韧',
-    description: '受到的伤害减少20%（被动）',
+    description: '受到的伤害减少20%（可叠加，上限80%）',
     type: 'passive',
-    apply: (p) => p,
+    apply: (p) => ({ ...p, damageReduction: Math.min(p.damageReduction + 0.2, 0.8) }),
     rarity: 'epic',
     color: COLORS.epic
   },
@@ -1277,7 +1278,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 粒子系统 ====================
   const createParticles = useCallback((x: number, y: number, color: string, count: number = 10, type: Particle['type'] = 'spark') => {
-    for (let i = 0; i < count; i++) {
+    // 如果有弹射技能且正在创建spark类型的粒子，减少粒子数量以优化性能
+    let adjustedCount = count;
+    if (playerRef.current && playerRef.current.arrowCount > 0 && type === 'spark') {
+      adjustedCount = Math.floor(count * 0.4); // 减少到40%
+      adjustedCount = Math.max(1, adjustedCount); // 至少保留1个粒子
+    }
+
+    for (let i = 0; i < adjustedCount; i++) {
       if (particlesRef.current.length >= MAX_PARTICLES) {
         particlesRef.current.shift();
       }
@@ -1658,8 +1666,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     if (player.level >= 2 && typeRoll > 0.55 - difficulty * 0.05) type = 'skeleton';
     if (player.level >= 4 && typeRoll > 0.70 - difficulty * 0.05) type = 'ghost';
     if (player.level >= 5 && typeRoll > 0.82 - difficulty * 0.05) type = 'elite';
-    // 降低远程Boss刷新概率（从0.93改为0.95）
-    if (player.level >= 7 && typeRoll > 0.95 - difficulty * 0.05) type = 'boss';
+    // 降低远程Boss刷新概率（从0.95改为0.97）
+    if (player.level >= 7 && typeRoll > 0.97 - difficulty * 0.05) type = 'boss';
     // 近战Boss不通过普通生成逻辑生成（使用独立刷新逻辑）
 
     const monsterStats = {
@@ -1668,7 +1676,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 10000, baseDamage: 25, baseSpeed: 2.0, baseExp: 1000, baseSize: 72, color: '#E74C3C' } // 近战Boss：体型比远程Boss大60%（45 * 1.6 = 72）
+      melee_boss: { baseHp: 10000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 72, color: '#E74C3C' } // 近战Boss：体型比远程Boss大60%（45 * 1.6 = 72）
     };
 
     const stats = monsterStats[type];
@@ -1748,11 +1756,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (!player.invincible) {
               let damage = Math.floor(monster.damage * 2); // 冲刺伤害为普通攻击的2倍
 
-              // 坚韧被动
-              const hasArmor = player.skills.some(s => s.id === 'passive_armor');
-              if (hasArmor) {
-                damage = Math.floor(damage * 0.8);
-              }
+              // 减伤（可叠加，上限80%）
+              damage = Math.floor(damage * (1 - player.damageReduction));
 
               if (monster.hasShield && monster.shieldHp > 0) {
                 const absorbed = Math.min(damage, monster.shieldHp);
@@ -2658,8 +2663,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           monsterSpawnTimerRef.current += deltaTime;
 
           // 根据难度动态调整生成间隔
-          // 3分钟后开始线性增加刷怪速度
-          const timeBonus = Math.max(0, (player.gameTime - 180) / 60 * 0.05); // 每分钟增加0.05
+          // 2分钟后开始线性增加刷怪速度
+          const timeBonus = Math.max(0, (player.gameTime - 120) / 60 * 0.1); // 每分钟增加0.1（提高加成）
           const spawnInterval = Math.max(0.15, 1.2 - Math.pow(difficultyRef.current, 0.5) * 0.3 - timeBonus);
 
           if (monsterSpawnTimerRef.current >= spawnInterval) {
@@ -2689,7 +2694,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               const existingMeleeBossCount = monstersRef.current.filter(m => m.type === 'melee_boss').length;
               const meleeBossStats = {
                 baseHp: 10000,
-                baseDamage: 25,
+                baseDamage: 1200,
                 baseSpeed: 2.0,
                 baseExp: 1000,
                 baseSize: 72,
@@ -2788,7 +2793,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             // 计算法阵范围加成（从技能中统计tracking_pierce数量）
             const radiusBonus = player.skills.filter(s => s.id.startsWith('tracking_pierce')).length;
             const radiusBonusMultiplier = 1 + radiusBonus * 0.3; // 每级扩大30%
-            const baseRadius = 80; // 放大法阵基础半径从50到80
+            const baseRadius = 240; // 放大法阵基础半径3倍（从80到240）
 
             if (autoLockUltimateTimerRef.current >= interval) {
               autoLockUltimateTimerRef.current = 0;
@@ -2891,11 +2896,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 护盾优先吸收伤害
               let damage = Math.floor(monster.damage);
 
-              // 坚韧被动
-              const hasArmor = player.skills.some(s => s.id === 'passive_armor');
-              if (hasArmor) {
-                damage = Math.floor(damage * 0.8);
-              }
+              // 减伤（可叠加，上限80%）
+              damage = Math.floor(damage * (1 - player.damageReduction));
 
               if (monster.hasShield && monster.shieldHp > 0) {
                 const absorbed = Math.min(damage, monster.shieldHp);
@@ -3295,11 +3297,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (!player.invincible) {
                 let damage = Math.floor(projectile.damage);
 
-                // 坚韧被动
-                const hasArmor = player.skills.some(s => s.id === 'passive_armor');
-                if (hasArmor) {
-                  damage = Math.floor(damage * 0.8);
-                }
+                // 减伤（可叠加，上限80%）
+                damage = Math.floor(damage * (1 - player.damageReduction));
 
                 player.hp = Math.max(0, Math.floor(player.hp - damage));
                 player.invincible = true;
@@ -3921,7 +3920,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       autoLockLevel: 0,
       trackingMasteryLevel: 0,
       invincible: false,
-      invincibleTime: 0
+      invincibleTime: 0,
+      damageReduction: 0  // 初始减伤为0
     };
 
     monstersRef.current = [];
