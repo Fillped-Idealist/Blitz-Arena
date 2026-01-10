@@ -188,6 +188,14 @@ interface DamageNumber {
   scale: number;
 }
 
+interface GameNotification {
+  message: string;
+  color: string;
+  life: number;
+  maxLife: number;
+  yOffset: number;
+}
+
 interface ScreenShake {
   intensity: number;
   duration: number;
@@ -1061,6 +1069,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const projectilesRef = useRef<Projectile[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const damageNumbersRef = useRef<DamageNumber[]>([]);
+  const notificationsRef = useRef<GameNotification[]>([]);
   const slashEffectsRef = useRef<SlashEffect[]>([]);
   const magicCirclesRef = useRef<MagicCircle[]>([]);
   const screenShakeRef = useRef<ScreenShake>({ intensity: 0, duration: 0, x: 0, y: 0 });
@@ -1359,6 +1368,28 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       isHeal,
       scale: isCrit ? 1.3 : 1
     });
+  }, []);
+
+  // ==================== 游戏通知 ====================
+  const createNotification = useCallback((message: string, color: string = '#FFD700') => {
+    // 计算yOffset，避免通知重叠
+    const yOffset = notificationsRef.current.length * 60;
+    notificationsRef.current.push({
+      message,
+      color,
+      life: 4,
+      maxLife: 4,
+      yOffset
+    });
+
+    // 限制通知数量
+    if (notificationsRef.current.length > 5) {
+      notificationsRef.current.shift();
+      // 重新计算所有通知的yOffset
+      notificationsRef.current.forEach((notif, index) => {
+        notif.yOffset = index * 60;
+      });
+    }
   }, []);
 
   // ==================== 碰撞检测 ====================
@@ -2259,6 +2290,37 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.fillStyle = diffColor;
     ctx.font = 'bold 12px Arial, sans-serif';
     ctx.fillText(`⚡ ${difficulty.toFixed(1)}x`, rightX, 52);
+
+    // 绘制游戏通知（在HUD下方居中显示）
+    notificationsRef.current.forEach(notification => {
+      const alpha = notification.life / notification.maxLife;
+      const notifY = uiHeight + 20 + notification.yOffset;
+      const notifX = CANVAS_WIDTH / 2;
+
+      // 半透明背景
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.7 * alpha})`;
+      ctx.beginPath();
+      ctx.roundRect(notifX - 180, notifY, 360, 50, 12);
+      ctx.fill();
+
+      // 边框
+      ctx.strokeStyle = notification.color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+
+      // 文字
+      ctx.save();
+      ctx.shadowColor = notification.color;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = notification.color;
+      ctx.font = 'bold 24px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(notification.message, notifX, notifY + 25);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    });
   }, [getDifficultyMultiplier]);
 
   // ==================== 绘制升级面板 ====================
@@ -2710,6 +2772,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 existingCount: monstersRef.current.filter(m => m.type === 'melee_boss').length
               });
 
+              // 播报提醒
+              createNotification('⚠️ 近战Boss来袭！', '#FF4757');
+
               // 手动生成近战Boss（覆盖默认类型）
               const side = Math.floor(Math.random() * 4);
               let bossX: number, bossY: number;
@@ -2777,6 +2842,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               triggerScreenShake(4, 0.12);
               playSound('explosion');
             }
+          } else if (player.gameTime >= 330 && player.gameTime < 330.5) { // 在5分30秒时预警一次
+            console.log('[MeleeBoss] Warning: Melee boss approaching in 30 seconds', {
+              gameTime: player.gameTime
+            });
+            createNotification('⚡ 近战Boss将在30秒后刷新！', '#F39C12');
           }
 
           // 自动攻击 - 近战和远程同时进行
@@ -2825,7 +2895,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             // 计算法阵范围加成（从技能中统计tracking_pierce数量）
             const radiusBonus = player.skills.filter(s => s.id.startsWith('tracking_pierce')).length;
             const radiusBonusMultiplier = 1 + radiusBonus * 0.3; // 每级扩大30%
-            const baseRadius = 240; // 放大法阵基础半径3倍（从80到240）
+            const baseRadius = 120; // 法阵基础半径（原240的一半，更精致）
 
             if (autoLockUltimateTimerRef.current >= interval) {
               autoLockUltimateTimerRef.current = 0;
@@ -3523,10 +3593,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.save();
           ctx.translate(circleScreenX, circleScreenY);
 
-          // 外圈（金色，顺时针旋转）- 缩小至40%
+          // 外圈（金色，顺时针旋转）- 缩小至20%
           ctx.save();
           ctx.rotate(circle.rotation);
-          ctx.scale(0.4, 0.4); // 缩小至40%
+          ctx.scale(0.2, 0.2); // 缩小至20%，使其更精致
           const outerRing = PIXEL_ART.magicCircle.outerRing;
           outerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3535,10 +3605,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 中圈（紫色，逆时针旋转）- 缩小至40%
+          // 中圈（紫色，逆时针旋转）- 缩小至20%
           ctx.save();
           ctx.rotate(-circle.rotation * 1.2);
-          ctx.scale(0.4, 0.4); // 缩小至40%
+          ctx.scale(0.2, 0.2); // 缩小至20%，与外圈协调
           const middleRing = PIXEL_ART.magicCircle.middleRing;
           middleRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3547,10 +3617,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 内圈（黄色像素法阵，快速旋转）- 放大至和外圈基本一样大
+          // 内圈（黄色像素法阵，快速旋转）- 缩放至与外圈视觉一致
           ctx.save();
           ctx.rotate(circle.rotation * 1.5);
-          ctx.scale(4.0, 4.0); // 放大4倍，使其与外圈基本一样大
+          ctx.scale(0.6, 0.6); // 缩放0.6倍，使内圈与外圈视觉大小基本一致
           const innerRing = PIXEL_ART.magicCircle.innerRing;
           innerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3559,10 +3629,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 装饰性三角形（随外圈旋转）- 缩小至40%
+          // 装饰性三角形（随外圈旋转）- 缩小至20%
           ctx.save();
           ctx.rotate(circle.rotation * 0.5);
-          ctx.scale(0.4, 0.4); // 缩小至40%
+          ctx.scale(0.2, 0.2); // 缩小至20%
           const triangles = PIXEL_ART.magicCircle.triangles;
           triangles.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3571,9 +3641,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 光点装饰（闪烁效果）- 缩小至40%
+          // 光点装饰（闪烁效果）- 缩小至20%
           ctx.save();
-          ctx.scale(0.4, 0.4); // 缩小至40%
+          ctx.scale(0.2, 0.2); // 缩小至20%
           const dots = PIXEL_ART.magicCircle.dots;
           const twinkle = (Math.sin(elapsedSeconds * 8) + 1) * 0.5;
           dots.forEach((pixel, index) => {
@@ -3584,10 +3654,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 中心符文（慢速脉冲）- 缩小至40%
+          // 中心符文（慢速脉冲）- 缩小至20%
           const pulse = 1 + Math.sin(elapsedSeconds * 6) * 0.2;
           ctx.save();
-          ctx.scale(0.4 * pulse, 0.4 * pulse); // 缩小至40%
+          ctx.scale(0.2 * pulse, 0.2 * pulse); // 缩小至20%
           const centerRune = PIXEL_ART.magicCircle.centerRune;
           centerRune.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3682,6 +3752,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
 
+          return true;
+        });
+
+        // 更新通知
+        notificationsRef.current = notificationsRef.current.filter(notification => {
+          notification.life -= deltaTime;
+          if (notification.life <= 0) {
+            // 移除过期通知后，重新计算剩余通知的yOffset
+            notificationsRef.current.forEach((notif, index) => {
+              notif.yOffset = index * 60;
+            });
+            return false;
+          }
           return true;
         });
 
@@ -4090,6 +4173,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     projectilesRef.current = [];
     particlesRef.current = [];
     damageNumbersRef.current = [];
+    notificationsRef.current = [];
     slashEffectsRef.current = [];
     magicCirclesRef.current = [];
     screenShakeRef.current = { intensity: 0, duration: 0, x: 0, y: 0 };
