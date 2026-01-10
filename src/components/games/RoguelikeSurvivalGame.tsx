@@ -99,9 +99,9 @@ interface Player {
   totalKills: number;
   totalDamage: number;
   gameTime: number;
-  weaponType: 'sword' | 'bow' | 'staff';
   invincible: boolean;
   invincibleTime: number;
+  hasAutoLock: boolean;  // 是否有自动锁敌大招
 }
 
 interface Monster {
@@ -507,27 +507,36 @@ const SKILL_POOL: Skill[] = [
     name: '弓箭手',
     description: '切换到弓箭，攻击范围+50%，攻击速度-15%',
     type: 'active',
-    apply: (p) => ({ ...p, weaponType: 'bow', attackRange: p.attackRange * 1.5, attackSpeed: p.attackSpeed * 0.85 }),
+    apply: (p) => ({ ...p, attackRange: p.attackRange * 1.5, attackSpeed: p.attackSpeed * 0.85 }),
     rarity: 'rare',
     color: COLORS.rare
   },
   {
-    id: 'change_staff',
-    name: '法师',
-    description: '切换到法杖，远程伤害+40%，攻击范围+30%',
+    id: 'magic_power',
+    name: '魔法强化',
+    description: '远程伤害+40%，投射物速度+30%',
     type: 'active',
-    apply: (p) => ({ ...p, weaponType: 'staff', rangedDamage: p.rangedDamage * 1.4, attackRange: p.attackRange * 1.3 }),
+    apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.4 }),
     rarity: 'rare',
     color: COLORS.rare
   },
   {
-    id: 'change_sword',
-    name: '剑士',
-    description: '切换到剑，近战伤害+30%',
+    id: 'blade_mastery',
+    name: '剑术精通',
+    description: '近战伤害+30%，攻击范围+15%',
     type: 'active',
-    apply: (p) => ({ ...p, weaponType: 'sword', meleeDamage: p.meleeDamage * 1.3 }),
+    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.3, attackRange: p.attackRange * 1.15 }),
     rarity: 'rare',
     color: COLORS.rare
+  },
+  {
+    id: 'auto_lock_ultimate',
+    name: '自动锁敌',
+    description: '大招：每8秒自动发射3枚追踪导弹攻击最近的敌人（神话）',
+    type: 'active',
+    apply: (p) => ({ ...p, hasAutoLock: true }),
+    rarity: 'mythic',
+    color: COLORS.mythic
   },
   // 被动技能
   {
@@ -685,6 +694,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const autoAttackTimerRef = useRef<number>(0);
   const shieldTimerRef = useRef<number>(0);
   const lastDamageTimeRef = useRef(0);
+  const autoLockUltimateTimerRef = useRef<number>(0);  // 大招冷却
+
+  // 音效冷却记录（防止重叠）
+  const soundCooldownsRef = useRef<Record<string, number>>({});
 
   // ==================== 音频系统 ====================
   const initAudio = useCallback(() => {
@@ -695,6 +708,30 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage' | 'crit' | 'explosion' | 'slash' | 'heal' | 'select' | 'hover') => {
     if (!soundEnabled || !audioContextRef.current) return;
+
+    // 音效冷却限制
+    const now = performance.now();
+    const lastPlayTime = soundCooldownsRef.current[type] || 0;
+    const cooldownMap: Record<string, number> = {
+      'hit': 50,       // hit音效50ms冷却
+      'kill': 150,     // kill音效150ms冷却
+      'levelup': 0,    // levelup无冷却（重要事件）
+      'shoot': 80,     // shoot音效80ms冷却
+      'damage': 100,   // damage音效100ms冷却
+      'crit': 200,     // crit音效200ms冷却
+      'explosion': 0,  // explosion无冷却（重要事件）
+      'slash': 60,     // slash音效60ms冷却
+      'heal': 150,     // heal音效150ms冷却
+      'select': 0,     // select无冷却（UI交互）
+      'hover': 30      // hover音效30ms冷却
+    };
+    const cooldown = cooldownMap[type];
+
+    if (cooldown > 0 && now - lastPlayTime < cooldown) {
+      return;  // 冷却中，不播放
+    }
+
+    soundCooldownsRef.current[type] = now;
 
     try {
       const ctx = audioContextRef.current;
@@ -941,13 +978,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
       createSlashEffect(player.x, player.y, angle, 'diagonal');
 
-      monster.hp -= damage;
+      monster.hp = Math.max(0, Math.floor(monster.hp - damage));
       monster.isStunned = true;
       monster.stunnedTime = 350;
 
       createParticles(monster.x, monster.y, COLORS.blood, 8, 'blood');
       createDamageNumber(monster.x, monster.y, damage, isCrit);
-      triggerScreenShake(isCrit ? 4 : 2, isCrit ? 0.12 : 0.08);
+      triggerScreenShake(isCrit ? 1.5 : 0.8, isCrit ? 0.05 : 0.03);
       playSound(isCrit ? 'crit' : 'slash');
 
       player.totalDamage += damage;
@@ -955,12 +992,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       // 荆棘护甲被动
       const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
       if (hasThorns) {
-        const thornsDamage = monster.damage * 0.5;
-        monster.hp -= thornsDamage;
+        const thornsDamage = Math.floor(monster.damage * 0.5);
+        monster.hp = Math.max(0, monster.hp - thornsDamage);
         createParticles(monster.x, monster.y, '#FF6B6B', 5, 'spark');
       }
 
-      if (monster.hp <= 0) {
+      if (monster.hp < 0.1) {
         let expGain = monster.exp;
 
         // 快速学习被动
@@ -982,7 +1019,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
 
         createParticles(monster.x, monster.y, monster.color, 15, 'explosion');
-        triggerScreenShake(4, 0.12);
+        triggerScreenShake(1.5, 0.05);
         scoreRef.current += Math.floor(monster.exp);
         setScore(scoreRef.current);
         playSound('kill');
@@ -1001,11 +1038,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const angle = mouseRef.current.angle;
 
     const isFireball = player.rangedDamage > 35;
+    const isLightning = player.rangedDamage > 50;
 
     if (projectilesRef.current.length < MAX_PROJECTILES) {
       let projectileType: Projectile['type'] = 'arrow';
-      if (isFireball) projectileType = 'fireball';
-      else if (player.weaponType === 'staff') projectileType = 'lightning';
+      if (isLightning) projectileType = 'lightning';
+      else if (isFireball) projectileType = 'fireball';
 
       projectilesRef.current.push({
         id: projectileIdCounterRef.current++,
@@ -1113,9 +1151,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       y,
       vx: 0,
       vy: 0,
-      hp: stats.baseHp * difficulty,
-      maxHp: stats.baseHp * difficulty,
-      damage: stats.baseDamage * difficulty,
+      hp: Math.floor(stats.baseHp * difficulty),
+      maxHp: Math.floor(stats.baseHp * difficulty),
+      damage: Math.floor(stats.baseDamage * difficulty),
       speed: stats.baseSpeed * (0.95 + Math.random() * 0.1) * (1 + difficulty * 0.3),
       exp: Math.floor(stats.baseExp * difficulty),
       lastAttack: 0,
@@ -1154,7 +1192,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 阶段转换特效
       createParticles(monster.x, monster.y, '#FF6B6B', 30, 'explosion');
-      triggerScreenShake(10, 0.3);
+      triggerScreenShake(3, 0.1);
       playSound('explosion');
 
       // 阶段转换增强
@@ -1178,7 +1216,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             y: monster.y,
             vx: Math.cos(angle) * 8,
             vy: Math.sin(angle) * 8,
-            damage: monster.damage * 0.5,
+            damage: Math.floor(monster.damage * 0.5),
             speed: 8,
             bounceCount: 0,
             angle,
@@ -1199,7 +1237,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             y: monster.y,
             vx: Math.cos(angle) * 6,
             vy: Math.sin(angle) * 6,
-            damage: monster.damage * 0.3,
+            damage: Math.floor(monster.damage * 0.3),
             speed: 6,
             bounceCount: 0,
             angle,
@@ -1220,9 +1258,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             y: monster.y + Math.sin(angle) * 80,
             vx: 0,
             vy: 0,
-            hp: 50 * difficultyRef.current,
-            maxHp: 50 * difficultyRef.current,
-            damage: 15 * difficultyRef.current,
+            hp: Math.floor(50 * difficultyRef.current),
+            maxHp: Math.floor(50 * difficultyRef.current),
+            damage: Math.floor(15 * difficultyRef.current),
             speed: 3,
             exp: 30,
             lastAttack: 0,
@@ -1313,58 +1351,28 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
     const padding = 10;
 
-    // 玩家信息栏
-    const barWidth = 180;
-    const barHeight = 14;
-
-    // 生命值条
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(padding + 10, padding, barWidth, barHeight);
-
-    const hpPercent = player.hp / player.maxHp;
-    const hpGradient = ctx.createLinearGradient(padding + 10, padding, padding + 10 + barWidth, padding);
-    hpGradient.addColorStop(0, '#FF6B6B');
-    hpGradient.addColorStop(1, '#FF4757');
-    ctx.fillStyle = hpGradient;
-    ctx.fillRect(padding + 10, padding, barWidth * hpPercent, barHeight);
-
+    // 等级显示（左上角）
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px Arial, sans-serif';
+    ctx.font = 'bold 18px Arial, sans-serif';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.floor(player.hp)}/${player.maxHp}`, padding + 12, padding + barHeight / 2);
+    ctx.textBaseline = 'top';
+    ctx.fillText(`Lv.${player.level}`, padding + 10, padding + 10);
 
-    // 经验值条
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(padding + 10, padding + barHeight + 4, barWidth, 8);
-
-    const expPercent = player.exp / player.expToNext;
-    const expGradient = ctx.createLinearGradient(padding + 10, padding + barHeight + 4, padding + 10 + barWidth, padding + barHeight + 4);
-    expGradient.addColorStop(0, '#7ED6DF');
-    expGradient.addColorStop(1, '#00CEC9');
-    ctx.fillStyle = expGradient;
-    ctx.fillRect(padding + 10, padding + barHeight + 4, barWidth * expPercent, 8);
-
-    // 等级显示
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 14px Arial, sans-serif';
-    ctx.fillText(`Lv.${player.level}`, padding + 10, padding + barHeight + 30);
-
-    // 分数显示
+    // 分数和状态显示（右上角）
     const difficulty = getDifficultyMultiplier(player.gameTime);
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 18px Arial, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(`Score: ${scoreRef.current}`, CANVAS_WIDTH - padding - 10, padding + 14);
+    ctx.fillText(`Score: ${scoreRef.current}`, CANVAS_WIDTH - padding - 10, padding + 10);
 
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '12px Arial, sans-serif';
-    ctx.fillText(`Time: ${Math.floor(player.gameTime)}s`, CANVAS_WIDTH - padding - 10, padding + 34);
+    ctx.fillText(`Time: ${Math.floor(player.gameTime)}s`, CANVAS_WIDTH - padding - 10, padding + 32);
 
     ctx.fillStyle = '#FF6B6B';
-    ctx.fillText(`Difficulty: ${difficulty.toFixed(1)}x`, CANVAS_WIDTH - padding - 10, padding + 52);
+    ctx.fillText(`Difficulty: ${difficulty.toFixed(1)}x`, CANVAS_WIDTH - padding - 10, padding + 50);
 
-    // 状态指示器
+    // 状态指示器（左下角）
     let yOffset = 80;
     const hasArmor = player.skills.some(s => s.id === 'passive_armor');
     const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
@@ -1664,9 +1672,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         if (lastRegenTimeRef.current >= 1 && player.regenRate > 0) {
           lastRegenTimeRef.current = 0;
           if (player.hp < player.maxHp) {
-            const healAmount = Math.min(player.regenRate, player.maxHp - player.hp);
-            player.hp += healAmount;
-            if (healAmount > 0.5) {
+            const healAmount = Math.min(Math.floor(player.regenRate), Math.floor(player.maxHp - player.hp));
+            if (healAmount > 0) {
+              player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
               createDamageNumber(player.x, player.y - 25, healAmount, false, true);
               playSound('heal');
             }
@@ -1698,13 +1706,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monsterSpawnTimerRef.current = 0;
           }
 
-          // 自动攻击
+          // 自动攻击 - 近战和远程同时进行
           autoAttackTimerRef.current += deltaTime;
           const autoAttackInterval = 1 / player.attackSpeed;
 
           if (autoAttackTimerRef.current >= autoAttackInterval) {
             autoAttackTimerRef.current = 0;
 
+            // 近战攻击（范围内有敌人时）
             let hasNearbyEnemy = false;
             for (const monster of monstersRef.current) {
               const mdx = monster.x - player.x;
@@ -1719,8 +1728,52 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
             if (hasNearbyEnemy) {
               autoMeleeAttack(player);
-            } else {
+            }
+
+            // 远程攻击（一直向鼠标方向射击，降低攻击频率）
+            if (Math.random() < 0.4) {
               autoRangedAttack(player);
+            }
+          }
+
+          // 自动锁敌大招（每8秒发射3枚追踪导弹）
+          if (player.hasAutoLock) {
+            autoLockUltimateTimerRef.current += deltaTime;
+            if (autoLockUltimateTimerRef.current >= 8 && monstersRef.current.length > 0) {
+              autoLockUltimateTimerRef.current = 0;
+
+              // 找到最近的3个怪物
+              const sortedMonsters = monstersRef.current
+                .map(m => ({
+                  monster: m,
+                  distance: Math.sqrt(Math.pow(m.x - player.x, 2) + Math.pow(m.y - player.y, 2))
+                }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 3);
+
+              sortedMonsters.forEach(({ monster }) => {
+                const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
+
+                projectilesRef.current.push({
+                  id: projectileIdCounterRef.current++,
+                  x: player.x,
+                  y: player.y,
+                  vx: Math.cos(angle) * 12,
+                  vy: Math.sin(angle) * 12,
+                  damage: Math.floor(player.rangedDamage * 2),
+                  speed: 12,
+                  bounceCount: 0,
+                  angle,
+                  trail: [],
+                  type: 'lightning',
+                  pierceCount: 3,
+                  owner: 'player'
+                });
+              });
+
+              createParticles(player.x, player.y, '#F1C40F', 20, 'magic');
+              triggerScreenShake(2, 0.06);
+              playSound('levelup');
             }
           }
         }
@@ -1787,18 +1840,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           if (gameState === GameState.PLAYING && checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
             if (performance.now() - monster.lastAttack > 700) {
               // 护盾优先吸收伤害
-              let damage = monster.damage;
+              let damage = Math.floor(monster.damage);
 
               // 坚韧被动
               const hasArmor = player.skills.some(s => s.id === 'passive_armor');
               if (hasArmor) {
-                damage *= 0.8;
+                damage = Math.floor(damage * 0.8);
               }
 
               if (monster.hasShield && monster.shieldHp > 0) {
                 const absorbed = Math.min(damage, monster.shieldHp);
-                monster.shieldHp -= absorbed;
-                damage -= absorbed;
+                monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
+                damage = Math.max(0, damage - absorbed);
                 createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
                 playSound('shoot');
               }
@@ -1806,10 +1859,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 无敌帧
               if (!player.invincible) {
                 if (damage > 0) {
-                  player.hp -= damage;
+                  player.hp = Math.max(0, Math.floor(player.hp - damage));
                   monster.lastAttack = performance.now();
                   createDamageNumber(player.x, player.y, damage, false);
-                  triggerScreenShake(7, 0.28);
+                  triggerScreenShake(2, 0.08);
                   playSound('damage');
                   createParticles(player.x, player.y, COLORS.player, 10, 'blood');
 
@@ -1818,10 +1871,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
                   // 不屈被动检查
                   const hasRevive = player.skills.some(s => s.id === 'passive_revive');
-                  if (hasRevive && player.hp <= 0 && Math.random() < 0.2) {
-                    player.hp = player.maxHp * 0.5;
+                  if (hasRevive && player.hp < 0.1 && Math.random() < 0.2) {
+                    player.hp = Math.floor(player.maxHp * 0.5);
                     createParticles(player.x, player.y, '#00FF00', 30, 'magic');
-                    triggerScreenShake(15, 0.5);
+                    triggerScreenShake(4, 0.15);
                     playSound('levelup');
                     player.invincible = true;
                     player.invincibleTime = 2000;
@@ -1990,8 +2043,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 // 护盾优先吸收
                 if (monster.hasShield && monster.shieldHp > 0) {
                   const absorbed = Math.min(damage, monster.shieldHp);
-                  monster.shieldHp -= absorbed;
-                  damage -= absorbed;
+                  monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
+                  damage = Math.max(0, Math.floor(damage - absorbed));
                   createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
                   playSound('shoot');
                 }
@@ -2005,11 +2058,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 }
 
                 if (damage > 0) {
-                  monster.hp -= damage;
+                  monster.hp = Math.max(0, Math.floor(monster.hp - damage));
                   createParticles(projectile.x, projectile.y, COLORS.spark, 8, 'spark');
                   createDamageNumber(monster.x, monster.y, damage, isCrit);
                   playSound(isCrit ? 'crit' : 'hit');
-                  triggerScreenShake(isCrit ? 3.5 : 1.8, isCrit ? 0.11 : 0.07);
+                  triggerScreenShake(isCrit ? 1.2 : 0.6, isCrit ? 0.04 : 0.02);
                 }
 
                 player.totalDamage += damage;
@@ -2017,8 +2070,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 // 荆棘护甲被动
                 const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
                 if (hasThorns) {
-                  const thornsDamage = monster.damage * 0.5;
-                  monster.hp -= thornsDamage;
+                  const thornsDamage = Math.floor(monster.damage * 0.5);
+                  monster.hp = Math.max(0, monster.hp - thornsDamage);
                   createParticles(monster.x, monster.y, '#FF6B6B', 5, 'spark');
                 }
 
@@ -2027,19 +2080,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 if (hasChain && Math.random() < 0.15) {
                   for (const otherMonster of monstersRef.current) {
                     if (otherMonster.id !== monster.id && checkCollision(monster.x, monster.y, 100, otherMonster.x, otherMonster.y, otherMonster.size)) {
-                      otherMonster.hp -= damage * 0.5;
+                      otherMonster.hp = Math.max(0, Math.floor(otherMonster.hp - damage * 0.5));
                       createParticles(otherMonster.x, otherMonster.y, '#F1C40F', 6, 'magic');
                     }
                   }
                 }
 
-                if (monster.hp <= 0) {
-                  let expGain = monster.exp;
+                if (monster.hp < 0.1) {
+                  let expGain = Math.floor(monster.exp);
 
                   // 快速学习被动
                   const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
                   if (hasFastLearning) {
-                    expGain *= 1.25;
+                    expGain = Math.floor(expGain * 1.25);
                   }
 
                   player.exp += expGain;
@@ -2049,13 +2102,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
                   if (hasLifesteal) {
                     const healAmount = 5;
-                    player.hp = Math.min(player.hp + healAmount, player.maxHp);
+                    player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                     createDamageNumber(player.x, player.y - 20, healAmount, false, true);
                     playSound('heal');
                   }
 
                   createParticles(monster.x, monster.y, monster.color, 12, 'explosion');
-                  triggerScreenShake(4, 0.12);
+                  triggerScreenShake(1.5, 0.05);
                   scoreRef.current += Math.floor(monster.exp);
                   setScore(scoreRef.current);
                   playSound('kill');
@@ -2079,24 +2132,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             // 怪物投射物与玩家碰撞
             if (checkCollision(projectile.x, projectile.y, 8, player.x, player.y, PLAYER_SIZE)) {
               if (!player.invincible) {
-                let damage = projectile.damage;
+                let damage = Math.floor(projectile.damage);
 
                 // 坚韧被动
                 const hasArmor = player.skills.some(s => s.id === 'passive_armor');
                 if (hasArmor) {
-                  damage *= 0.8;
+                  damage = Math.floor(damage * 0.8);
                 }
 
-                player.hp -= damage;
+                player.hp = Math.max(0, Math.floor(player.hp - damage));
                 player.invincible = true;
                 player.invincibleTime = 500;
 
                 createDamageNumber(player.x, player.y, damage, false);
-                triggerScreenShake(6, 0.22);
+                triggerScreenShake(2, 0.07);
                 playSound('damage');
                 createParticles(player.x, player.y, COLORS.player, 8, 'blood');
 
-                if (player.hp <= 0) {
+                if (player.hp < 0.1) {
                   gameStateRef.current = GameState.GAME_OVER;
                   return false;
                 }
@@ -2259,21 +2312,61 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         // 绘制像素艺术玩家
         drawPixelArt(ctx, PIXEL_ART.player.body, -8, -8, 1);
 
-        // 武器（指向鼠标方向）
+        // 近战武器（剑）- 指向鼠标方向
         ctx.save();
         ctx.rotate(mouseRef.current.angle);
         ctx.translate(0, -8);
 
-        const weaponArt = PIXEL_ART.player.weapon[player.weaponType];
-        if (weaponArt) {
-          drawPixelArt(ctx, weaponArt, -3, -8, 0.8);
+        const swordArt = PIXEL_ART.player.weapon.sword;
+        if (swordArt) {
+          drawPixelArt(ctx, swordArt, -3, -8, 0.8);
         }
 
         ctx.restore();
 
+        // 远程武器（弓）- 显示在另一侧
+        ctx.save();
+        ctx.rotate(mouseRef.current.angle + Math.PI);
+        ctx.translate(0, -8);
+
+        const bowArt = PIXEL_ART.player.weapon.bow;
+        if (bowArt) {
+          drawPixelArt(ctx, bowArt, -3, -8, 0.7);
+        }
+
         ctx.restore();
-        ctx.globalAlpha = 1;
+
+        // 绘制血条（在人物头上）
+        const hpBarWidth = 60;
+        const hpBarHeight = 6;
+        const hpBarY = -PLAYER_SIZE - 15;
+
+        // 血条背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(-hpBarWidth / 2 - 1, hpBarY - 1, hpBarWidth + 2, hpBarHeight + 2);
+
+        // 血条
+        const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
+        ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
+        ctx.fillRect(-hpBarWidth / 2, hpBarY, hpBarWidth * hpPercent, hpBarHeight);
+
+        // 绘制经验条（在血条上方）
+        const expBarWidth = 60;
+        const expBarHeight = 4;
+        const expBarY = hpBarY - 7;
+
+        // 经验条背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(-expBarWidth / 2 - 1, expBarY - 1, expBarWidth + 2, expBarHeight + 2);
+
+        // 经验条
+        const expPercent = Math.max(0, Math.min(1, player.exp / player.expToNext));
+        ctx.fillStyle = '#7ED6DF';
+        ctx.fillRect(-expBarWidth / 2, expBarY, expBarWidth * expPercent, expBarHeight);
       }
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
 
       // 绘制升级面板
       if (gameState === GameState.LEVEL_UP) {
@@ -2353,7 +2446,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       totalKills: 0,
       totalDamage: 0,
       gameTime: 0,
-      weaponType: 'sword',
+      hasAutoLock: false,
       invincible: false,
       invincibleTime: 0
     };
@@ -2369,11 +2462,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     projectileIdCounterRef.current = 0;
     monsterSpawnTimerRef.current = 0;
     autoAttackTimerRef.current = 0;
+    autoLockUltimateTimerRef.current = 0;
     gameTimeRef.current = 0;
     lastRegenTimeRef.current = 0;
     shieldTimerRef.current = 0;
     scoreRef.current = 0;
     difficultyRef.current = 1;
+    soundCooldownsRef.current = {};  // 重置音效冷却
 
     spawnObstacles();
     setScore(0);
