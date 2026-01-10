@@ -4,9 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Swords, Zap, Heart, Shield, TrendingUp, Target, Play, X, Maximize2, Volume2, Flame, Sparkles, Skull, RotateCcw } from 'lucide-react';
+import { Swords, Zap, Heart, Target, Play, X, Maximize2, Volume2, Flame, Sparkles, Skull, TrendingUp, Shield } from 'lucide-react';
 
 interface RoguelikeSurvivalGameProps {
   onComplete: (result: GameResult) => void;
@@ -34,30 +33,20 @@ const MAX_DAMAGE_NUMBERS = 50;
 
 // ==================== 颜色配置 ====================
 const COLORS = {
-  // 玩家颜色
   player: '#FF6B6B',
   playerGlow: 'rgba(255, 107, 107, 0.4)',
   playerOutline: '#C92A2A',
-
-  // 怪物颜色
   slimeMonster: '#7BED9F',
   skeletonMonster: '#A4B0BE',
   ghostMonster: '#70A1FF',
   bossMonster: '#9B59B6',
-
-  // 投射物颜色
   projectile: '#FFEAA7',
   projectileGlow: 'rgba(255, 234, 167, 0.6)',
   fireball: '#FF6B6B',
-  lightning: '#00FF00',
-
-  // 特效颜色
   blood: '#8B0000',
   spark: '#FFD700',
   levelUp: '#00FF00',
   slash: '#FFFFFF',
-
-  // UI颜色
   hpBar: '#00CEC9',
   hpBarLow: '#FF7675',
   expBar: '#00FF00',
@@ -289,7 +278,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [playerData, setPlayerData] = useState<Player | null>(null);
+  const [uiUpdate, setUiUpdate] = useState(0); // 强制UI更新
 
   // 游戏数据引用
   const playerRef = useRef<Player>({
@@ -339,6 +328,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const monsterSpawnTimerRef = useRef<number>(0);
   const gameTimerRef = useRef<number>(0);
   const autoAttackTimerRef = useRef<number>(0);
+  const uiUpdateTimerRef = useRef<number>(0);
 
   // ==================== 音频系统 ====================
   const initAudio = useCallback(() => {
@@ -542,7 +532,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const isCrit = Math.random() < player.critRate;
     const damage = isCrit ? player.meleeDamage * player.critMultiplier : player.meleeDamage;
 
-    // 创建刀光特效
     const angle = Math.atan2(nearestMonster.y - player.y, nearestMonster.x - player.x);
     createSlashEffect(player.x, player.y, angle);
 
@@ -581,7 +570,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const angle = Math.atan2(dy, dx);
 
     if (projectilesRef.current.length < MAX_PROJECTILES) {
-      const isFireball = player.rangedDamage > 22.5; // 如果远程伤害高，使用火球
+      const isFireball = player.rangedDamage > 22.5;
       projectilesRef.current.push({
         id: projectileIdCounterRef.current++,
         x: player.x,
@@ -606,7 +595,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     player.exp = 0;
     player.expToNext = Math.floor(player.expToNext * 1.6);
 
-    // 随机选择3个技能
     const shuffled = [...SKILL_POOL].sort(() => Math.random() - 0.5);
     const selectedSkills = shuffled.slice(0, 3);
     setAvailableSkills(selectedSkills);
@@ -635,7 +623,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const side = Math.floor(Math.random() * 4);
     let x: number, y: number;
 
-    const margin = 50;
+    const margin = 100;
     switch (side) {
       case 0: x = Math.random() * CANVAS_WIDTH; y = -margin; break;
       case 1: x = CANVAS_WIDTH + margin; y = Math.random() * CANVAS_HEIGHT; break;
@@ -686,7 +674,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制背景 ====================
   const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
-    // 渐变背景
     const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     gradient.addColorStop(0, '#1A1A2E');
     gradient.addColorStop(0.3, '#16213E');
@@ -695,7 +682,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 绘制地面瓷砖
     const tileSize = 40;
     const gridOffset = (gameTimeRef.current * 10) % tileSize;
 
@@ -716,7 +702,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.stroke();
     }
 
-    // 绘制装饰性元素（星星）
     ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
     for (let i = 0; i < 30; i++) {
       const x = ((i * 137) % CANVAS_WIDTH);
@@ -732,7 +717,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const gameLoop = useCallback(() => {
     try {
       const canvas = canvasRef.current;
-      if (!canvas || !gameStarted) return;
+      if (!canvas) return;
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -742,7 +727,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       lastTimeRef.current = now;
       gameTimeRef.current += deltaTime;
 
-      // 屏幕震动
       let shakeX = 0, shakeY = 0;
       if (screenShakeRef.current.duration > 0) {
         screenShakeRef.current.duration -= deltaTime;
@@ -753,12 +737,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.save();
       ctx.translate(shakeX, shakeY);
 
-      // 绘制背景
       drawBackground(ctx);
 
       const player = playerRef.current;
 
-      // 更新玩家位置
       let dx = 0, dy = 0;
       if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
       if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
@@ -776,13 +758,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         player.x = Math.max(PLAYER_SIZE, Math.min(CANVAS_WIDTH - PLAYER_SIZE, player.x));
         player.y = Math.max(PLAYER_SIZE, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, player.y));
 
-        // 移动时产生尘埃粒子
         if (Math.random() < 0.3) {
           createParticles(player.x, player.y + PLAYER_SIZE, '#888888', 1, 'dust');
         }
       }
 
-      // 生命回复
       lastRegenTimeRef.current += deltaTime;
       if (lastRegenTimeRef.current >= 1) {
         lastRegenTimeRef.current = 0;
@@ -791,10 +771,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
       }
 
-      // 更新UI显示
-      setPlayerData({ ...player });
+      uiUpdateTimerRef.current += deltaTime;
+      if (uiUpdateTimerRef.current >= 0.1) {
+        uiUpdateTimerRef.current = 0;
+        setUiUpdate(prev => prev + 1);
+      }
 
-      // 生成怪物
       const difficulty = getDifficultyMultiplier();
       monsterSpawnTimerRef.current += deltaTime;
       const spawnInterval = Math.max(0.4, 1.8 - difficulty * 0.4);
@@ -804,7 +786,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         monsterSpawnTimerRef.current = 0;
       }
 
-      // 自动攻击
       autoAttackTimerRef.current += deltaTime;
       const autoAttackInterval = 1 / player.attackSpeed;
 
@@ -830,7 +811,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
       }
 
-      // 更新和绘制怪物
       monstersRef.current = monstersRef.current.filter(monster => {
         const mdx = player.x - monster.x;
         const mdy = player.y - monster.y;
@@ -838,14 +818,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         if (mDistance > 0) {
           const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
-          // 幽灵可以穿透墙壁，其他怪物正常移动
-          if (monster.type === 'ghost') {
-            monster.x += (mdx / mDistance) * moveSpeed;
-            monster.y += (mdy / mDistance) * moveSpeed;
-          } else {
-            monster.x += (mdx / mDistance) * moveSpeed;
-            monster.y += (mdy / mDistance) * moveSpeed;
-          }
+          monster.x += (mdx / mDistance) * moveSpeed;
+          monster.y += (mdy / mDistance) * moveSpeed;
         }
 
         if (monster.isStunned) {
@@ -855,7 +829,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
         }
 
-        // 碰撞检测
         const now = Date.now();
         if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
           if (now - monster.lastAttack > 1000) {
@@ -873,13 +846,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
         }
 
-        // 绘制怪物阴影
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
         ctx.ellipse(monster.x, monster.y + monster.size * 0.3, monster.size * 0.8, monster.size * 0.3, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 绘制怪物
         monster.angle += deltaTime * 2;
         const bounce = Math.sin(gameTimeRef.current * 5 + monster.animationOffset) * 3;
 
@@ -887,48 +858,40 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.translate(monster.x, monster.y + bounce);
         ctx.scale(monster.scale, monster.scale);
 
-        // 根据怪物类型绘制不同形状
         if (monster.type === 'slime') {
-          // 史莱姆 - 圆形带波纹效果
           ctx.fillStyle = monster.color;
           ctx.globalAlpha = 0.7;
           ctx.beginPath();
           ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
           ctx.fill();
 
-          // 内部高光
           ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
           ctx.beginPath();
           ctx.arc(-monster.size * 0.3, -monster.size * 0.3, monster.size * 0.3, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalAlpha = 1;
         } else if (monster.type === 'skeleton') {
-          // 骷髅 - 头骨形状
           ctx.fillStyle = monster.color;
           ctx.beginPath();
           ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
           ctx.fill();
 
-          // 眼睛
           ctx.fillStyle = '#FF6B6B';
           ctx.beginPath();
           ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.15, 0, Math.PI * 2);
           ctx.arc(monster.size * 0.3, -monster.size * 0.2, monster.size * 0.15, 0, Math.PI * 2);
           ctx.fill();
 
-          // 嘴巴
           ctx.beginPath();
           ctx.arc(0, monster.size * 0.3, monster.size * 0.2, 0, Math.PI);
           ctx.stroke();
         } else if (monster.type === 'ghost') {
-          // 幽灵 - 半透明漂浮
           ctx.fillStyle = monster.color;
           ctx.globalAlpha = 0.6;
           ctx.beginPath();
           ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
           ctx.fill();
 
-          // 眼睛
           ctx.fillStyle = '#FFFFFF';
           ctx.beginPath();
           ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.2, 0, Math.PI * 2);
@@ -936,13 +899,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.fill();
           ctx.globalAlpha = 1;
         } else if (monster.type === 'boss') {
-          // Boss - 复杂形状
           ctx.fillStyle = monster.color;
           ctx.beginPath();
           ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
           ctx.fill();
 
-          // 角
           ctx.fillStyle = '#FF6B6B';
           ctx.beginPath();
           ctx.moveTo(-monster.size * 0.5, -monster.size * 0.8);
@@ -955,7 +916,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.lineTo(monster.size * 0.7, -monster.size * 0.3);
           ctx.fill();
 
-          // 眼睛
           ctx.fillStyle = '#FF0000';
           ctx.beginPath();
           ctx.arc(-monster.size * 0.3, -monster.size * 0.2, monster.size * 0.2, 0, Math.PI * 2);
@@ -963,14 +923,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.fill();
         }
 
-        // 怪物边框（被击中时闪烁）
         ctx.strokeStyle = monster.isStunned ? '#FFFFFF' : 'rgba(0, 0, 0, 0.3)';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         ctx.restore();
 
-        // 怪物血条
         const hpPercent = monster.hp / monster.maxHp;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
         ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 12, monster.size * 2, 6);
@@ -980,17 +938,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return monster.hp > 0;
       });
 
-      // 更新和绘制投射物
       projectilesRef.current = projectilesRef.current.filter(projectile => {
         projectile.x += projectile.vx;
         projectile.y += projectile.vy;
 
-        // 添加拖尾
         projectile.trail.push({ x: projectile.x, y: projectile.y, life: 1 });
         if (projectile.trail.length > 15) projectile.trail.shift();
         projectile.trail.forEach(t => t.life -= deltaTime * 8);
 
-        // 边界反弹
         if (projectile.x <= 0 || projectile.x >= CANVAS_WIDTH) {
           projectile.vx *= -1;
           projectile.bounceCount--;
@@ -1000,7 +955,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           projectile.bounceCount--;
         }
 
-        // 绘制拖尾
         ctx.strokeStyle = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectileGlow;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
@@ -1018,7 +972,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.stroke();
         ctx.globalAlpha = 1;
 
-        // 绘制投射物光晕
         const glowColor = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectileGlow;
         const glow = ctx.createRadialGradient(projectile.x, projectile.y, 0, projectile.x, projectile.y, projectile.type === 'fireball' ? 20 : 15);
         glow.addColorStop(0, glowColor);
@@ -1028,13 +981,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 20 : 15, 0, Math.PI * 2);
         ctx.fill();
 
-        // 绘制投射物
         ctx.fillStyle = projectile.type === 'fireball' ? COLORS.fireball : COLORS.projectile;
         ctx.beginPath();
         ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 8 : 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // 碰撞检测
         for (const monster of monstersRef.current) {
           if (checkCollision(projectile.x, projectile.y, projectile.type === 'fireball' ? 10 : 8, monster.x, monster.y, monster.size)) {
             const isCrit = Math.random() < player.critRate;
@@ -1069,7 +1020,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return true;
       });
 
-      // 更新和绘制刀光特效
       slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
         slash.life -= deltaTime / slash.maxLife;
 
@@ -1082,7 +1032,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.translate(slash.x, slash.y);
         ctx.rotate(slash.angle);
 
-        // 绘制新月形刀光
         ctx.strokeStyle = COLORS.slash;
         ctx.lineWidth = 3;
         ctx.shadowColor = COLORS.slash;
@@ -1100,7 +1049,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return true;
       });
 
-      // 更新和绘制粒子
       particlesRef.current = particlesRef.current.filter(particle => {
         particle.life -= deltaTime;
         particle.x += particle.vx;
@@ -1157,7 +1105,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return true;
       });
 
-      // 更新和绘制伤害数字
       damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
         dn.life -= deltaTime;
         dn.y -= 2;
@@ -1179,13 +1126,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return true;
       });
 
-      // 绘制玩家阴影
       ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       ctx.beginPath();
       ctx.ellipse(player.x, player.y + PLAYER_SIZE * 0.3, PLAYER_SIZE * 0.8, PLAYER_SIZE * 0.3, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 绘制玩家光晕
       const playerGlow = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, PLAYER_SIZE * 2);
       playerGlow.addColorStop(0, COLORS.playerGlow);
       playerGlow.addColorStop(1, 'rgba(255, 107, 107, 0)');
@@ -1194,18 +1139,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.arc(player.x, player.y, PLAYER_SIZE * 2, 0, Math.PI * 2);
       ctx.fill();
 
-      // 绘制玩家
       ctx.fillStyle = COLORS.player;
       ctx.beginPath();
       ctx.arc(player.x, player.y, PLAYER_SIZE, 0, Math.PI * 2);
       ctx.fill();
 
-      // 玩家边框
       ctx.strokeStyle = COLORS.playerOutline;
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // 玩家方向指示器（立即响应鼠标）
       const angle = Math.atan2(mouseRef.current.y - player.y, mouseRef.current.x - player.x);
       ctx.strokeStyle = COLORS.player;
       ctx.lineWidth = 4;
@@ -1218,14 +1160,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       );
       ctx.stroke();
 
-      // 玩家血条
       const hpPercent = player.hp / player.maxHp;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(player.x - 35, player.y - PLAYER_SIZE - 18, 70, 8);
       ctx.fillStyle = hpPercent > 0.3 ? COLORS.hpBar : COLORS.hpBarLow;
       ctx.fillRect(player.x - 35, player.y - PLAYER_SIZE - 18, 70 * hpPercent, 8);
 
-      // 经验条
       const expPercent = player.exp / player.expToNext;
       ctx.fillStyle = COLORS.expBarBackground;
       ctx.fillRect(player.x - 35, player.y - PLAYER_SIZE - 26, 70, 6);
@@ -1234,7 +1174,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       ctx.restore();
 
-      // 检查升级
       if (player.exp >= player.expToNext) {
         handleLevelUp();
         return;
@@ -1246,7 +1185,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       lastTimeRef.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [gameStarted, checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound, triggerScreenShake, createSlashEffect, drawBackground]);
+  }, [checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound, triggerScreenShake, createSlashEffect, drawBackground]);
 
   // ==================== 游戏控制 ====================
   const startGame = () => {
@@ -1257,7 +1196,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     setScore(0);
     setShowTutorial(false);
     setShowLevelUp(false);
-    setPlayerData(null);
+    setUiUpdate(0);
 
     initAudio();
 
@@ -1298,6 +1237,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     autoAttackTimerRef.current = 0;
     gameTimeRef.current = 0;
     lastRegenTimeRef.current = 0;
+    uiUpdateTimerRef.current = 0;
 
     gameTimerRef.current = window.setInterval(() => {
       setTimeLeft(prev => {
@@ -1398,8 +1338,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
-      mouseRef.current.y = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      mouseRef.current.x = (e.clientX - rect.left) * scaleX;
+      mouseRef.current.y = (e.clientY - rect.top) * scaleY;
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -1407,7 +1349,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
     };
-  }, []); // 移除依赖，避免重复绑定
+  }, []);
 
   // ==================== 提交结果 ====================
   const handleSubmit = async () => {
@@ -1456,7 +1398,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const player = playerData || playerRef.current;
+  const player = playerRef.current;
 
   return (
     <motion.div
@@ -1468,7 +1410,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     >
       <Card className="p-6 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30 backdrop-blur-sm">
         <div className="space-y-6">
-          {/* 游戏标题 */}
           <div className="text-center">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
               肉鸽割草
@@ -1545,7 +1486,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 exit={{ opacity: 0 }}
                 className="space-y-4"
               >
-                {/* 状态显示 */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-purple-500/20">
                     <div className="text-2xl font-bold text-purple-400">{formatTime(timeLeft)}</div>
@@ -1583,18 +1523,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   </div>
                 </div>
 
-                {/* 游戏画布 */}
-                <div ref={containerRef} className="relative rounded-xl overflow-hidden border-2 border-purple-500/30 shadow-2xl shadow-purple-500/10">
+                <div ref={containerRef} className="relative rounded-xl overflow-hidden border-2 border-purple-500/30 shadow-2xl shadow-purple-500/10 aspect-video bg-black">
                   <canvas
                     ref={canvasRef}
                     width={CANVAS_WIDTH}
                     height={CANVAS_HEIGHT}
-                    className="w-full h-auto"
-                    style={{ imageRendering: 'pixelated', background: '#0F0F1E' }}
+                    className="w-full h-full object-contain"
+                    style={{ imageRendering: 'pixelated' }}
                   />
                 </div>
 
-                {/* 经验显示 */}
                 <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 border border-purple-500/20">
                   <div className="flex justify-between text-sm text-gray-300 mb-1">
                     <span>经验值</span>
@@ -1667,7 +1605,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             )}
           </AnimatePresence>
 
-          {/* 升级选择界面 - 修复z-index问题 */}
           <AnimatePresence>
             {showLevelUp && availableSkills.length > 0 && (
               <motion.div
