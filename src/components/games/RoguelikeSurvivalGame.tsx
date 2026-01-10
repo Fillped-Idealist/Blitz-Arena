@@ -101,7 +101,7 @@ interface Player {
   gameTime: number;
   invincible: boolean;
   invincibleTime: number;
-  hasAutoLock: boolean;  // 是否有自动锁敌大招
+  autoLockLevel: number;  // 自动锁敌技能等级（0=未解锁）
 }
 
 interface Monster {
@@ -529,12 +529,49 @@ const SKILL_POOL: Skill[] = [
     rarity: 'rare',
     color: COLORS.rare
   },
+  // 自动锁敌被动技能（多等级可升级）
   {
-    id: 'auto_lock_ultimate',
-    name: '自动锁敌',
-    description: '大招：每8秒自动发射3枚追踪导弹攻击最近的敌人（神话）',
-    type: 'active',
-    apply: (p) => ({ ...p, hasAutoLock: true }),
+    id: 'auto_lock_lv1',
+    name: '自动追踪（Lv1）',
+    description: '每10秒自动发射1枚追踪导弹攻击最近的敌人（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 1) }),
+    rarity: 'epic',
+    color: COLORS.epic
+  },
+  {
+    id: 'auto_lock_lv2',
+    name: '自动追踪（Lv2）',
+    description: '每8秒自动发射2枚追踪导弹攻击最近的2个敌人（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 2) }),
+    rarity: 'legendary',
+    color: COLORS.legendary
+  },
+  {
+    id: 'auto_lock_lv3',
+    name: '自动追踪（Lv3）',
+    description: '每6秒自动发射3枚追踪导弹攻击最近的3个敌人，伤害x1.5（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 3) }),
+    rarity: 'mythic',
+    color: COLORS.mythic
+  },
+  {
+    id: 'auto_lock_lv4',
+    name: '自动追踪（Lv4）',
+    description: '每5秒自动发射3枚追踪导弹攻击最近的3个敌人，伤害x2，穿透+2（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 4) }),
+    rarity: 'mythic',
+    color: COLORS.mythic
+  },
+  {
+    id: 'auto_lock_lv5',
+    name: '自动追踪（Lv5）',
+    description: '每4秒自动发射4枚追踪导弹攻击最近的4个敌人，伤害x2.5，穿透+3（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, autoLockLevel: Math.max(p.autoLockLevel, 5) }),
     rarity: 'mythic',
     color: COLORS.mythic
   },
@@ -709,21 +746,21 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage' | 'crit' | 'explosion' | 'slash' | 'heal' | 'select' | 'hover') => {
     if (!soundEnabled || !audioContextRef.current) return;
 
-    // 音效冷却限制
+    // 音效冷却限制（大幅放宽，允许7个以下音效同时播放）
     const now = performance.now();
     const lastPlayTime = soundCooldownsRef.current[type] || 0;
     const cooldownMap: Record<string, number> = {
-      'hit': 50,       // hit音效50ms冷却
-      'kill': 150,     // kill音效150ms冷却
+      'hit': 15,       // hit音效15ms冷却（从50ms降低）
+      'kill': 30,      // kill音效30ms冷却（从150ms降低）
       'levelup': 0,    // levelup无冷却（重要事件）
-      'shoot': 80,     // shoot音效80ms冷却
-      'damage': 100,   // damage音效100ms冷却
-      'crit': 200,     // crit音效200ms冷却
+      'shoot': 20,     // shoot音效20ms冷却（从80ms降低）
+      'damage': 25,    // damage音效25ms冷却（从100ms降低）
+      'crit': 40,      // crit音效40ms冷却（从200ms降低）
       'explosion': 0,  // explosion无冷却（重要事件）
-      'slash': 60,     // slash音效60ms冷却
-      'heal': 150,     // heal音效150ms冷却
+      'slash': 15,     // slash音效15ms冷却（从60ms降低）
+      'heal': 30,      // heal音效30ms冷却（从150ms降低）
       'select': 0,     // select无冷却（UI交互）
-      'hover': 30      // hover音效30ms冷却
+      'hover': 10      // hover音效10ms冷却（从30ms降低）
     };
     const cooldown = cooldownMap[type];
 
@@ -1070,7 +1107,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     player.exp = 0;
     player.expToNext = Math.floor(player.expToNext * 1.5);
 
-    const shuffled = [...SKILL_POOL].sort(() => Math.random() - 0.5);
+    // 过滤掉需要前置技能的选项
+    const filteredSkills = SKILL_POOL.filter(skill => {
+      // 自动锁敌技能需要前置等级
+      if (skill.id.startsWith('auto_lock_')) {
+        const requiredLevel = parseInt(skill.id.split('_lv')[1]);
+        return player.autoLockLevel >= requiredLevel - 1;
+      }
+      return true;
+    });
+
+    // 随机选择3个技能
+    const shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
     const selectedSkills = shuffled.slice(0, 3);
     availableSkillsRef.current = selectedSkills;
     selectedSkillIndexRef.current = -1;
@@ -1349,55 +1397,76 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制UI ====================
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
-    const padding = 10;
+    const padding = 12;
 
-    // 等级显示（左上角）
+    // 顶部信息栏背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, 55);
+
+    // 左侧：等级和血量
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.font = 'bold 20px Arial, sans-serif';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`Lv.${player.level}`, padding + 10, padding + 10);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Lv.${player.level}`, padding, 18);
 
-    // 分数和状态显示（右上角）
+    // 血量条
+    const hpBarWidth = 200;
+    const hpBarHeight = 14;
+    const hpBarY = 32;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(padding, hpBarY - 1, hpBarWidth + 2, hpBarHeight + 2);
+
+    const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
+    ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
+    ctx.fillRect(padding, hpBarY, hpBarWidth * hpPercent, hpBarHeight);
+
+    // 血量文字
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 11px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(player.hp)}/${player.maxHp}`, padding + hpBarWidth / 2, hpBarY + hpBarHeight / 2);
+
+    // 经验条（血量下方）
+    const expBarWidth = 200;
+    const expBarHeight = 6;
+    const expBarY = hpBarY + hpBarHeight + 4;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(padding, expBarY - 1, expBarWidth + 2, expBarHeight + 2);
+
+    const expPercent = Math.max(0, Math.min(1, player.exp / player.expToNext));
+    ctx.fillStyle = '#7ED6DF';
+    ctx.fillRect(padding, expBarY, expBarWidth * expPercent, expBarHeight);
+
+    // 经验文字
+    ctx.fillStyle = '#BDC3C7';
+    ctx.font = '10px Arial, sans-serif';
+    ctx.fillText(`${Math.floor(player.exp)}/${player.expToNext}`, padding + expBarWidth / 2, expBarY + expBarHeight / 2);
+
+    // 右侧：分数、时间、难度
     const difficulty = getDifficultyMultiplier(player.gameTime);
+
+    ctx.textAlign = 'right';
+
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 18px Arial, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(`Score: ${scoreRef.current}`, CANVAS_WIDTH - padding - 10, padding + 10);
+    ctx.fillText(`Score: ${scoreRef.current}`, CANVAS_WIDTH - padding - 10, 18);
 
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '12px Arial, sans-serif';
-    ctx.fillText(`Time: ${Math.floor(player.gameTime)}s`, CANVAS_WIDTH - padding - 10, padding + 32);
+    ctx.fillText(`Time: ${Math.floor(player.gameTime)}s`, CANVAS_WIDTH - padding - 10, 36);
 
     ctx.fillStyle = '#FF6B6B';
-    ctx.fillText(`Difficulty: ${difficulty.toFixed(1)}x`, CANVAS_WIDTH - padding - 10, padding + 50);
+    ctx.fillText(`Difficulty: ${difficulty.toFixed(1)}x`, CANVAS_WIDTH - padding - 10, 52);
 
-    // 状态指示器（左下角）
-    let yOffset = 80;
-    const hasArmor = player.skills.some(s => s.id === 'passive_armor');
-    const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
-    const hasSpeed = player.skills.some(s => s.id === 'passive_speed');
+    // 中间：击杀数和总伤害
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#E74C3C';
+    ctx.font = 'bold 14px Arial, sans-serif';
+    ctx.fillText(`Kills: ${player.totalKills}`, CANVAS_WIDTH / 2, 18);
 
-    if (hasArmor || hasThorns || hasSpeed) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(padding + 10, yOffset - 10, 12, 60);
-
-      if (hasArmor) {
-        ctx.fillStyle = '#3498DB';
-        ctx.fillRect(padding + 12, yOffset, 8, 8);
-        yOffset += 15;
-      }
-      if (hasThorns) {
-        ctx.fillStyle = '#E74C3C';
-        ctx.fillRect(padding + 12, yOffset, 8, 8);
-        yOffset += 15;
-      }
-      if (hasSpeed) {
-        ctx.fillStyle = '#2ECC71';
-        ctx.fillRect(padding + 12, yOffset, 8, 8);
-        yOffset += 15;
-      }
-    }
+    ctx.fillStyle = '#F39C12';
+    ctx.fillText(`Damage: ${Math.floor(player.totalDamage)}`, CANVAS_WIDTH / 2, 36);
   }, [getDifficultyMultiplier]);
 
   // ==================== 绘制升级面板 ====================
@@ -1736,20 +1805,31 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             }
           }
 
-          // 自动锁敌大招（每8秒发射3枚追踪导弹）
-          if (player.hasAutoLock) {
+          // 自动锁敌被动技能（根据等级触发）
+          if (player.autoLockLevel > 0 && monstersRef.current.length > 0) {
             autoLockUltimateTimerRef.current += deltaTime;
-            if (autoLockUltimateTimerRef.current >= 8 && monstersRef.current.length > 0) {
+
+            const autoLockConfig = {
+              1: { interval: 10, count: 1, damageMult: 1, pierce: 0 },
+              2: { interval: 8, count: 2, damageMult: 1, pierce: 0 },
+              3: { interval: 6, count: 3, damageMult: 1.5, pierce: 1 },
+              4: { interval: 5, count: 3, damageMult: 2, pierce: 2 },
+              5: { interval: 4, count: 4, damageMult: 2.5, pierce: 3 }
+            };
+
+            const config = autoLockConfig[player.autoLockLevel as keyof typeof autoLockConfig];
+
+            if (autoLockUltimateTimerRef.current >= config.interval) {
               autoLockUltimateTimerRef.current = 0;
 
-              // 找到最近的3个怪物
+              // 找到最近的N个怪物
               const sortedMonsters = monstersRef.current
                 .map(m => ({
                   monster: m,
                   distance: Math.sqrt(Math.pow(m.x - player.x, 2) + Math.pow(m.y - player.y, 2))
                 }))
                 .sort((a, b) => a.distance - b.distance)
-                .slice(0, 3);
+                .slice(0, config.count);
 
               sortedMonsters.forEach(({ monster }) => {
                 const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
@@ -1760,19 +1840,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   y: player.y,
                   vx: Math.cos(angle) * 12,
                   vy: Math.sin(angle) * 12,
-                  damage: Math.floor(player.rangedDamage * 2),
+                  damage: Math.floor(player.rangedDamage * config.damageMult),
                   speed: 12,
                   bounceCount: 0,
                   angle,
                   trail: [],
                   type: 'lightning',
-                  pierceCount: 3,
+                  pierceCount: config.pierce,
                   owner: 'player'
                 });
               });
 
               createParticles(player.x, player.y, '#F1C40F', 20, 'magic');
-              triggerScreenShake(2, 0.06);
+              triggerScreenShake(2 * player.autoLockLevel / 5, 0.06);
               playSound('levelup');
             }
           }
@@ -2335,34 +2415,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
 
         ctx.restore();
-
-        // 绘制血条（在人物头上）
-        const hpBarWidth = 60;
-        const hpBarHeight = 6;
-        const hpBarY = -PLAYER_SIZE - 15;
-
-        // 血条背景
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(-hpBarWidth / 2 - 1, hpBarY - 1, hpBarWidth + 2, hpBarHeight + 2);
-
-        // 血条
-        const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
-        ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
-        ctx.fillRect(-hpBarWidth / 2, hpBarY, hpBarWidth * hpPercent, hpBarHeight);
-
-        // 绘制经验条（在血条上方）
-        const expBarWidth = 60;
-        const expBarHeight = 4;
-        const expBarY = hpBarY - 7;
-
-        // 经验条背景
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(-expBarWidth / 2 - 1, expBarY - 1, expBarWidth + 2, expBarHeight + 2);
-
-        // 经验条
-        const expPercent = Math.max(0, Math.min(1, player.exp / player.expToNext));
-        ctx.fillStyle = '#7ED6DF';
-        ctx.fillRect(-expBarWidth / 2, expBarY, expBarWidth * expPercent, expBarHeight);
       }
 
       ctx.restore();
@@ -2446,7 +2498,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       totalKills: 0,
       totalDamage: 0,
       gameTime: 0,
-      hasAutoLock: false,
+      autoLockLevel: 0,
       invincible: false,
       invincibleTime: 0
     };
@@ -2497,8 +2549,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 副作用 ====================
   useEffect(() => {
-    initializeGame();
-
+    // 不在组件挂载时初始化游戏，而是在用户点击"知道了"后手动调用initializeGame
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -2763,7 +2814,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 </div>
               </div>
               <Button
-                onClick={() => setShowTutorial(false)}
+                onClick={() => {
+                  setShowTutorial(false);
+                  // 点击"我知道了"后才初始化游戏
+                  initializeGame();
+                  playSound('select');
+                }}
                 className="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-600"
               >
                 知道了，开始游戏
@@ -2771,72 +2827,53 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-purple-500/20">
-              <div className="text-2xl font-bold text-purple-400">{player ? Math.floor(player.gameTime) : 0}</div>
-              <div className="text-xs text-gray-400 mt-1">存活时间</div>
-            </div>
-            <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-blue-500/20">
-              <div className="text-2xl font-bold text-blue-400">{score}</div>
-              <div className="text-xs text-gray-400 mt-1">得分</div>
-            </div>
-            <div className="bg-yellow-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-yellow-500/20">
-              <div className="text-2xl font-bold text-yellow-400">{player ? player.level : 1}</div>
-              <div className="text-xs text-gray-400 mt-1">等级</div>
-            </div>
-            <div className="bg-red-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-red-500/20">
-              <div className="text-xl font-bold text-red-400">{player ? `${Math.floor(player.hp)}/${player.maxHp}` : '100/100'}</div>
-              <div className="text-xs text-gray-400 mt-1">生命值</div>
-            </div>
-            <div className="bg-green-500/10 backdrop-blur-sm rounded-lg p-3 text-center flex items-center justify-center gap-2 border border-green-500/20">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleFullscreen}
-                className="text-white hover:bg-white/10"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                </svg>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="text-white hover:bg-white/10"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                </svg>
-              </Button>
-            </div>
-          </div>
-
-          <div ref={containerRef} className="relative rounded-xl overflow-hidden border-2 border-purple-500/30 shadow-2xl shadow-purple-500/10 aspect-video bg-black">
-            <canvas
-              ref={canvasRef}
-              width={CANVAS_WIDTH}
-              height={CANVAS_HEIGHT}
-              className="w-full h-full object-contain"
-              style={{ imageRendering: 'pixelated' }}
-            />
-          </div>
-
-          {player && (
-            <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 border border-purple-500/20">
-              <div className="flex justify-between text-sm text-gray-300 mb-1">
-                <span>经验值</span>
-                <span>{player.exp} / {player.expToNext}</span>
+          {!showTutorial && (
+            <>
+              <div className="flex justify-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleFullscreen}
+                  className="bg-purple-500/10 border border-purple-500/20 text-white hover:bg-purple-500/20"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                  </svg>
+                  全屏
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className="bg-purple-500/10 border border-purple-500/20 text-white hover:bg-purple-500/20"
+                >
+                  {soundEnabled ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                      <line x1="23" y1="9" x2="17" y2="15" />
+                      <line x1="17" y1="9" x2="23" y2="15" />
+                    </svg>
+                  )}
+                  {soundEnabled ? '音效: 开' : '音效: 关'}
+                </Button>
               </div>
-              <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${(player.exp / player.expToNext) * 100}%` }}
+
+              <div ref={containerRef} className="relative rounded-xl overflow-hidden border-2 border-purple-500/30 shadow-2xl shadow-purple-500/10 aspect-video bg-black">
+                <canvas
+                  ref={canvasRef}
+                  width={CANVAS_WIDTH}
+                  height={CANVAS_HEIGHT}
+                  className="w-full h-full object-contain"
+                  style={{ imageRendering: 'pixelated' }}
                 />
               </div>
-            </div>
+            </>
           )}
 
           <Button
