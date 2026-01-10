@@ -23,8 +23,6 @@ export interface GameResult {
 // ==================== 游戏常量 ====================
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 900;
-const VIEWPORT_WIDTH = 1600;  // 可视区域宽度（与画布一致）
-const VIEWPORT_HEIGHT = 900;  // 可视区域高度（与画布一致）
 const WORLD_WIDTH = 3200;  // 游戏世界总宽度
 const WORLD_HEIGHT = 1800;  // 游戏世界总高度
 const PLAYER_SIZE = 20;
@@ -2047,11 +2045,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   // ==================== 更新摄像机位置 ====================
   const updateCamera = useCallback((player: Player) => {
     // 摄像机中心跟随玩家，但限制在世界边界内
-    const targetX = player.x - VIEWPORT_WIDTH / 2;
-    const targetY = player.y - VIEWPORT_HEIGHT / 2;
+    // 摄像机x,y表示世界坐标中的左上角位置
+    const targetX = player.x - CANVAS_WIDTH / 2;
+    const targetY = player.y - CANVAS_HEIGHT / 2;
 
-    cameraRef.current.x = Math.max(0, Math.min(WORLD_WIDTH - VIEWPORT_WIDTH, targetX));
-    cameraRef.current.y = Math.max(0, Math.min(WORLD_HEIGHT - VIEWPORT_HEIGHT, targetY));
+    // 限制摄像机不能超出世界边界
+    cameraRef.current.x = Math.max(0, Math.min(WORLD_WIDTH - CANVAS_WIDTH, targetX));
+    cameraRef.current.y = Math.max(0, Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, targetY));
   }, []);
 
   // ==================== 游戏主循环 ====================
@@ -2092,6 +2092,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return;
       }
 
+      // 更新摄像机位置（每帧更新，确保跟随玩家）
+      updateCamera(player);
+
       // 清空画布（避免重影）
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -2108,11 +2111,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.save();
       ctx.translate(shakeX, shakeY);
 
-      // 应用摄像机偏移（仅在PLAYING和LEVEL_UP状态下）
-      if (gameState === GameState.PLAYING || gameState === GameState.LEVEL_UP) {
-        updateCamera(player);
-        ctx.translate(-cameraRef.current.x, -cameraRef.current.y);
-      }
+      // 应用摄像机偏移（将世界坐标转换为屏幕坐标）
+      // screenX = worldX - cameraX
+      // screenY = worldY - cameraY
+      ctx.translate(-cameraRef.current.x, -cameraRef.current.y);
 
       // 绘制背景（受摄像机影响）
       drawBackground(ctx);
@@ -2985,7 +2987,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.restore();
       ctx.globalAlpha = 1;
 
-      // 绘制升级面板（不受摄像机影响）
+      // 绘制升级面板（不受摄像机影响，使用Canvas坐标）
       if (gameState === GameState.LEVEL_UP) {
         console.log('[Game Loop] Drawing level up panel', {
           availableSkills: availableSkillsRef.current.length,
@@ -3001,7 +3003,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           gameStateRef.current = GameState.PLAYING;
         }
       } else {
-        // 绘制UI（不受摄像机影响）
+        // 绘制UI（不受摄像机影响，使用Canvas坐标）
         drawUI(ctx, player);
       }
 
@@ -3357,15 +3359,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           playSound('hover');
         }
       } else {
+        // 将鼠标Canvas坐标转换为世界坐标（用于计算攻击角度）
+        const worldMouseX = mouseX + cameraRef.current.x;
+        const worldMouseY = mouseY + cameraRef.current.y;
+
         // 计算鼠标角度并存储
-        const dx = mouseX - playerRef.current!.x;
-        const dy = mouseY - playerRef.current!.y;
+        const dx = worldMouseX - playerRef.current!.x;
+        const dy = worldMouseY - playerRef.current!.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance > 1) {
           const angle = Math.atan2(dy, dx);
-          mouseRef.current.x = mouseX;
-          mouseRef.current.y = mouseY;
+          mouseRef.current.x = worldMouseX;
+          mouseRef.current.y = worldMouseY;
           mouseRef.current.angle = angle;
         }
       }
