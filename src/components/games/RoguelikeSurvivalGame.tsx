@@ -990,7 +990,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'passive_shield',
     name: '护盾',
-    description: '每15秒获得50点临时护盾（被动）',
+    description: '每15秒获得1500点临时护盾（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'epic',
@@ -1676,7 +1676,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 10000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 72, color: '#E74C3C' } // 近战Boss：体型比远程Boss大60%（45 * 1.6 = 72）
+      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 72, color: '#E74C3C' } // 近战Boss：体型比远程Boss大60%（45 * 1.6 = 72）
     };
 
     const stats = monsterStats[type];
@@ -2693,7 +2693,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
               const existingMeleeBossCount = monstersRef.current.filter(m => m.type === 'melee_boss').length;
               const meleeBossStats = {
-                baseHp: 10000,
+                baseHp: 50000,
                 baseDamage: 1200,
                 baseSpeed: 2.0,
                 baseExp: 1000,
@@ -2701,8 +2701,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 color: '#E74C3C'
               };
 
-              // 属性递增：每次刷新增加50%（不包括移速、CD、攻击距离）
-              const growthMultiplier = Math.pow(1.5, existingMeleeBossCount);
+              // 属性递增：每次刷新增加200%（每次增强一倍，不包括移速、CD、攻击距离）
+              const growthMultiplier = Math.pow(3.0, existingMeleeBossCount);
               const difficulty = getDifficultyMultiplier(player.gameTime);
 
               const meleeBoss: Monster = {
@@ -2726,8 +2726,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 isStunned: false,
                 stunnedTime: 0,
                 hasShield: true,
-                shieldHp: Math.floor(5000 * growthMultiplier * difficulty),
-                shieldMaxHp: Math.floor(5000 * growthMultiplier * difficulty),
+                shieldHp: Math.floor(25000 * growthMultiplier * difficulty),
+                shieldMaxHp: Math.floor(25000 * growthMultiplier * difficulty),
                 currentPhase: 0,
                 phaseTimer: 0,
                 abilityCooldown: 8, // 近战Boss冲刺CD
