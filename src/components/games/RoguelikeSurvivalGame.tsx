@@ -1116,9 +1116,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 升级处理 ====================
   const handleLevelUp = useCallback((player: Player) => {
+    console.log('[DEBUG] handleLevelUp called');
+    console.log('[DEBUG] Player level before:', player.level);
+    console.log('[DEBUG] Player exp before:', player.exp);
+
     player.level++;
     player.exp = 0;
     player.expToNext = Math.floor(player.expToNext * 1.5);
+
+    console.log('[DEBUG] Player level after:', player.level);
+    console.log('[DEBUG] Player exp to next:', player.expToNext);
 
     // 过滤掉需要前置技能的选项
     const filteredSkills = SKILL_POOL.filter(skill => {
@@ -1130,13 +1137,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       return true;
     });
 
+    console.log('[DEBUG] Filtered skills count:', filteredSkills.length);
+
     // 随机选择3个技能
     const shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
     const selectedSkills = shuffled.slice(0, 3);
     availableSkillsRef.current = selectedSkills;
     selectedSkillIndexRef.current = -1;
 
+    console.log('[DEBUG] Selected skills:', selectedSkills.map(s => s.id));
+
     gameStateRef.current = GameState.LEVEL_UP;
+
+    console.log('[DEBUG] Game state set to LEVEL_UP');
 
     createParticles(player.x, player.y, COLORS.levelUp, 40, 'magic');
     playSound('levelup');
@@ -1484,26 +1497,67 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制升级面板 ====================
   const drawLevelUpPanel = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
-    // 半透明遮罩
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    try {
+      console.log('[DEBUG] drawLevelUpPanel called, skills count:', availableSkillsRef.current?.length || 0);
 
-    // 标题
-    ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 36px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('升级了！选择一个技能', CANVAS_WIDTH / 2, 120);
+      // 半透明遮罩
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    const skills = availableSkillsRef.current;
-    const panelWidth = 350;
-    const panelHeight = 420;
-    const panelGap = 30;
-    const totalWidth = panelWidth * 3 + panelGap * 2;
-    const startX = (CANVAS_WIDTH - totalWidth) / 2;
-    const startY = 180;
+      // 标题
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 36px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('升级了！选择一个技能', CANVAS_WIDTH / 2, 120);
 
-    skills.forEach((skill, index) => {
+      const skills = availableSkillsRef.current;
+
+      // 防御：如果没有技能或技能数量不足，使用默认技能
+      const skillsToRender = (skills && skills.length >= 3) ? skills.slice(0, 3) : [
+        {
+          id: 'melee_damage',
+          name: '剑术精通',
+          description: '近战伤害 +25%',
+          type: 'active' as const,
+          apply: (p: Player) => ({ ...p, meleeDamage: p.meleeDamage * 1.25 }),
+          rarity: 'common' as const,
+          color: COLORS.common
+        },
+        {
+          id: 'ranged_damage',
+          name: '箭术精通',
+          description: '远程伤害 +25%',
+          type: 'active' as const,
+          apply: (p: Player) => ({ ...p, rangedDamage: p.rangedDamage * 1.25 }),
+          rarity: 'common' as const,
+          color: COLORS.common
+        },
+        {
+          id: 'max_hp',
+          name: '钢铁之躯',
+          description: '最大生命值 +50',
+          type: 'active' as const,
+          apply: (p: Player) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
+          rarity: 'common' as const,
+          color: COLORS.common
+        }
+      ];
+
+      // 如果使用了默认技能，更新ref
+      if (!skills || skills.length < 3) {
+        console.warn('[DEBUG] Using default skills for level up');
+        availableSkillsRef.current = skillsToRender;
+      }
+
+      const panelWidth = 350;
+      const panelHeight = 420;
+      const panelGap = 30;
+      const totalWidth = panelWidth * 3 + panelGap * 2;
+      const startX = (CANVAS_WIDTH - totalWidth) / 2;
+      const startY = 180;
+
+      skillsToRender.forEach((skill, index) => {
       const x = startX + index * (panelWidth + panelGap);
       const isSelected = selectedSkillIndexRef.current === index;
 
@@ -1575,6 +1629,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.font = '12px Arial, sans-serif';
       ctx.fillText(`按 ${index + 1} 选择`, x + panelWidth / 2, startY + panelHeight - 25);
     });
+    } catch (error) {
+      console.error('[ERROR] Error drawing level up panel:', error);
+      // 即使出错也要绘制一个简单的升级提示
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 36px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('升级了！', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '18px Arial, sans-serif';
+      ctx.fillText('按任意键继续', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 60);
+    }
   }, []);
 
   // ==================== 绘制开始屏幕 ====================
@@ -1892,8 +1960,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
         }
 
-        // 更新怪物
-        monstersRef.current = monstersRef.current.filter(monster => {
+        // 更新怪物（仅在PLAYING状态下）
+        if (gameState === GameState.PLAYING) {
+          monstersRef.current = monstersRef.current.filter(monster => {
           const mdx = player.x - monster.x;
           const mdy = player.y - monster.y;
           const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
@@ -2065,8 +2134,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return monster.hp > 0;
         });
 
-        // 更新投射物
-        projectilesRef.current = projectilesRef.current.filter(projectile => {
+        // 更新投射物（仅在PLAYING状态下）
+        if (gameState === GameState.PLAYING) {
+          projectilesRef.current = projectilesRef.current.filter(projectile => {
           projectile.x += projectile.vx;
           projectile.y += projectile.vy;
 
@@ -2291,39 +2361,43 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           return true;
         });
+        }
 
-        // 更新刀光特效
-        slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
-          slash.life -= deltaTime / slash.maxLife;
+        // 更新刀光特效（仅在PLAYING状态下）
+        if (gameState === GameState.PLAYING) {
+          slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
+            slash.life -= deltaTime / slash.maxLife;
 
-          if (slash.life <= 0) return false;
+            if (slash.life <= 0) return false;
 
-          const alpha = slash.life;
-          ctx.globalAlpha = alpha;
+            const alpha = slash.life;
+            ctx.globalAlpha = alpha;
 
-          ctx.save();
-          ctx.translate(slash.x, slash.y);
-          ctx.rotate(slash.angle);
+            ctx.save();
+            ctx.translate(slash.x, slash.y);
+            ctx.rotate(slash.angle);
 
-          ctx.strokeStyle = COLORS.slash;
-          ctx.lineWidth = 5;
-          ctx.shadowColor = COLORS.slash;
-          ctx.shadowBlur = 14;
+            ctx.strokeStyle = COLORS.slash;
+            ctx.lineWidth = 5;
+            ctx.shadowColor = COLORS.slash;
+            ctx.shadowBlur = 14;
 
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.quadraticCurveTo(40, -28, 80, 0);
-          ctx.quadraticCurveTo(40, 10, 0, 0);
-          ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(40, -28, 80, 0);
+            ctx.quadraticCurveTo(40, 10, 0, 0);
+            ctx.stroke();
 
-          ctx.restore();
-          ctx.globalAlpha = 1;
+            ctx.restore();
+            ctx.globalAlpha = 1;
 
-          return true;
-        });
+            return true;
+          });
+        }
 
-        // 更新粒子
-        particlesRef.current = particlesRef.current.filter(particle => {
+        // 更新粒子（仅在PLAYING状态下）
+        if (gameState === GameState.PLAYING) {
+          particlesRef.current = particlesRef.current.filter(particle => {
           particle.life -= deltaTime;
           particle.x += particle.vx;
           particle.y += particle.vy;
@@ -2376,9 +2450,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.globalAlpha = 1;
           return true;
         });
+        }
 
-        // 更新伤害数字
-        damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
+        // 更新伤害数字（仅在PLAYING状态下）
+        if (gameState === GameState.PLAYING) {
+          damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
           dn.life -= deltaTime;
           dn.y -= 3;
 
@@ -2398,8 +2474,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           return true;
         });
+        }
 
-        // 绘制障碍物
+        // 绘制障碍物（在LEVEL_UP状态下也绘制，但不需要更新）
         obstaclesRef.current.forEach(obs => {
           ctx.fillStyle = obs.type === 'rock' ? '#57606F' : '#636E72';
           ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
@@ -2483,26 +2560,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       // 检查升级
       if (gameState === GameState.PLAYING && player.exp >= player.expToNext) {
         try {
+          console.log('[DEBUG] Level up triggered, current level:', player.level);
           handleLevelUp(player);
+          console.log('[DEBUG] Level up complete, new state:', gameStateRef.current);
+          console.log('[DEBUG] Available skills:', availableSkillsRef.current.length);
         } catch (error) {
           console.error('Error handling level up:', error);
           // 即使升级出错，也要继续游戏循环
         }
-        return;
+        // 不要return，让游戏循环继续，这样升级面板才能正常显示和更新
       }
 
-      // 继续游戏循环
+      // 继续游戏循环（包括LEVEL_UP状态）
       animationFrameRef.current = requestAnimationFrame(gameLoop);
-    } catch (error) {
-      console.error('Game loop error:', error);
-      // 防止无限错误循环，延迟重试
-      setTimeout(() => {
-        if (gameStateRef.current !== GameState.GAME_OVER) {
-          lastTimeRef.current = performance.now();
-          animationFrameRef.current = requestAnimationFrame(gameLoop);
-        }
-      }, 100);
-    }
   }, [
     drawStartScreen,
     drawBackground,
@@ -2679,33 +2749,63 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 升级面板选择
       if (gameStateRef.current === GameState.LEVEL_UP) {
-        if (e.key === '1' || e.key === '2' || e.key === '3') {
-          const index = parseInt(e.key) - 1;
-          if (availableSkillsRef.current[index]) {
-            selectedSkillIndexRef.current = index;
-            playSound('select');
+        try {
+          if (e.key === '1' || e.key === '2' || e.key === '3') {
+            const index = parseInt(e.key) - 1;
+            console.log('[DEBUG] Skill key pressed, index:', index);
 
-            setTimeout(() => {
-              const skill = availableSkillsRef.current[index];
+            if (availableSkillsRef.current && availableSkillsRef.current[index]) {
+              selectedSkillIndexRef.current = index;
+              playSound('select');
+
+              setTimeout(() => {
+                try {
+                  const skill = availableSkillsRef.current[index];
+                  if (playerRef.current) {
+                    console.log('[DEBUG] Applying skill:', skill.id);
+                    playerRef.current = skill.apply(playerRef.current);
+                    playerRef.current.skills.push(skill);
+                    console.log('[DEBUG] Skill applied, returning to game');
+                  }
+                  gameStateRef.current = GameState.PLAYING;
+                  lastTimeRef.current = performance.now();
+                } catch (error) {
+                  console.error('[ERROR] Error applying skill:', error);
+                  // 即使出错也要返回游戏
+                  gameStateRef.current = GameState.PLAYING;
+                  lastTimeRef.current = performance.now();
+                }
+              }, 200);
+            }
+          }
+
+          // 鼠标选择（Enter或Space确认选择）
+          if (e.key === 'Enter' || e.key === ' ') {
+            const selectedIndex = selectedSkillIndexRef.current;
+            console.log('[DEBUG] Confirm key pressed, selected index:', selectedIndex);
+
+            if (availableSkillsRef.current && selectedIndex >= 0 && availableSkillsRef.current[selectedIndex]) {
+              const skill = availableSkillsRef.current[selectedIndex];
               if (playerRef.current) {
+                console.log('[DEBUG] Applying selected skill:', skill.id);
                 playerRef.current = skill.apply(playerRef.current);
                 playerRef.current.skills.push(skill);
+                console.log('[DEBUG] Skill applied, returning to game');
               }
               gameStateRef.current = GameState.PLAYING;
               lastTimeRef.current = performance.now();
-            }, 200);
+            } else {
+              console.warn('[DEBUG] No valid skill selected, returning to game anyway');
+              // 如果没有选择有效的技能，也返回游戏
+              gameStateRef.current = GameState.PLAYING;
+              lastTimeRef.current = performance.now();
+            }
           }
-        }
-
-        // 鼠标选择
-        if (e.key === 'Enter' || e.key === ' ') {
-          const selectedSkill = availableSkillsRef.current[selectedSkillIndexRef.current];
-          if (selectedSkill && playerRef.current) {
-            playerRef.current = selectedSkill.apply(playerRef.current);
-            playerRef.current.skills.push(selectedSkill);
-            gameStateRef.current = GameState.PLAYING;
-            lastTimeRef.current = performance.now();
-          }
+        } catch (error) {
+          console.error('[ERROR] Error in level up panel handling:', error);
+          // 即使出错也要返回游戏，避免卡死
+          gameStateRef.current = GameState.PLAYING;
+          lastTimeRef.current = performance.now();
         }
       }
     };
@@ -2750,38 +2850,67 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const handleClick = (e: MouseEvent) => {
       if (gameStateRef.current !== GameState.LEVEL_UP) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = CANVAS_WIDTH / rect.width;
-      const scaleY = CANVAS_HEIGHT / rect.height;
-      const clickX = (e.clientX - rect.left) * scaleX;
-      const clickY = (e.clientY - rect.top) * scaleY;
+      try {
+        console.log('[DEBUG] Canvas clicked in LEVEL_UP state');
 
-      // 检查点击的是哪个技能面板
-      const panelWidth = 350;
-      const panelGap = 30;
-      const totalWidth = panelWidth * 3 + panelGap * 2;
-      const startX = (CANVAS_WIDTH - totalWidth) / 2;
-      const startY = 180;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = CANVAS_WIDTH / rect.width;
+        const scaleY = CANVAS_HEIGHT / rect.height;
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
 
-      availableSkillsRef.current.forEach((skill, index) => {
-        const x = startX + index * (panelWidth + panelGap);
-        const panelHeight = 420;
+        console.log('[DEBUG] Click position:', clickX, clickY);
 
-        if (clickX >= x && clickX <= x + panelWidth &&
-            clickY >= startY && clickY <= startY + panelHeight) {
-          selectedSkillIndexRef.current = index;
-          playSound('hover');
+        // 检查点击的是哪个技能面板
+        const panelWidth = 350;
+        const panelGap = 30;
+        const totalWidth = panelWidth * 3 + panelGap * 2;
+        const startX = (CANVAS_WIDTH - totalWidth) / 2;
+        const startY = 180;
 
-          setTimeout(() => {
-            if (playerRef.current) {
-              playerRef.current = skill.apply(playerRef.current);
-              playerRef.current.skills.push(skill);
-            }
-            gameStateRef.current = GameState.PLAYING;
-            lastTimeRef.current = performance.now();
-          }, 150);
+        const skills = availableSkillsRef.current;
+        if (!skills || skills.length === 0) {
+          console.warn('[DEBUG] No skills available, returning to game');
+          gameStateRef.current = GameState.PLAYING;
+          lastTimeRef.current = performance.now();
+          return;
         }
-      });
+
+        skills.forEach((skill, index) => {
+          const x = startX + index * (panelWidth + panelGap);
+          const panelHeight = 420;
+
+          if (clickX >= x && clickX <= x + panelWidth &&
+              clickY >= startY && clickY <= startY + panelHeight) {
+            console.log('[DEBUG] Skill panel clicked, index:', index);
+            selectedSkillIndexRef.current = index;
+            playSound('hover');
+
+            setTimeout(() => {
+              try {
+                if (playerRef.current) {
+                  console.log('[DEBUG] Applying skill:', skill.id);
+                  playerRef.current = skill.apply(playerRef.current);
+                  playerRef.current.skills.push(skill);
+                  console.log('[DEBUG] Skill applied successfully');
+                }
+                gameStateRef.current = GameState.PLAYING;
+                lastTimeRef.current = performance.now();
+              } catch (error) {
+                console.error('[ERROR] Error applying skill:', error);
+                // 即使出错也要返回游戏
+                gameStateRef.current = GameState.PLAYING;
+                lastTimeRef.current = performance.now();
+              }
+            }, 150);
+          }
+        });
+      } catch (error) {
+        console.error('[ERROR] Error in click handler:', error);
+        // 即使出错也要返回游戏，避免卡死
+        gameStateRef.current = GameState.PLAYING;
+        lastTimeRef.current = performance.now();
+      }
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
