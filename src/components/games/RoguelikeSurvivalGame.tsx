@@ -717,6 +717,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // 音频上下文
   const audioContextRef = useRef<AudioContext | null>(null);
+  const activeOscillatorsRef = useRef<Set<OscillatorNode>>(new Set());
 
   // 输入状态
   const keysRef = useRef<Record<string, boolean>>({});
@@ -732,6 +733,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const shieldTimerRef = useRef<number>(0);
   const lastDamageTimeRef = useRef(0);
   const autoLockUltimateTimerRef = useRef<number>(0);  // 大招冷却
+  const lastScoreUpdateTimeRef = useRef(0);  // 上次更新分数的时间
+  const lastStatsUpdateTimeRef = useRef(0);  // 上次更新玩家状态的时间
 
   // 音效冷却记录（防止重叠）
   const soundCooldownsRef = useRef<Record<string, number>>({});
@@ -772,6 +775,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     try {
       const ctx = audioContextRef.current;
+      if (!ctx || ctx.state === 'closed') {
+        return;
+      }
+
       if (ctx.state === 'suspended') {
         ctx.resume();
       }
@@ -782,104 +789,111 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
 
+      // 跟踪活动的oscillator
+      activeOscillatorsRef.current.add(oscillator);
+
+      // 确保oscillator停止时从集合中移除
+      const duration = (() => {
+        switch (type) {
+          case 'select': return 0.08;
+          case 'hover': return 0.03;
+          case 'slash': return 0.04;
+          case 'hit': return 0.06;
+          case 'kill': return 0.10;
+          case 'crit': return 0.12;
+          case 'levelup': return 0.22;
+          case 'shoot': return 0.03;
+          case 'damage': return 0.12;
+          case 'explosion': return 0.15;
+          case 'heal': return 0.10;
+          default: return 0.1;
+        }
+      })();
+
       switch (type) {
         case 'select':
           oscillator.type = 'sine';
           oscillator.frequency.setValueAtTime(600, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.08);
+          oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.08);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'hover':
           oscillator.type = 'sine';
           oscillator.frequency.setValueAtTime(400, ctx.currentTime);
           gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'slash':
           oscillator.type = 'sawtooth';
           oscillator.frequency.setValueAtTime(500, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.04);
+          oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.04);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'hit':
           oscillator.frequency.setValueAtTime(200, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.06);
+          oscillator.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.06);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.06);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'kill':
           oscillator.frequency.setValueAtTime(300, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.10);
+          oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.10);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.10);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'crit':
           oscillator.type = 'square';
           oscillator.frequency.setValueAtTime(400, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.12);
+          oscillator.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.12);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'levelup':
           oscillator.type = 'sine';
           oscillator.frequency.setValueAtTime(440, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
-          oscillator.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.22);
+          oscillator.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.22);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'shoot':
           oscillator.frequency.setValueAtTime(500, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.03);
+          oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'damage':
           oscillator.type = 'sawtooth';
           oscillator.frequency.setValueAtTime(120, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.12);
+          oscillator.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.25, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.12);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'explosion':
           oscillator.type = 'sawtooth';
           oscillator.frequency.setValueAtTime(80, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.15);
+          oscillator.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.15);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
         case 'heal':
           oscillator.type = 'sine';
           oscillator.frequency.setValueAtTime(300, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.10);
+          oscillator.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + duration);
           gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.10);
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.10);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           break;
       }
+
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + duration + 0.01);
+
+      // 音效播放完成后清理
+      setTimeout(() => {
+        activeOscillatorsRef.current.delete(oscillator);
+      }, (duration + 0.05) * 1000);
     } catch (error) {
       console.error('Error playing sound:', error);
     }
@@ -1058,7 +1072,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         createParticles(monster.x, monster.y, monster.color, 15, 'explosion');
         triggerScreenShake(1.5, 0.05);
         scoreRef.current += Math.floor(monster.exp);
-        setScore(scoreRef.current);
         playSound('kill');
       }
     });
@@ -1647,10 +1660,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const gameLoop = useCallback(() => {
     try {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        console.warn('Canvas not found, stopping game loop');
+        return;
+      }
 
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        console.warn('Canvas context not found, stopping game loop');
+        return;
+      }
 
       const now = performance.now();
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1);
@@ -1661,12 +1680,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 根据游戏状态渲染不同内容
       if (gameState === GameState.START) {
-        drawStartScreen(ctx);
+        try {
+          drawStartScreen(ctx);
+        } catch (error) {
+          console.error('Error drawing start screen:', error);
+        }
         animationFrameRef.current = requestAnimationFrame(gameLoop);
         return;
       }
 
-      if (!player) return;
+      if (!player) {
+        console.warn('Player not initialized, stopping game loop');
+        return;
+      }
 
       // 屏幕震动
       let shakeX = 0, shakeY = 0;
@@ -1760,8 +1786,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           playSound('levelup');
         }
 
-        // UI更新
-        setPlayerStats({ ...player });
+        // UI更新 - 降低更新频率（每0.1秒更新一次）
+        lastStatsUpdateTimeRef.current += deltaTime;
+        if (lastStatsUpdateTimeRef.current >= 0.1) {
+          lastStatsUpdateTimeRef.current = 0;
+          try {
+            setPlayerStats({ ...player });
+          } catch (error) {
+            console.error('Error updating player stats:', error);
+          }
+        }
 
         // 生成怪物（仅在游戏中）
         if (gameState === GameState.PLAYING) {
@@ -2190,7 +2224,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   createParticles(monster.x, monster.y, monster.color, 12, 'explosion');
                   triggerScreenShake(1.5, 0.05);
                   scoreRef.current += Math.floor(monster.exp);
-                  setScore(scoreRef.current);
+
+                  // 降低分数更新频率（每0.2秒更新一次）
+                  lastScoreUpdateTimeRef.current += deltaTime;
+                  if (lastScoreUpdateTimeRef.current >= 0.2) {
+                    lastScoreUpdateTimeRef.current = 0;
+                    try {
+                      setScore(scoreRef.current);
+                    } catch (error) {
+                      console.error('Error updating score:', error);
+                    }
+                  }
+
                   playSound('kill');
                 }
 
@@ -2437,15 +2482,26 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 检查升级
       if (gameState === GameState.PLAYING && player.exp >= player.expToNext) {
-        handleLevelUp(player);
+        try {
+          handleLevelUp(player);
+        } catch (error) {
+          console.error('Error handling level up:', error);
+          // 即使升级出错，也要继续游戏循环
+        }
         return;
       }
 
+      // 继续游戏循环
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     } catch (error) {
       console.error('Game loop error:', error);
-      lastTimeRef.current = performance.now();
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
+      // 防止无限错误循环，延迟重试
+      setTimeout(() => {
+        if (gameStateRef.current !== GameState.GAME_OVER) {
+          lastTimeRef.current = performance.now();
+          animationFrameRef.current = requestAnimationFrame(gameLoop);
+        }
+      }, 100);
     }
   }, [
     drawStartScreen,
@@ -2551,12 +2607,35 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   useEffect(() => {
     // 不在组件挂载时初始化游戏，而是在用户点击"知道了"后手动调用initializeGame
     return () => {
+      // 清理动画帧
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = 0;
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+
+      // 清理所有活动的oscillator
+      activeOscillatorsRef.current.forEach(oscillator => {
+        try {
+          oscillator.stop();
+          oscillator.disconnect();
+        } catch (e) {
+          // 忽略已经停止的oscillator
+        }
+      });
+      activeOscillatorsRef.current.clear();
+
+      // 关闭AudioContext
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try {
+          audioContextRef.current.close();
+        } catch (e) {
+          console.error('Error closing audio context:', e);
+        }
       }
+
+      // 清理游戏状态
+      gameStateRef.current = GameState.GAME_OVER;
+      playerRef.current = null;
     };
   }, []);
 
