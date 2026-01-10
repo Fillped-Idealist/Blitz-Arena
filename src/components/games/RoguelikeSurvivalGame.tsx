@@ -448,6 +448,45 @@ const PIXEL_ART = {
       { x: -6, y: -6, color: '#FFD700' }, { x: 6, y: -6, color: '#FFD700' },
       { x: -6, y: 6, color: '#FFD700' }, { x: 6, y: 6, color: '#FFD700' },
     ]
+  },
+  bossShield: {
+    // Boss护盾像素艺术
+    shield: [
+      // 外圈（蓝色半透明）
+      { x: -6, y: 0, color: 'rgba(52, 152, 219, 0.6)' }, { x: -5, y: -2, color: 'rgba(41, 128, 185, 0.6)' },
+      { x: -4, y: -4, color: 'rgba(52, 152, 219, 0.6)' }, { x: -3, y: -5, color: 'rgba(41, 128, 185, 0.6)' },
+      { x: -2, y: -6, color: 'rgba(52, 152, 219, 0.6)' }, { x: -1, y: -6, color: 'rgba(41, 128, 185, 0.6)' },
+      { x: 0, y: -6, color: 'rgba(52, 152, 219, 0.6)' }, { x: 1, y: -6, color: 'rgba(41, 128, 185, 0.6)' },
+      { x: 2, y: -6, color: 'rgba(52, 152, 219, 0.6)' }, { x: 3, y: -5, color: 'rgba(41, 128, 185, 0.6)' },
+      { x: 4, y: -4, color: 'rgba(52, 152, 219, 0.6)' }, { x: 5, y: -2, color: 'rgba(41, 128, 185, 0.6)' },
+      { x: 6, y: 0, color: 'rgba(52, 152, 219, 0.6)' },
+      { x: 5, y: 2, color: 'rgba(41, 128, 185, 0.6)' }, { x: 4, y: 4, color: 'rgba(52, 152, 219, 0.6)' },
+      { x: 3, y: 5, color: 'rgba(41, 128, 185, 0.6)' }, { x: 2, y: 6, color: 'rgba(52, 152, 219, 0.6)' },
+      { x: 1, y: 6, color: 'rgba(41, 128, 185, 0.6)' }, { x: 0, y: 6, color: 'rgba(52, 152, 219, 0.6)' },
+      { x: -1, y: 6, color: 'rgba(41, 128, 185, 0.6)' }, { x: -2, y: 6, color: 'rgba(52, 152, 219, 0.6)' },
+      { x: -3, y: 5, color: 'rgba(41, 128, 185, 0.6)' }, { x: -4, y: 4, color: 'rgba(52, 152, 219, 0.6)' },
+      { x: -5, y: 2, color: 'rgba(41, 128, 185, 0.6)' },
+    ],
+    // 内圈（高亮）
+    innerShield: [
+      { x: -4, y: 0, color: 'rgba(93, 173, 226, 0.8)' }, { x: -3, y: -1, color: 'rgba(174, 214, 241, 0.8)' },
+      { x: -2, y: -2, color: 'rgba(93, 173, 226, 0.8)' }, { x: -1, y: -3, color: 'rgba(174, 214, 241, 0.8)' },
+      { x: 0, y: -3, color: 'rgba(93, 173, 226, 0.8)' }, { x: 1, y: -3, color: 'rgba(174, 214, 241, 0.8)' },
+      { x: 2, y: -2, color: 'rgba(93, 173, 226, 0.8)' }, { x: 3, y: -1, color: 'rgba(174, 214, 241, 0.8)' },
+      { x: 4, y: 0, color: 'rgba(93, 173, 226, 0.8)' },
+      { x: 3, y: 1, color: 'rgba(174, 214, 241, 0.8)' }, { x: 2, y: 2, color: 'rgba(93, 173, 226, 0.8)' },
+      { x: 1, y: 3, color: 'rgba(174, 214, 241, 0.8)' }, { x: 0, y: 3, color: 'rgba(93, 173, 226, 0.8)' },
+      { x: -1, y: 3, color: 'rgba(174, 214, 241, 0.8)' }, { x: -2, y: 2, color: 'rgba(93, 173, 226, 0.8)' },
+      { x: -3, y: 1, color: 'rgba(174, 214, 241, 0.8)' },
+    ],
+    // 护盾条（显示护盾值）
+    shieldBar: [
+      { x: -5, y: -7, color: '#3498DB' }, { x: -4, y: -7, color: '#5DADE2' },
+      { x: -3, y: -7, color: '#3498DB' }, { x: -2, y: -7, color: '#5DADE2' },
+      { x: -1, y: -7, color: '#3498DB' }, { x: 0, y: -7, color: '#5DADE2' },
+      { x: 1, y: -7, color: '#3498DB' }, { x: 2, y: -7, color: '#5DADE2' },
+      { x: 3, y: -7, color: '#3498DB' }, { x: 4, y: -7, color: '#5DADE2' },
+    ]
   }
 };
 
@@ -523,7 +562,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'melee_damage',
     name: '剑术精通',
-    description: '近战伤害 +25%',
+    description: '近战伤害永久+25%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.25 }),
     rarity: 'common',
@@ -533,7 +572,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'ranged_damage',
     name: '箭术精通',
-    description: '远程伤害 +25%',
+    description: '远程伤害永久+25%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.25 }),
     rarity: 'common',
@@ -543,7 +582,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'max_hp',
     name: '钢铁之躯',
-    description: '最大生命值 +50',
+    description: '最大生命值永久+50（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
     rarity: 'common',
@@ -554,7 +593,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'attack_speed',
     name: '迅捷之击',
-    description: '攻击速度 +25%',
+    description: '攻击速度永久+25%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, attackSpeed: p.attackSpeed * 1.25 }),
     rarity: 'rare',
@@ -564,7 +603,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'movement_speed',
     name: '疾风步',
-    description: '移动速度 +20%',
+    description: '移动速度永久+20%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, baseSpeed: p.baseSpeed * 1.2, speed: p.speed * 1.2 }),
     rarity: 'rare',
@@ -574,7 +613,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'attack_range',
     name: '范围扩大',
-    description: '攻击范围 +30%',
+    description: '攻击范围永久+30%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.3 }),
     rarity: 'rare',
@@ -584,7 +623,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'regen_boost',
     name: '生命恢复',
-    description: '每秒回复生命值 +3',
+    description: '每秒回复生命值永久+3（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, regenRate: p.regenRate + 3 }),
     rarity: 'rare',
@@ -595,7 +634,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'crit_rate',
     name: '致命一击',
-    description: '暴击率 +20%',
+    description: '暴击率永久+20%（可累加，上限100%）',
     type: 'active',
     apply: (p) => ({ ...p, critRate: Math.min(p.critRate + 0.2, 1) }),
     rarity: 'epic',
@@ -605,7 +644,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'arrow_bounce',
     name: '弹射之箭',
-    description: '箭矢可弹射 +4 次',
+    description: '箭矢弹射次数永久+4（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, arrowCount: p.arrowCount + 4 }),
     rarity: 'epic',
@@ -615,7 +654,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'critical_mastery',
     name: '暴击精通',
-    description: '暴击伤害 +75%',
+    description: '暴击伤害永久+75%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, critMultiplier: p.critMultiplier * 1.75 }),
     rarity: 'epic',
@@ -625,7 +664,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'blade_dance',
     name: '剑舞',
-    description: '近战可同时攻击5个敌人',
+    description: '攻击范围永久+60%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.6 }),
     rarity: 'epic',
@@ -635,7 +674,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'vampirism',
     name: '吸血鬼之触',
-    description: '造成伤害的15%转化为生命值',
+    description: '生命回复永久+8（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, regenRate: p.regenRate + 8 }),
     rarity: 'epic',
@@ -646,7 +685,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'fire_mastery',
     name: '火焰掌握',
-    description: '远程投射物变为火球，伤害+75%',
+    description: '远程伤害永久+75%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.75 }),
     rarity: 'legendary',
@@ -656,7 +695,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'giant_slayer',
     name: '巨人杀手',
-    description: '对Boss和精英伤害 +100%',
+    description: '对Boss和精英伤害永久+50%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.5, rangedDamage: p.rangedDamage * 1.5 }),
     rarity: 'legendary',
@@ -666,7 +705,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'berserker',
     name: '狂战士',
-    description: '生命值越低，伤害越高（最高+125%）',
+    description: '伤害永久+75%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.75, rangedDamage: p.rangedDamage * 1.75 }),
     rarity: 'legendary',
@@ -696,7 +735,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'change_bow',
     name: '弓箭手',
-    description: '切换到弓箭，攻击范围+50%，攻击速度-15%',
+    description: '攻击范围永久+50%，攻击速度-15%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.5, attackSpeed: p.attackSpeed * 0.85 }),
     rarity: 'rare',
@@ -705,7 +744,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'magic_power',
     name: '魔法强化',
-    description: '远程伤害+40%，投射物速度+30%',
+    description: '远程伤害永久+40%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.4 }),
     rarity: 'rare',
@@ -724,7 +763,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'auto_tracking',
     name: '天命法阵',
-    description: '每6秒在画面内生命值最高的怪物脚下召唤法阵，1秒后造成约100伤害（被动）',
+    description: '每6秒在画面内生命值最高的怪物脚下召唤法阵，1秒后造成约1000伤害（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: 1 }),
     rarity: 'epic',
@@ -735,7 +774,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_1',
     name: '法阵精通 I',
-    description: '天命法阵伤害 +20（被动）',
+    description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'rare',
@@ -745,7 +784,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_2',
     name: '法阵精通 II',
-    description: '天命法阵伤害 +20（被动）',
+    description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'epic',
@@ -755,7 +794,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_3',
     name: '法阵精通 III',
-    description: '天命法阵伤害 +20（被动）',
+    description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'legendary',
@@ -765,7 +804,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_4',
     name: '法阵精通 IV',
-    description: '天命法阵伤害 +20（被动）',
+    description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'mythic',
@@ -894,7 +933,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'passive_crit',
     name: '弱点识别',
-    description: '暴击几率+10%（被动）',
+    description: '暴击几率永久+10%（可累加）',
     type: 'passive',
     apply: (p) => ({ ...p, critRate: p.critRate + 0.1 }),
     rarity: 'rare',
@@ -903,7 +942,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'passive_damage',
     name: '力量',
-    description: '所有伤害+15%（被动）',
+    description: '所有伤害永久+15%（可累加）',
     type: 'passive',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.15, rangedDamage: p.rangedDamage * 1.15 }),
     rarity: 'rare',
@@ -1440,20 +1479,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         newExpToNext: player.expToNext
       });
 
-      // 过滤掉需要前置技能的选项
+      // 过滤掉需要前置技能的选项和已拥有的被动技能
       const filteredSkills = SKILL_POOL.filter(skill => {
-        // 天命法阵（自动追踪）只能学习一次
-        if (skill.id === 'auto_tracking') {
-          return player.autoLockLevel === 0;
+        // 检查是否已经拥有该技能（被动技能和天命法阵相关技能）
+        if (skill.type === 'passive' ||
+            skill.id === 'auto_tracking' ||
+            skill.id.startsWith('tracking_mastery') ||
+            skill.id.startsWith('tracking_speed') ||
+            skill.id.startsWith('tracking_multishot') ||
+            skill.id.startsWith('tracking_pierce')) {
+          const hasSkill = player.skills.some(s => s.id === skill.id);
+          if (hasSkill) return false;
         }
-        // 追踪相关技能需要先解锁自动追踪
+
+        // 天命法阵（自动追踪）需要先解锁
         if (skill.id.startsWith('tracking_mastery') ||
             skill.id.startsWith('tracking_speed') ||
             skill.id.startsWith('tracking_multishot') ||
             skill.id.startsWith('tracking_pierce')) {
-          // 检查是否已经拥有该技能
-          const hasSkill = player.skills.some(s => s.id === skill.id);
-          if (hasSkill) return false;
           // 需要先解锁自动追踪
           return player.autoLockLevel >= 1;
         }
@@ -1583,10 +1626,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       skeleton: { baseHp: 55, baseDamage: 18, baseSpeed: 2.0, baseExp: 60, baseSize: 20, color: COLORS.skeletonMonster },
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
-      boss: { baseHp: 500, baseDamage: 40, baseSpeed: 1.5, baseExp: 350, baseSize: 45, color: COLORS.bossMonster }
+      boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster }
     };
 
     const stats = monsterStats[type];
+
+    // Boss额外成长乘数（1.3倍）
+    const bossMultiplier = type === 'boss' ? 1.3 : 1;
+    const finalDifficulty = difficulty * bossMultiplier;
 
     const monster: Monster = {
       id: monsterIdCounterRef.current++,
@@ -1594,11 +1641,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       y,
       vx: 0,
       vy: 0,
-      hp: Math.floor(stats.baseHp * difficulty),
-      maxHp: Math.floor(stats.baseHp * difficulty),
-      damage: Math.floor(stats.baseDamage * difficulty),
+      hp: Math.floor(stats.baseHp * finalDifficulty),
+      maxHp: Math.floor(stats.baseHp * finalDifficulty),
+      damage: Math.floor(stats.baseDamage * finalDifficulty),
       speed: stats.baseSpeed * (0.95 + Math.random() * 0.1),  // 基础速度 ±5% 随机波动，不受难度影响
-      exp: Math.floor(stats.baseExp * difficulty),
+      exp: Math.floor(stats.baseExp * finalDifficulty),
       lastAttack: 0,
       size: stats.baseSize,
       color: stats.color,
@@ -1609,8 +1656,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       isStunned: false,
       stunnedTime: 0,
       hasShield: type === 'elite' || type === 'boss',
-      shieldHp: type === 'boss' ? 100 : 50,
-      shieldMaxHp: type === 'boss' ? 100 : 50,
+      shieldHp: type === 'boss' ? Math.floor(200 * finalDifficulty) : 50,
+      shieldMaxHp: type === 'boss' ? Math.floor(200 * finalDifficulty) : 50,
       currentPhase: 0,
       phaseTimer: 0,
       abilityCooldown: type === 'boss' ? 5 : 0,
@@ -2353,17 +2400,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // 屏幕震动
-      let shakeX = 0, shakeY = 0;
-      if (screenShakeRef.current.duration > 0) {
-        const shakeRatio = screenShakeRef.current.duration / 0.15;
-        screenShakeRef.current.duration -= deltaTime;
-        shakeX = screenShakeRef.current.x * shakeRatio;
-        shakeY = screenShakeRef.current.y * shakeRatio;
-      }
-
+      // 移除屏幕震动，只保留摄像机跟随玩家移动（彻底解决偏移问题）
       ctx.save();
-      ctx.translate(shakeX, shakeY);
 
       // 绘制背景（使用屏幕坐标）
       drawBackground(ctx);
@@ -2378,12 +2416,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         // 更新难度
         difficultyRef.current = getDifficultyMultiplier(player.gameTime);
 
-        // 玩家移动（带惯性）
+        // 玩家移动（带惯性）- 仅在PLAYING状态下允许
         let dx = 0, dy = 0;
-        if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
-        if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
-        if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
-        if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
+        if (gameState === GameState.PLAYING) {
+          if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
+          if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
+          if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
+          if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
+        }
 
         if (dx !== 0 || dy !== 0) {
           const length = Math.sqrt(dx * dx + dy * dy);
@@ -2504,7 +2544,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             autoLockUltimateTimerRef.current += deltaTime;
 
             // 计算技能等级效果
-            const trackingMasteryBonus = 100 + player.trackingMasteryLevel * 20; // 基础100，每级+20伤害
+            const trackingMasteryBonus = 1000 + player.trackingMasteryLevel * 200; // 基础1000，每级+200伤害
 
             // 计算速度加成（从技能中统计tracking_speed数量）
             const speedReduction = player.skills.filter(s => s.id.startsWith('tracking_speed')).length;
@@ -2694,6 +2734,29 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               ctx.translate(monsterScreenX, monsterScreenY + animOffset);
               ctx.scale(monster.scale * 1.2, monster.scale * 1.2);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
+              ctx.restore();
+            }
+
+            // Boss护盾视觉效果
+            if (monster.type === 'boss' && monster.hasShield && monster.shieldHp > 0) {
+              const shieldAlpha = 0.4 + Math.sin(gameTimeRef.current * 3) * 0.15;
+              ctx.save();
+              ctx.translate(monsterScreenX, monsterScreenY + animOffset);
+
+              // 绘制外圈护盾
+              const outerShield = PIXEL_ART.bossShield.shield;
+              outerShield.forEach(pixel => {
+                ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2));
+                ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+              });
+
+              // 绘制内圈护盾
+              const innerShield = PIXEL_ART.bossShield.innerShield;
+              innerShield.forEach(pixel => {
+                ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.2).toFixed(2));
+                ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+              });
+
               ctx.restore();
             }
 
@@ -3533,8 +3596,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       y: WORLD_HEIGHT / 2,
       vx: 0,
       vy: 0,
-      hp: 100,
-      maxHp: 100,
+      hp: 1000,
+      maxHp: 1000,
       level: 1,
       exp: 0,
       expToNext: 80,
