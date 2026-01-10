@@ -23,8 +23,8 @@ export interface GameResult {
 // ==================== 游戏常量 ====================
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 900;
-const VIEWPORT_WIDTH = 800;  // 可视区域宽度
-const VIEWPORT_HEIGHT = 450;  // 可视区域高度
+const VIEWPORT_WIDTH = 1600;  // 可视区域宽度（与画布一致）
+const VIEWPORT_HEIGHT = 900;  // 可视区域高度（与画布一致）
 const WORLD_WIDTH = 3200;  // 游戏世界总宽度
 const WORLD_HEIGHT = 1800;  // 游戏世界总高度
 const PLAYER_SIZE = 20;
