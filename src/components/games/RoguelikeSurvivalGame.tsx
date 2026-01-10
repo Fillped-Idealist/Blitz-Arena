@@ -1709,7 +1709,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 94, color: '#E74C3C' } // 近战Boss：体型比远程Boss大（45*2=90，约94）
+      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 282, color: '#E74C3C' } // 近战Boss：体型放大3倍（94*3=282）
     };
 
     const stats = monsterStats[type];
@@ -2766,14 +2766,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monsterSpawnTimerRef.current = 0;
           }
 
-          // 近战Boss刷新逻辑：6分钟后立即刷新第一个，然后每75秒刷新一个，属性递增100%
-          if (player.gameTime >= 360) { // 6分钟后开始刷新
-            meleeBossSpawnTimerRef.current += deltaTime;
-            
-            // 第一次立即刷新（在6分钟刚到达的0.1秒内）
-            const isFirstSpawn = player.gameTime >= 360 && player.gameTime < 360.1 && meleeBossSpawnTimerRef.current < 0.1;
-            
-            if (isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) { // 第一次或每75秒刷新一个
+            // 近战Boss刷新逻辑：6分钟后立即刷新第一个，之后每75秒刷新一个（但场上只能有一个，属性递增100%）
+            if (player.gameTime >= 360) { // 6分钟后开始刷新
+              meleeBossSpawnTimerRef.current += deltaTime;
+
+              // 检查场上是否已有近战Boss
+              const existingMeleeBoss = monstersRef.current.find(m => m.type === 'melee_boss');
+
+              // 第一次立即刷新（在6分钟刚到达的0.1秒内，且场上没有近战Boss）
+              const isFirstSpawn = player.gameTime >= 360 && player.gameTime < 360.1 && meleeBossSpawnTimerRef.current < 0.1 && !existingMeleeBoss;
+
+              // 刷新条件：第一次或每75秒刷新一个（且场上没有近战Boss）
+              if ((isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) && !existingMeleeBoss) {
               if (!isFirstSpawn) {
                 meleeBossSpawnTimerRef.current = 0;
               }
@@ -2805,7 +2809,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 baseDamage: 1200,
                 baseSpeed: 2.0,
                 baseExp: 1000,
-                baseSize: 72,
+                baseSize: 282,
                 color: '#E74C3C'
               };
 
@@ -3122,27 +3126,65 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 const chargeElapsed = performance.now() - monster.chargeStartTime;
                 if (chargeElapsed <= 1000) { // 前摇阶段
                   const pathLength = 200;
+                  const pathWidth = 60; // 冲刺区域宽度
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
                   const progress = chargeElapsed / 1000;
 
-                  // 绘制冲刺路径（虚线）
-                  ctx.save();
-                  ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
-                  ctx.lineWidth = 6;
-                  ctx.setLineDash([10, 10]);
-                  ctx.lineDashOffset = -progress * 50;
+                  // 计算长方形区域的四个顶点
+                  const perpX = -dirY * (pathWidth / 2); // 垂直方向偏移
+                  const perpY = dirX * (pathWidth / 2);
 
+                  const startX = monsterScreenX;
+                  const startY = monsterScreenY;
+                  const endX = monsterScreenX + dirX * pathLength;
+                  const endY = monsterScreenY + dirY * pathLength;
+
+                  const p1 = { x: startX + perpX, y: startY + perpY };
+                  const p2 = { x: endX + perpX, y: endY + perpY };
+                  const p3 = { x: endX - perpX, y: endY - perpY };
+                  const p4 = { x: startX - perpX, y: startY - perpY };
+
+                  // 绘制冲刺区域（长方形虚线）
+                  ctx.save();
+                  ctx.strokeStyle = 'rgba(231, 76, 60, 0.7)';
+                  ctx.lineWidth = 3;
+                  ctx.setLineDash([8, 8]);
+                  ctx.lineDashOffset = -progress * 60;
+
+                  // 绘制长方形边界
                   ctx.beginPath();
-                  ctx.moveTo(monsterScreenX, monsterScreenY);
-                  ctx.lineTo(monsterScreenX + dirX * pathLength, monsterScreenY + dirY * pathLength);
+                  ctx.moveTo(p1.x, p1.y);
+                  ctx.lineTo(p2.x, p2.y);
+                  ctx.lineTo(p3.x, p3.y);
+                  ctx.lineTo(p4.x, p4.y);
+                  ctx.closePath();
                   ctx.stroke();
+
+                  // 绘制区域内的半透明填充
+                  ctx.fillStyle = 'rgba(231, 76, 60, 0.2)';
+                  ctx.fill();
+
+                  // 绘制多条平行虚线（增强视觉效果）
+                  ctx.strokeStyle = 'rgba(231, 76, 60, 0.4)';
+                  ctx.lineWidth = 1;
+                  ctx.setLineDash([5, 10]);
+                  for (let i = -2; i <= 2; i++) {
+                    const offset = i * (pathWidth / 6);
+                    const linePerpX = -dirY * offset;
+                    const linePerpY = dirX * offset;
+
+                    ctx.beginPath();
+                    ctx.moveTo(startX + linePerpX, startY + linePerpY);
+                    ctx.lineTo(endX + linePerpX, endY + linePerpY);
+                    ctx.stroke();
+                  }
 
                   ctx.restore();
                 }
               }
 
-              // 冲刺残留痕迹
+              // 冲刺残留痕迹（粒子特效）
               if (monster.chargeTrail.length > 0) {
                 monster.chargeTrail = monster.chargeTrail.filter(point => {
                   point.life -= deltaTime;
@@ -3151,10 +3193,46 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                     const pointScreenX = worldToScreenX(point.x);
                     const pointScreenY = worldToScreenY(point.y);
 
-                    ctx.fillStyle = `rgba(231, 76, 60, ${point.life * 0.4})`;
+                    // 粒子特效：多层渐变效果
+                    const baseAlpha = point.life * 0.6;
+
+                    // 外层光晕
+                    ctx.fillStyle = `rgba(231, 76, 60, ${baseAlpha * 0.3})`;
                     ctx.beginPath();
-                    ctx.arc(pointScreenX, pointScreenY, 12, 0, Math.PI * 2);
+                    ctx.arc(pointScreenX, pointScreenY, 24, 0, Math.PI * 2);
                     ctx.fill();
+
+                    // 中层光晕
+                    ctx.fillStyle = `rgba(231, 76, 60, ${baseAlpha * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(pointScreenX, pointScreenY, 16, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 内层核心
+                    ctx.fillStyle = `rgba(255, 100, 100, ${baseAlpha * 0.8})`;
+                    ctx.beginPath();
+                    ctx.arc(pointScreenX, pointScreenY, 8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 中心高亮
+                    ctx.fillStyle = `rgba(255, 200, 200, ${baseAlpha})`;
+                    ctx.beginPath();
+                    ctx.arc(pointScreenX, pointScreenY, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 火花粒子（随机生成）
+                    if (Math.random() < 0.3) {
+                      const sparkAngle = Math.random() * Math.PI * 2;
+                      const sparkDistance = Math.random() * 15;
+                      const sparkX = pointScreenX + Math.cos(sparkAngle) * sparkDistance;
+                      const sparkY = pointScreenY + Math.sin(sparkAngle) * sparkDistance;
+                      const sparkSize = 2 + Math.random() * 3;
+
+                      ctx.fillStyle = `rgba(255, 200, 100, ${baseAlpha * 0.6})`;
+                      ctx.beginPath();
+                      ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+                      ctx.fill();
+                    }
 
                     return true;
                   }
@@ -3607,7 +3685,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 外圈（金色，顺时针旋转）- 调整大小至120像素半径
           ctx.save();
           ctx.rotate(circle.rotation);
-          ctx.scale(2.5, 2.5); // 缩放至2.5倍，使外圈半径达到120像素（12*2.5*4=120）
+          ctx.scale(6.0, 6.0); // 缩放至6.0倍，使外圈半径达到约288像素（12*6.0*4=288）
           const outerRing = PIXEL_ART.magicCircle.outerRing;
           outerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3619,7 +3697,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 中圈（紫色，逆时针旋转）- 调整大小至与外圈协调
           ctx.save();
           ctx.rotate(-circle.rotation * 1.2);
-          ctx.scale(2.5, 2.5); // 缩放至2.5倍，与外圈协调
+          ctx.scale(6.0, 6.0); // 缩放至6.0倍，与外圈协调
           const middleRing = PIXEL_ART.magicCircle.middleRing;
           middleRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3631,7 +3709,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 内圈（黄色像素法阵，快速旋转）- 缩放至与外圈视觉一致
           ctx.save();
           ctx.rotate(circle.rotation * 1.5);
-          ctx.scale(0.6, 0.6); // 缩放0.6倍，使内圈与外圈视觉大小基本一致
+          ctx.scale(1.44, 1.44); // 缩放1.44倍（0.6*6.0/2.5），使内圈与外圈视觉大小保持协调
           const innerRing = PIXEL_ART.magicCircle.innerRing;
           innerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3643,7 +3721,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 装饰性三角形（随外圈旋转）- 调整大小至与外圈协调
           ctx.save();
           ctx.rotate(circle.rotation * 0.5);
-          ctx.scale(2.5, 2.5); // 缩放至2.5倍，与外圈协调
+          ctx.scale(6.0, 6.0); // 缩放至6.0倍，与外圈协调
           const triangles = PIXEL_ART.magicCircle.triangles;
           triangles.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3654,7 +3732,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           // 光点装饰（闪烁效果）- 调整大小至与外圈协调
           ctx.save();
-          ctx.scale(2.5, 2.5); // 缩放至2.5倍，与外圈协调
+          ctx.scale(6.0, 6.0); // 缩放至6.0倍，与外圈协调
           const dots = PIXEL_ART.magicCircle.dots;
           const twinkle = (Math.sin(elapsedSeconds * 8) + 1) * 0.5;
           dots.forEach((pixel, index) => {
@@ -3668,7 +3746,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 中心符文（慢速脉冲）- 调整大小至与外圈协调
           const pulse = 1 + Math.sin(elapsedSeconds * 6) * 0.2;
           ctx.save();
-          ctx.scale(2.5 * pulse, 2.5 * pulse); // 缩放至2.5倍，与外圈协调
+          ctx.scale(6.0 * pulse, 6.0 * pulse); // 缩放至6.0倍，与外圈协调
           const centerRune = PIXEL_ART.magicCircle.centerRune;
           centerRune.forEach(pixel => {
             ctx.fillStyle = pixel.color;
