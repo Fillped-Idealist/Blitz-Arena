@@ -2700,11 +2700,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monsterSpawnTimerRef.current = 0;
           }
 
-          // 近战Boss刷新逻辑：6分钟后每75秒刷新一个，属性递增50%
+          // 近战Boss刷新逻辑：6分钟后每75秒刷新一个，属性递增100%
           if (player.gameTime >= 360) { // 6分钟后开始刷新
             meleeBossSpawnTimerRef.current += deltaTime;
             if (meleeBossSpawnTimerRef.current >= 75) { // 每75秒刷新一个
               meleeBossSpawnTimerRef.current = 0;
+              console.log('[MeleeBoss] Spawning melee boss', {
+                gameTime: player.gameTime,
+                existingCount: monstersRef.current.filter(m => m.type === 'melee_boss').length
+              });
 
               // 手动生成近战Boss（覆盖默认类型）
               const side = Math.floor(Math.random() * 4);
@@ -3414,72 +3418,80 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const progress = elapsedSeconds / circle.duration;
 
           if (elapsedSeconds >= circle.duration) {
-            // 法阵持续时间结束，对怪物造成伤害
-            const monster = monstersRef.current.find(m => m.id === circle.monsterId);
-            if (monster) {
-              let isCrit = Math.random() < player.critRate;
-              let damage = isCrit ? circle.damage * player.critMultiplier : circle.damage;
+            // 法阵持续时间结束，对范围内的所有怪物造成范围伤害
+            monstersRef.current.forEach(monster => {
+              // 计算怪物与法阵中心的距离
+              const dx = monster.x - circle.x;
+              const dy = monster.y - circle.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
 
-              // 狂战士被动
-              const hasBerserker = player.skills.some(s => s.id === 'berserker');
-              if (hasBerserker && player.hp < player.maxHp * 0.5) {
-                const hpPercent = player.hp / player.maxHp;
-                damage *= 1 + (1 - hpPercent) * 1.25;
-              }
+              // 如果怪物在法阵范围内
+              if (distance <= circle.radius) {
+                let isCrit = Math.random() < player.critRate;
+                let damage = isCrit ? circle.damage * player.critMultiplier : circle.damage;
 
-              // 巨人杀手被动
-              const hasGiantSlayer = player.skills.some(s => s.id === 'giant_slayer');
-              if (hasGiantSlayer && (monster.type === 'boss' || monster.type === 'elite')) {
-                damage *= 1.5;
-              }
+                // 狂战士被动
+                const hasBerserker = player.skills.some(s => s.id === 'berserker');
+                if (hasBerserker && player.hp < player.maxHp * 0.5) {
+                  const hpPercent = player.hp / player.maxHp;
+                  damage *= 1 + (1 - hpPercent) * 1.25;
+                }
 
-              // 护盾优先吸收
-              if (monster.hasShield && monster.shieldHp > 0) {
-                const absorbed = Math.min(damage, monster.shieldHp);
-                monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
-                damage = Math.max(0, Math.floor(damage - absorbed));
-                createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
-                playSound('shoot');
-              }
+                // 巨人杀手被动
+                const hasGiantSlayer = player.skills.some(s => s.id === 'giant_slayer');
+                if (hasGiantSlayer && (monster.type === 'boss' || monster.type === 'elite')) {
+                  damage *= 1.5;
+                }
 
-              if (damage > 0) {
-                monster.hp = Math.max(0, Math.floor(monster.hp - damage));
-                createParticles(monster.x, monster.y, '#F1C40F', 15, 'explosion');
-                createParticles(monster.x, monster.y, '#9B59B6', 10, 'magic');
-                createDamageNumber(monster.x, monster.y, damage, isCrit);
-                triggerScreenShake(isCrit ? 2 : 1, 0.04);
-                playSound(isCrit ? 'crit' : 'hit');
+                // 护盾优先吸收
+                if (monster.hasShield && monster.shieldHp > 0) {
+                  const absorbed = Math.min(damage, monster.shieldHp);
+                  monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
+                  damage = Math.max(0, Math.floor(damage - absorbed));
+                  createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
+                  playSound('shoot');
+                }
 
-                player.totalDamage += damage;
+                if (damage > 0) {
+                  monster.hp = Math.max(0, Math.floor(monster.hp - damage));
+                  createParticles(monster.x, monster.y, '#F1C40F', 15, 'explosion');
+                  createParticles(monster.x, monster.y, '#9B59B6', 10, 'magic');
+                  createDamageNumber(monster.x, monster.y, damage, isCrit);
+                  triggerScreenShake(isCrit ? 2 : 1, 0.04);
+                  playSound(isCrit ? 'crit' : 'hit');
 
-                if (monster.hp < 0.1) {
-                  let expGain = Math.floor(monster.exp);
+                  player.totalDamage += damage;
 
-                  // 快速学习被动
-                  const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
-                  if (hasFastLearning) {
-                    expGain = Math.floor(expGain * 1.25);
+                  if (monster.hp < 0.1) {
+                    let expGain = Math.floor(monster.exp);
+
+                    // 快速学习被动
+                    const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
+                    if (hasFastLearning) {
+                      expGain = Math.floor(expGain * 1.25);
+                    }
+
+                    player.exp += expGain;
+                    player.totalKills++;
+
+                    // 生命汲取被动
+                    const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
+                    if (hasLifesteal) {
+                      const healAmount = 5;
+                      player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                      createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+                      playSound('heal');
+                    }
+
+                    createParticles(monster.x, monster.y, monster.color, 20, 'explosion');
+                    triggerScreenShake(1.5, 0.05);
+                    scoreRef.current += Math.floor(monster.exp);
+                    playSound('kill');
                   }
-
-                  player.exp += expGain;
-                  player.totalKills++;
-
-                  // 生命汲取被动
-                  const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
-                  if (hasLifesteal) {
-                    const healAmount = 5;
-                    player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
-                    createDamageNumber(player.x, player.y - 20, healAmount, false, true);
-                    playSound('heal');
-                  }
-
-                  createParticles(monster.x, monster.y, monster.color, 20, 'explosion');
-                  triggerScreenShake(1.5, 0.05);
-                  scoreRef.current += Math.floor(monster.exp);
-                  playSound('kill');
                 }
               }
-            }
+            });
+
             return false;
           }
 
@@ -3511,9 +3523,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.save();
           ctx.translate(circleScreenX, circleScreenY);
 
-          // 外圈（金色，顺时针旋转）
+          // 外圈（金色，顺时针旋转）- 缩小至40%
           ctx.save();
           ctx.rotate(circle.rotation);
+          ctx.scale(0.4, 0.4); // 缩小至40%
           const outerRing = PIXEL_ART.magicCircle.outerRing;
           outerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3522,9 +3535,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 中圈（紫色，逆时针旋转）
+          // 中圈（紫色，逆时针旋转）- 缩小至40%
           ctx.save();
           ctx.rotate(-circle.rotation * 1.2);
+          ctx.scale(0.4, 0.4); // 缩小至40%
           const middleRing = PIXEL_ART.magicCircle.middleRing;
           middleRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3533,9 +3547,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 内圈（金色，快速旋转）
+          // 内圈（黄色像素法阵，快速旋转）- 放大至和外圈基本一样大
           ctx.save();
           ctx.rotate(circle.rotation * 1.5);
+          ctx.scale(4.0, 4.0); // 放大4倍，使其与外圈基本一样大
           const innerRing = PIXEL_ART.magicCircle.innerRing;
           innerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3544,9 +3559,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 装饰性三角形（随外圈旋转）
+          // 装饰性三角形（随外圈旋转）- 缩小至40%
           ctx.save();
           ctx.rotate(circle.rotation * 0.5);
+          ctx.scale(0.4, 0.4); // 缩小至40%
           const triangles = PIXEL_ART.magicCircle.triangles;
           triangles.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3555,7 +3571,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
           ctx.restore();
 
-          // 光点装饰（闪烁效果）
+          // 光点装饰（闪烁效果）- 缩小至40%
+          ctx.save();
+          ctx.scale(0.4, 0.4); // 缩小至40%
           const dots = PIXEL_ART.magicCircle.dots;
           const twinkle = (Math.sin(elapsedSeconds * 8) + 1) * 0.5;
           dots.forEach((pixel, index) => {
@@ -3564,11 +3582,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             ctx.globalAlpha = dotAlpha;
             ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
+          ctx.restore();
 
-          // 中心符文（慢速脉冲）
+          // 中心符文（慢速脉冲）- 缩小至40%
           const pulse = 1 + Math.sin(elapsedSeconds * 6) * 0.2;
           ctx.save();
-          ctx.scale(pulse, pulse);
+          ctx.scale(0.4 * pulse, 0.4 * pulse); // 缩小至40%
           const centerRune = PIXEL_ART.magicCircle.centerRune;
           centerRune.forEach(pixel => {
             ctx.fillStyle = pixel.color;
@@ -3864,7 +3883,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         ctx.restore();
 
-        // 绘制玩家状态条（生命值、护盾值、经验值）
+        // 绘制玩家状态条（生命值、护盾值、经验值）从上往下排列
         const statusBarY = -PLAYER_SIZE - 35;
         const statusBarWidth = 60;
         const statusBarHeight = 5;
@@ -3889,48 +3908,38 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.fillStyle = hpGradient;
         ctx.fillRect(-statusBarWidth / 2, statusBarY, statusBarWidth * hpPercent, statusBarHeight);
 
-        // 生命值文字
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 9px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${Math.floor(player.hp)}`, 0, statusBarY + statusBarHeight / 2);
-
-        // 护盾值条（显示当前护盾剩余值）
+        // 护盾值条（如果有护盾，显示在血量下方）
         const hasShieldPassiveUI = player.skills.some(s => s.id === 'passive_shield');
-        if (hasShieldPassiveUI && player.shieldMaxHp > 0) {
+        let currentBarY = statusBarY + statusBarHeight; // 下一条的起始位置
+
+        if (hasShieldPassiveUI && player.shieldMaxHp > 0 && player.shieldHp > 0) {
           const shieldPercent = Math.max(0, player.shieldHp / player.shieldMaxHp);
-          const shieldBarY = statusBarY - statusBarHeight - statusBarGap;
+          const shieldBarY = currentBarY;
 
           ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
           ctx.fillRect(-statusBarWidth / 2, shieldBarY, statusBarWidth, statusBarHeight);
 
           const shieldGradient = ctx.createLinearGradient(-statusBarWidth / 2, shieldBarY, -statusBarWidth / 2 + statusBarWidth * shieldPercent, shieldBarY);
-          shieldGradient.addColorStop(0, '#5DADE2');
-          shieldGradient.addColorStop(1, '#3498DB');
+          shieldGradient.addColorStop(0, '#D5D5D5');
+          shieldGradient.addColorStop(1, '#B0B0B0');
           ctx.fillStyle = shieldGradient;
           ctx.fillRect(-statusBarWidth / 2, shieldBarY, statusBarWidth * shieldPercent, statusBarHeight);
+
+          currentBarY += statusBarHeight; // 更新位置
         }
 
-        // 经验值条
+        // 经验值条（在护盾或血量下方）
         const expPercent = Math.max(0, Math.min(1, player.exp / player.expToNext));
-        const expBarY = statusBarY + statusBarHeight + statusBarGap;
+        const expBarY = currentBarY;
 
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
         ctx.fillRect(-statusBarWidth / 2, expBarY, statusBarWidth, statusBarHeight);
 
         const expGradient = ctx.createLinearGradient(-statusBarWidth / 2, expBarY, -statusBarWidth / 2 + statusBarWidth * expPercent, expBarY);
-        expGradient.addColorStop(0, '#7ED6DF');
-        expGradient.addColorStop(1, '#5DADE2');
+        expGradient.addColorStop(0, '#4A90E2');
+        expGradient.addColorStop(1, '#357ABD');
         ctx.fillStyle = expGradient;
         ctx.fillRect(-statusBarWidth / 2, expBarY, statusBarWidth * expPercent, statusBarHeight);
-
-        // 经验值文字
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 9px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${Math.floor(player.exp)}/${player.expToNext}`, 0, expBarY + statusBarHeight / 2);
       }
 
       ctx.restore();
