@@ -142,6 +142,8 @@ interface Monster {
   chargeStartTime: number;
   chargeDirection: { x: number; y: number };
   chargeTrail: { x: number; y: number; life: number }[];
+  chargeStartPos: { x: number; y: number }; // 冲刺起始位置
+  chargeEndPos: { x: number; y: number }; // 冲刺终点位置
   meleeBossSpawnIndex: number; // 近战Boss生成序号（用于计算属性成长）
 }
 
@@ -1709,7 +1711,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 282, color: '#E74C3C' } // 近战Boss：体型放大3倍（94*3=282）
+      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 846, color: '#E74C3C' } // 近战Boss：体型放大3倍（282*3=846）
     };
 
     const stats = monsterStats[type];
@@ -1750,6 +1752,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       chargeStartTime: 0,
       chargeDirection: { x: 0, y: 0 },
       chargeTrail: [],
+      chargeStartPos: { x: 0, y: 0 },
+      chargeEndPos: { x: 0, y: 0 },
       meleeBossSpawnIndex: monstersRef.current.filter(m => m.type === 'melee_boss').length // 近战Boss生成序号
     };
 
@@ -1777,12 +1781,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           monster.vy = 0;
           monster.lastAbilityTime = now;
         } else if (chargeElapsed > 1000) {
-          // 实际冲刺阶段（0.5秒）
-          // 非线性冲刺速度：先慢后快，模拟真实的冲刺加速
+          // 实际冲刺阶段（0.5秒）- 沿着锁定的直线移动
           const sprintProgress = (chargeElapsed - 1000) / 500; // 0到1
           const accelerationCurve = Math.pow(sprintProgress, 0.7); // 非线性加速曲线
           const currentSpeed = 25 + accelerationCurve * 35; // 从25加速到60（更猛烈）
 
+          // 沿着锁定的直线从起点向终点移动
           monster.vx = monster.chargeDirection.x * currentSpeed;
           monster.vy = monster.chargeDirection.y * currentSpeed;
 
@@ -1834,18 +1838,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             }
           }
         } else {
-          // 冲刺前摇阶段（1秒），显示冲刺路径并后退
+          // 冲刺前摇阶段（1秒），显示冲刺路径
           const windupProgress = chargeElapsed / 1000; // 0到1
 
-          // 在前摇开始时固定冲刺方向（不会追踪玩家）
-          if (chargeElapsed < 50) { // 前50毫秒计算并锁定方向
+          // 在前摇开始时固定冲刺方向和位置（不会追踪玩家）
+          if (chargeElapsed < 50) { // 前50毫秒计算并锁定方向和起点
             const dx = player.x - monster.x;
             const dy = player.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             monster.chargeDirection = { x: dx / distance, y: dy / distance };
+            monster.chargeStartPos = { x: monster.x, y: monster.y }; // 记录起点
+            // 计算终点（冲刺距离为200像素）
+            monster.chargeEndPos = {
+              x: monster.x + monster.chargeDirection.x * 200,
+              y: monster.y + monster.chargeDirection.y * 200
+            };
           }
 
-          // 前摇阶段的后退动作（模拟蓄力，更明显）
+          // 前摇阶段的后退动作（模拟蓄力，不改变实际冲刺路线）
           const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
           const retreatDistance = retreatProgress * 100; // 最多后退100像素（增大效果）
 
@@ -1989,6 +1999,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             chargeStartTime: 0,
             chargeDirection: { x: 0, y: 0 },
             chargeTrail: [],
+            chargeStartPos: { x: 0, y: 0 },
+            chargeEndPos: { x: 0, y: 0 },
             meleeBossSpawnIndex: 0
           };
           monstersRef.current.push(newMonster);
@@ -2773,22 +2785,21 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 检查场上是否已有近战Boss
               const existingMeleeBoss = monstersRef.current.find(m => m.type === 'melee_boss');
 
-              // 第一次立即刷新（在6分钟刚到达的0.1秒内，且场上没有近战Boss）
-              const isFirstSpawn = player.gameTime >= 360 && player.gameTime < 360.1 && meleeBossSpawnTimerRef.current < 0.1 && !existingMeleeBoss;
+              // 刷新条件：第一次（6分钟刚到）或每75秒刷新一个（且场上没有近战Boss）
+              const isFirstSpawn = player.gameTime >= 360 && !existingMeleeBoss && meleeBossSpawnTimerRef.current < 0.1;
+              const shouldSpawn = (isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) && !existingMeleeBoss;
 
-              // 刷新条件：第一次或每75秒刷新一个（且场上没有近战Boss）
-              if ((isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) && !existingMeleeBoss) {
-              if (!isFirstSpawn) {
+              if (shouldSpawn) {
                 meleeBossSpawnTimerRef.current = 0;
-              }
-              meleeBossSpawnTimerRef.current = 0;
-              console.log('[MeleeBoss] Spawning melee boss', {
-                gameTime: player.gameTime,
-                existingCount: monstersRef.current.filter(m => m.type === 'melee_boss').length
-              });
+                console.log('[MeleeBoss] Spawning melee boss', {
+                  gameTime: player.gameTime,
+                  existingCount: monstersRef.current.filter(m => m.type === 'melee_boss').length
+                });
 
-              // 播报提醒
-              createNotification('⚠️ 近战Boss来袭！', '#FF4757');
+                // 仅第一次刷新时播报提醒
+                if (isFirstSpawn) {
+                  createNotification('⚠️ 近战Boss来袭！', '#FF4757');
+                }
 
               // 手动生成近战Boss（覆盖默认类型）
               const side = Math.floor(Math.random() * 4);
@@ -2809,7 +2820,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 baseDamage: 1200,
                 baseSpeed: 2.0,
                 baseExp: 1000,
-                baseSize: 282,
+                baseSize: 846,
                 color: '#E74C3C'
               };
 
@@ -2849,6 +2860,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 chargeStartTime: 0,
                 chargeDirection: { x: 0, y: 0 },
                 chargeTrail: [],
+                chargeStartPos: { x: 0, y: 0 },
+                chargeEndPos: { x: 0, y: 0 },
                 meleeBossSpawnIndex: existingMeleeBossCount
               };
 
