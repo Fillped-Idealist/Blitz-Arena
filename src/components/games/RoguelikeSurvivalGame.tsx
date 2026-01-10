@@ -1598,9 +1598,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   // ==================== 绘制静态背景（用于开始和结束界面） ====================
   const drawStaticBackground = useCallback((ctx: CanvasRenderingContext2D) => {
     // 深空渐变背景（仅覆盖画布）
+    // 使用对角线长度作为半径，确保渐变覆盖整个画布
+    const diagonalLength = Math.sqrt(CANVAS_WIDTH * CANVAS_WIDTH + CANVAS_HEIGHT * CANVAS_HEIGHT);
     const gradient = ctx.createRadialGradient(
       CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
-      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH
+      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, diagonalLength / 2
     );
     gradient.addColorStop(0, COLORS.backgroundStart);
     gradient.addColorStop(0.5, '#16213E');
