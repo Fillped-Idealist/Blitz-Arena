@@ -195,6 +195,19 @@ interface SlashEffect {
   type: 'horizontal' | 'vertical' | 'diagonal' | 'spin';
 }
 
+interface MagicCircle {
+  id: number;
+  monsterId: number;  // 锁定的怪物ID
+  x: number;  // 怪物的当前位置
+  y: number;
+  damage: number;  // 法阵造成的伤害
+  duration: number;  // 法阵持续时间
+  startTime: number;  // 法阵开始时间
+  radius: number;  // 法阵半径
+  rotation: number;  // 当前旋转角度
+  particles: { angle: number; distance: number; speed: number; life: number; maxLife: number; color: string; }[];  // 法阵粒子
+}
+
 interface Obstacle {
   x: number;
   y: number;
@@ -618,127 +631,127 @@ const SKILL_POOL: Skill[] = [
   // 自动锁敌被动技能（多等级可升级）
   {
     id: 'auto_tracking',
-    name: '自动追踪',
-    description: '每6秒自动发射1枚追踪导弹攻击最近的敌人（被动）',
+    name: '天命法阵',
+    description: '每6秒在最近敌人脚下召唤法阵，2秒后造成远程伤害（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: 1 }),
     rarity: 'epic',
     color: COLORS.epic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   // 追踪精通系列（增加伤害）
   {
     id: 'tracking_mastery_1',
-    name: '追踪精通 I',
-    description: '自动追踪伤害 +20%（被动）',
+    name: '法阵精通 I',
+    description: '天命法阵伤害 +20%（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'rare',
     color: COLORS.rare,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_mastery_2',
-    name: '追踪精通 II',
-    description: '自动追踪伤害 +20%（被动）',
+    name: '法阵精通 II',
+    description: '天命法阵伤害 +20%（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'epic',
     color: COLORS.epic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_mastery_3',
-    name: '追踪精通 III',
-    description: '自动追踪伤害 +20%（被动）',
+    name: '法阵精通 III',
+    description: '天命法阵伤害 +20%（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'legendary',
     color: COLORS.legendary,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_mastery_4',
-    name: '追踪精通 IV',
-    description: '自动追踪伤害 +20%（被动）',
+    name: '法阵精通 IV',
+    description: '天命法阵伤害 +20%（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'mythic',
     color: COLORS.mythic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   // 追踪频率系列（缩短冷却）
   {
     id: 'tracking_speed_1',
-    name: '追踪速度 I',
-    description: '自动追踪冷却时间 -1秒（被动）',
+    name: '法阵加速 I',
+    description: '天命法阵冷却时间 -1秒（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'rare',
     color: COLORS.rare,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_speed_2',
-    name: '追踪速度 II',
-    description: '自动追踪冷却时间 -1秒（被动）',
+    name: '法阵加速 II',
+    description: '天命法阵冷却时间 -1秒（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'epic',
     color: COLORS.epic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_speed_3',
-    name: '追踪速度 III',
-    description: '自动追踪冷却时间 -1秒（被动）',
+    name: '法阵加速 III',
+    description: '天命法阵冷却时间 -1秒（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'legendary',
     color: COLORS.legendary,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   // 追踪多重（增加数量）
   {
     id: 'tracking_multishot_1',
-    name: '追踪多重 I',
-    description: '自动追踪同时攻击 +1个敌人（被动）',
+    name: '法阵多重 I',
+    description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'legendary',
     color: COLORS.legendary,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_multishot_2',
-    name: '追踪多重 II',
-    description: '自动追踪同时攻击 +1个敌人（被动）',
+    name: '法阵多重 II',
+    description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'mythic',
     color: COLORS.mythic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
-  // 追踪穿透系列
+  // 追踪穿透系列（法阵范围）
   {
     id: 'tracking_pierce_1',
-    name: '追踪穿透 I',
-    description: '自动追踪导弹穿透 +1（被动）',
+    name: '法阵扩张 I',
+    description: '天命法阵范围扩大30%（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'epic',
     color: COLORS.epic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   {
     id: 'tracking_pierce_2',
-    name: '追踪穿透 II',
-    description: '自动追踪导弹穿透 +1（被动）',
+    name: '法阵扩张 II',
+    description: '天命法阵范围扩大30%（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'mythic',
     color: COLORS.mythic,
-    icon: SKILL_ICONS.bolt
+    icon: SKILL_ICONS.magic
   },
   // 被动技能
   {
@@ -877,6 +890,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const particlesRef = useRef<Particle[]>([]);
   const damageNumbersRef = useRef<DamageNumber[]>([]);
   const slashEffectsRef = useRef<SlashEffect[]>([]);
+  const magicCirclesRef = useRef<MagicCircle[]>([]);
   const screenShakeRef = useRef<ScreenShake>({ intensity: 0, duration: 0, x: 0, y: 0 });
   const obstaclesRef = useRef<Obstacle[]>([]);
   const monsterIdCounterRef = useRef(0);
@@ -1128,6 +1142,35 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       life: 1,
       maxLife: 0.18,
       type
+    });
+  }, []);
+
+  // ==================== 法阵特效 ====================
+  const createMagicCircle = useCallback((monsterId: number, x: number, y: number, damage: number, duration: number, radius: number) => {
+    const particles = [];
+    const particleCount = 24;
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        angle: (Math.PI * 2 / particleCount) * i,
+        distance: radius * 0.3,
+        speed: 0.5 + Math.random() * 0.5,
+        life: 1,
+        maxLife: 1,
+        color: Math.random() < 0.5 ? '#F1C40F' : '#9B59B6'
+      });
+    }
+
+    magicCirclesRef.current.push({
+      id: Date.now() + Math.random(),
+      monsterId,
+      x,
+      y,
+      damage,
+      duration,
+      startTime: performance.now(),
+      radius,
+      rotation: 0,
+      particles
     });
   }, []);
 
@@ -2371,9 +2414,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const multishotBonus = player.skills.filter(s => s.id.startsWith('tracking_multishot')).length;
             const targetCount = 1 + multishotBonus; // 基础1个目标
 
-            // 计算穿透加成（从技能中统计tracking_pierce数量）
-            const pierceBonus = player.skills.filter(s => s.id.startsWith('tracking_pierce')).length;
-            const pierceCount = pierceBonus; // 基础0穿透
+            // 计算法阵范围加成（从技能中统计tracking_pierce数量）
+            const radiusBonus = player.skills.filter(s => s.id.startsWith('tracking_pierce')).length;
+            const radiusBonusMultiplier = 1 + radiusBonus * 0.3; // 每级扩大30%
+            const baseRadius = 50;
 
             if (autoLockUltimateTimerRef.current >= interval) {
               autoLockUltimateTimerRef.current = 0;
@@ -2388,23 +2432,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 .slice(0, targetCount);
 
               sortedMonsters.forEach(({ monster }) => {
-                const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
+                // 在怪物脚下生成法阵，而不是发射投射物
+                const damage = Math.floor(player.rangedDamage * trackingMasteryBonus);
+                const duration = 2;  // 法阵持续2秒
+                const radius = baseRadius * radiusBonusMultiplier;  // 法阵半径（可升级）
 
-                projectilesRef.current.push({
-                  id: projectileIdCounterRef.current++,
-                  x: player.x,
-                  y: player.y,
-                  vx: Math.cos(angle) * 12,
-                  vy: Math.sin(angle) * 12,
-                  damage: Math.floor(player.rangedDamage * trackingMasteryBonus),
-                  speed: 12,
-                  bounceCount: 0,
-                  angle,
-                  trail: [],
-                  type: 'lightning',
-                  pierceCount: pierceCount,
-                  owner: 'player'
-                });
+                createMagicCircle(monster.id, monster.x, monster.y, damage, duration, radius);
               });
 
               createParticles(player.x, player.y, '#F1C40F', 20, 'magic');
@@ -2856,6 +2889,195 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return true;
         });
 
+        // 更新和绘制法阵特效（使用屏幕坐标）
+        magicCirclesRef.current = magicCirclesRef.current.filter(circle => {
+          const elapsedTime = performance.now() - circle.startTime;
+          const elapsedSeconds = elapsedTime / 1000;
+          const progress = elapsedSeconds / circle.duration;
+
+          if (elapsedSeconds >= circle.duration) {
+            // 法阵持续时间结束，对怪物造成伤害
+            const monster = monstersRef.current.find(m => m.id === circle.monsterId);
+            if (monster) {
+              let isCrit = Math.random() < player.critRate;
+              let damage = isCrit ? circle.damage * player.critMultiplier : circle.damage;
+
+              // 狂战士被动
+              const hasBerserker = player.skills.some(s => s.id === 'berserker');
+              if (hasBerserker && player.hp < player.maxHp * 0.5) {
+                const hpPercent = player.hp / player.maxHp;
+                damage *= 1 + (1 - hpPercent) * 1.25;
+              }
+
+              // 巨人杀手被动
+              const hasGiantSlayer = player.skills.some(s => s.id === 'giant_slayer');
+              if (hasGiantSlayer && (monster.type === 'boss' || monster.type === 'elite')) {
+                damage *= 1.5;
+              }
+
+              // 护盾优先吸收
+              if (monster.hasShield && monster.shieldHp > 0) {
+                const absorbed = Math.min(damage, monster.shieldHp);
+                monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
+                damage = Math.max(0, Math.floor(damage - absorbed));
+                createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
+                playSound('shoot');
+              }
+
+              if (damage > 0) {
+                monster.hp = Math.max(0, Math.floor(monster.hp - damage));
+                createParticles(monster.x, monster.y, '#F1C40F', 15, 'explosion');
+                createParticles(monster.x, monster.y, '#9B59B6', 10, 'magic');
+                createDamageNumber(monster.x, monster.y, damage, isCrit);
+                triggerScreenShake(isCrit ? 2 : 1, 0.04);
+                playSound(isCrit ? 'crit' : 'hit');
+
+                player.totalDamage += damage;
+
+                if (monster.hp < 0.1) {
+                  let expGain = Math.floor(monster.exp);
+
+                  // 快速学习被动
+                  const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
+                  if (hasFastLearning) {
+                    expGain = Math.floor(expGain * 1.25);
+                  }
+
+                  player.exp += expGain;
+                  player.totalKills++;
+
+                  // 生命汲取被动
+                  const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
+                  if (hasLifesteal) {
+                    const healAmount = 5;
+                    player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                    createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+                    playSound('heal');
+                  }
+
+                  createParticles(monster.x, monster.y, monster.color, 20, 'explosion');
+                  triggerScreenShake(1.5, 0.05);
+                  scoreRef.current += Math.floor(monster.exp);
+                  playSound('kill');
+                }
+              }
+            }
+            return false;
+          }
+
+          // 更新法阵旋转
+          circle.rotation += deltaTime * 2;
+
+          // 更新法阵粒子
+          circle.particles.forEach(particle => {
+            particle.angle += deltaTime * particle.speed;
+            particle.life = 1 - progress;
+            particle.distance = circle.radius * (0.3 + progress * 0.7);
+          });
+
+          // 绘制法阵
+          const circleScreenX = worldToScreenX(circle.x);
+          const circleScreenY = worldToScreenY(circle.y);
+          const alpha = 1 - progress;
+
+          ctx.globalAlpha = alpha;
+
+          // 外层旋转光环（金色）
+          ctx.save();
+          ctx.translate(circleScreenX, circleScreenY);
+          ctx.rotate(circle.rotation);
+
+          // 外圈
+          ctx.beginPath();
+          ctx.arc(0, 0, circle.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(241, 196, 15, ${alpha * 0.8})`;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#F1C40F';
+          ctx.shadowBlur = 20;
+          ctx.stroke();
+
+          // 六边形法阵（外层）
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI * 2 / 6) * i;
+            const x = Math.cos(angle) * circle.radius;
+            const y = Math.sin(angle) * circle.radius;
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = `rgba(241, 196, 15, ${alpha * 0.5})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 六边形顶点装饰
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(241, 196, 15, ${alpha})`;
+            ctx.fill();
+          }
+
+          ctx.restore();
+
+          // 内层旋转光环（紫色）
+          ctx.save();
+          ctx.translate(circleScreenX, circleScreenY);
+          ctx.rotate(-circle.rotation * 1.5);
+
+          // 内圈
+          ctx.beginPath();
+          ctx.arc(0, 0, circle.radius * 0.6, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(155, 89, 182, ${alpha * 0.8})`;
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#9B59B6';
+          ctx.shadowBlur = 15;
+          ctx.stroke();
+
+          // 八边形法阵（内层）
+          for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 / 8) * i;
+            const x = Math.cos(angle) * circle.radius * 0.6;
+            const y = Math.sin(angle) * circle.radius * 0.6;
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = `rgba(155, 89, 182, ${alpha * 0.5})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // 八边形顶点装饰
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(155, 89, 182, ${alpha})`;
+            ctx.fill();
+          }
+
+          ctx.restore();
+
+          // 绘制法阵粒子
+          circle.particles.forEach(particle => {
+            const x = circleScreenX + Math.cos(particle.angle) * particle.distance;
+            const y = circleScreenY + Math.sin(particle.angle) * particle.distance;
+
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = particle.color;
+            ctx.globalAlpha = particle.life * 0.8;
+            ctx.fill();
+
+            // 粒子光晕
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = particle.color;
+            ctx.globalAlpha = particle.life * 0.3;
+            ctx.fill();
+          });
+
+          ctx.globalAlpha = 1;
+
+          return true;
+        });
+
         // 更新粒子（使用屏幕坐标）
         particlesRef.current = particlesRef.current.filter(particle => {
           particle.life -= deltaTime;
@@ -3260,6 +3482,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     particlesRef.current = [];
     damageNumbersRef.current = [];
     slashEffectsRef.current = [];
+    magicCirclesRef.current = [];
     screenShakeRef.current = { intensity: 0, duration: 0, x: 0, y: 0 };
     obstaclesRef.current = [];
     monsterIdCounterRef.current = 0;
