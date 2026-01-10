@@ -1147,19 +1147,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 法阵特效 ====================
   const createMagicCircle = useCallback((monsterId: number, x: number, y: number, damage: number, duration: number, radius: number) => {
-    const particles = [];
-    const particleCount = 16;
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
-        angle: (Math.PI * 2 / particleCount) * i,
-        distance: radius * 0.3,
-        speed: 0.5 + Math.random() * 0.5,
-        life: 1,
-        maxLife: 1,
-        color: Math.random() < 0.5 ? '#F1C40F' : '#9B59B6'
-      });
-    }
-
     magicCirclesRef.current.push({
       id: Date.now() + Math.random(),
       monsterId,
@@ -1170,7 +1157,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       startTime: performance.now(),
       radius,
       rotation: 0,
-      particles
+      particles: []  // 不再使用粒子
     });
   }, []);
 
@@ -2978,13 +2965,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 更新法阵旋转
           circle.rotation += deltaTime * 2;
 
-          // 更新法阵粒子
-          circle.particles.forEach(particle => {
-            particle.angle += deltaTime * particle.speed;
-            particle.life = 1 - progress;
-            particle.distance = circle.radius * (0.3 + progress * 0.7);
-          });
-
           // 绘制法阵
           const circleScreenX = worldToScreenX(circle.x);
           const circleScreenY = worldToScreenY(circle.y);
@@ -2992,97 +2972,37 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           ctx.globalAlpha = alpha;
 
-          // 外层旋转光环（金色）
+          // 简化版法阵：只绘制两个旋转圆环
           ctx.save();
           ctx.translate(circleScreenX, circleScreenY);
-          ctx.rotate(circle.rotation);
 
-          // 外圈
+          // 外圈（金色，顺时针旋转）
+          ctx.save();
+          ctx.rotate(circle.rotation);
           ctx.beginPath();
           ctx.arc(0, 0, circle.radius, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(241, 196, 15, ${alpha * 0.8})`;
+          ctx.strokeStyle = `rgba(241, 196, 15, ${alpha * 0.6})`;
           ctx.lineWidth = 3;
-          ctx.shadowColor = '#F1C40F';
-          ctx.shadowBlur = 20;
           ctx.stroke();
-
-          // 六边形法阵（外层）
-          for (let i = 0; i < 6; i++) {
-            const angle = (Math.PI * 2 / 6) * i;
-            const x = Math.cos(angle) * circle.radius;
-            const y = Math.sin(angle) * circle.radius;
-
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(x, y);
-            ctx.strokeStyle = `rgba(241, 196, 15, ${alpha * 0.5})`;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // 六边形顶点装饰
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(241, 196, 15, ${alpha})`;
-            ctx.fill();
-          }
-
           ctx.restore();
 
-          // 内层旋转光环（紫色）
+          // 内圈（紫色，逆时针旋转）
           ctx.save();
-          ctx.translate(circleScreenX, circleScreenY);
-          ctx.rotate(-circle.rotation * 1.5);
-
-          // 内圈
+          ctx.rotate(-circle.rotation * 1.2);
           ctx.beginPath();
-          ctx.arc(0, 0, circle.radius * 0.6, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(155, 89, 182, ${alpha * 0.8})`;
+          ctx.arc(0, 0, circle.radius * 0.5, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(155, 89, 182, ${alpha * 0.5})`;
           ctx.lineWidth = 2;
-          ctx.shadowColor = '#9B59B6';
-          ctx.shadowBlur = 15;
           ctx.stroke();
-
-          // 八边形法阵（内层）
-          for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 / 8) * i;
-            const x = Math.cos(angle) * circle.radius * 0.6;
-            const y = Math.sin(angle) * circle.radius * 0.6;
-
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(x, y);
-            ctx.strokeStyle = `rgba(155, 89, 182, ${alpha * 0.5})`;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // 八边形顶点装饰
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(155, 89, 182, ${alpha})`;
-            ctx.fill();
-          }
-
           ctx.restore();
 
-          // 绘制法阵粒子
-          circle.particles.forEach(particle => {
-            const x = circleScreenX + Math.cos(particle.angle) * particle.distance;
-            const y = circleScreenY + Math.sin(particle.angle) * particle.distance;
+          // 中心点
+          ctx.beginPath();
+          ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(241, 196, 15, ${alpha})`;
+          ctx.fill();
 
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = particle.color;
-            ctx.globalAlpha = particle.life * 0.8;
-            ctx.fill();
-
-            // 粒子光晕
-            ctx.beginPath();
-            ctx.arc(x, y, 6, 0, Math.PI * 2);
-            ctx.fillStyle = particle.color;
-            ctx.globalAlpha = particle.life * 0.3;
-            ctx.fill();
-          });
-
+          ctx.restore();
           ctx.globalAlpha = 1;
 
           return true;
@@ -3350,6 +3270,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       ctx.restore();
       ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
 
       // 绘制升级面板（不受摄像机影响，使用Canvas坐标）
       if (gameState === GameState.LEVEL_UP) {
