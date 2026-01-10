@@ -26,10 +26,10 @@ const CANVAS_HEIGHT = 900;
 const WORLD_WIDTH = 3200;  // 游戏世界总宽度
 const WORLD_HEIGHT = 1800;  // 游戏世界总高度
 const PLAYER_SIZE = 20;
-const MAX_MONSTERS = 150;
-const MAX_PROJECTILES = 120;
-const MAX_PARTICLES = 800;
-const MAX_DAMAGE_NUMBERS = 100;
+const MAX_MONSTERS = 120;
+const MAX_PROJECTILES = 100;
+const MAX_PARTICLES = 500;
+const MAX_DAMAGE_NUMBERS = 80;
 const MONSTER_SPAWN_MARGIN = 250;
 
 // ==================== 颜色配置 ====================
@@ -632,7 +632,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'auto_tracking',
     name: '天命法阵',
-    description: '每6秒在最近敌人脚下召唤法阵，2秒后造成远程伤害（被动）',
+    description: '每6秒在画面内生命值最高的怪物脚下召唤法阵，1秒后造成约100伤害（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, autoLockLevel: 1 }),
     rarity: 'epic',
@@ -643,7 +643,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_1',
     name: '法阵精通 I',
-    description: '天命法阵伤害 +20%（被动）',
+    description: '天命法阵伤害 +20（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'rare',
@@ -653,7 +653,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_2',
     name: '法阵精通 II',
-    description: '天命法阵伤害 +20%（被动）',
+    description: '天命法阵伤害 +20（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'epic',
@@ -663,7 +663,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_3',
     name: '法阵精通 III',
-    description: '天命法阵伤害 +20%（被动）',
+    description: '天命法阵伤害 +20（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'legendary',
@@ -673,7 +673,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'tracking_mastery_4',
     name: '法阵精通 IV',
-    description: '天命法阵伤害 +20%（被动）',
+    description: '天命法阵伤害 +20（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
     rarity: 'mythic',
@@ -1148,7 +1148,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   // ==================== 法阵特效 ====================
   const createMagicCircle = useCallback((monsterId: number, x: number, y: number, damage: number, duration: number, radius: number) => {
     const particles = [];
-    const particleCount = 24;
+    const particleCount = 16;
     for (let i = 0; i < particleCount; i++) {
       particles.push({
         angle: (Math.PI * 2 / particleCount) * i,
@@ -1363,6 +1363,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 过滤掉需要前置技能的选项
       const filteredSkills = SKILL_POOL.filter(skill => {
+        // 天命法阵（自动追踪）只能学习一次
+        if (skill.id === 'auto_tracking') {
+          return player.autoLockLevel === 0;
+        }
         // 追踪相关技能需要先解锁自动追踪
         if (skill.id.startsWith('tracking_mastery') ||
             skill.id.startsWith('tracking_speed') ||
@@ -1496,11 +1500,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     if (player.level >= 7 && typeRoll > 0.93 - difficulty * 0.05) type = 'boss';
 
     const monsterStats = {
-      slime: { baseHp: 40, baseDamage: 12, baseSpeed: 1.8, baseExp: 20, baseSize: 18, color: COLORS.slimeMonster },
-      skeleton: { baseHp: 55, baseDamage: 18, baseSpeed: 2.0, baseExp: 30, baseSize: 20, color: COLORS.skeletonMonster },
-      ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 40, baseSize: 18, color: COLORS.ghostMonster },
-      elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 80, baseSize: 24, color: COLORS.eliteMonster },
-      boss: { baseHp: 500, baseDamage: 40, baseSpeed: 1.5, baseExp: 200, baseSize: 45, color: COLORS.bossMonster }
+      slime: { baseHp: 40, baseDamage: 12, baseSpeed: 1.8, baseExp: 40, baseSize: 18, color: COLORS.slimeMonster },
+      skeleton: { baseHp: 55, baseDamage: 18, baseSpeed: 2.0, baseExp: 60, baseSize: 20, color: COLORS.skeletonMonster },
+      ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
+      elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
+      boss: { baseHp: 500, baseDamage: 40, baseSpeed: 1.5, baseExp: 350, baseSize: 45, color: COLORS.bossMonster }
     };
 
     const stats = monsterStats[type];
@@ -2393,10 +2397,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               autoMeleeAttack(player);
             }
 
-            // 远程攻击（一直向鼠标方向射击，降低攻击频率）
-            if (Math.random() < 0.4) {
-              autoRangedAttack(player);
-            }
+            // 远程攻击（同时向鼠标方向射击）
+            autoRangedAttack(player);
           }
 
           // 自动锁敌被动技能
@@ -2404,7 +2406,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             autoLockUltimateTimerRef.current += deltaTime;
 
             // 计算技能等级效果
-            const trackingMasteryBonus = 1 + player.trackingMasteryLevel * 0.2; // 每级+20%伤害
+            const trackingMasteryBonus = 100 + player.trackingMasteryLevel * 20; // 基础100，每级+20伤害
 
             // 计算速度加成（从技能中统计tracking_speed数量）
             const speedReduction = player.skills.filter(s => s.id.startsWith('tracking_speed')).length;
@@ -2422,19 +2424,27 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (autoLockUltimateTimerRef.current >= interval) {
               autoLockUltimateTimerRef.current = 0;
 
-              // 找到最近的N个怪物
-              const sortedMonsters = monstersRef.current
+              // 筛选屏幕内的怪物（视野范围内）
+              const visibleMonsters = monstersRef.current.filter(monster => {
+                const screenX = worldToScreenX(monster.x);
+                const screenY = worldToScreenY(monster.y);
+                return screenX >= -100 && screenX <= CANVAS_WIDTH + 100 &&
+                       screenY >= -100 && screenY <= CANVAS_HEIGHT + 100;
+              });
+
+              // 找到屏幕内生命值最高的N个怪物
+              const sortedMonsters = visibleMonsters
                 .map(m => ({
                   monster: m,
-                  distance: Math.sqrt(Math.pow(m.x - player.x, 2) + Math.pow(m.y - player.y, 2))
+                  hp: m.hp
                 }))
-                .sort((a, b) => a.distance - b.distance)
+                .sort((a, b) => b.hp - a.hp)
                 .slice(0, targetCount);
 
               sortedMonsters.forEach(({ monster }) => {
-                // 在怪物脚下生成法阵，而不是发射投射物
-                const damage = Math.floor(player.rangedDamage * trackingMasteryBonus);
-                const duration = 2;  // 法阵持续2秒
+                // 在怪物脚下生成法阵，延迟1秒后造成伤害
+                const damage = Math.floor(trackingMasteryBonus);
+                const duration = 1;  // 法阵持续1秒
                 const radius = baseRadius * radiusBonusMultiplier;  // 法阵半径（可升级）
 
                 createMagicCircle(monster.id, monster.x, monster.y, damage, duration, radius);
@@ -3455,13 +3465,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       maxHp: 100,
       level: 1,
       exp: 0,
-      expToNext: 100,
+      expToNext: 80,
       speed: 6,
       baseSpeed: 6,
-      attackSpeed: 2,
+      attackSpeed: 3,
       lastAttack: 0,
-      meleeDamage: 30,
-      rangedDamage: 25,
+      meleeDamage: 45,
+      rangedDamage: 40,
       critRate: 0.15,
       critMultiplier: 2,
       attackRange: 110,
