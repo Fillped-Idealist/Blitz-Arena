@@ -1745,8 +1745,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           monster.lastAbilityTime = now;
         } else if (chargeElapsed > 1000) {
           // 实际冲刺阶段（0.5秒）
-          monster.vx = monster.chargeDirection.x * 25; // 冲刺速度
-          monster.vy = monster.chargeDirection.y * 25;
+          // 非线性冲刺速度：先慢后快，模拟真实的冲刺加速
+          const sprintProgress = (chargeElapsed - 1000) / 500; // 0到1
+          const accelerationCurve = Math.pow(sprintProgress, 0.7); // 非线性加速曲线
+          const currentSpeed = 15 + accelerationCurve * 20; // 从15加速到35
+
+          monster.vx = monster.chargeDirection.x * currentSpeed;
+          monster.vy = monster.chargeDirection.y * currentSpeed;
 
           // 记录冲刺轨迹
           monster.chargeTrail.push({ x: monster.x, y: monster.y, life: 2.0 });
@@ -1787,12 +1792,23 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             }
           }
         } else {
-          // 冲刺前摇阶段（1秒），显示冲刺路径
-          // 计算朝向玩家的方向
-          const dx = player.x - monster.x;
-          const dy = player.y - monster.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          monster.chargeDirection = { x: dx / distance, y: dy / distance };
+          // 冲刺前摇阶段（1秒），显示冲刺路径并后退
+          const windupProgress = chargeElapsed / 1000; // 0到1
+
+          // 在前摇开始时固定冲刺方向（不会追踪玩家）
+          if (chargeElapsed < 50) { // 前50毫秒计算并锁定方向
+            const dx = player.x - monster.x;
+            const dy = player.y - monster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            monster.chargeDirection = { x: dx / distance, y: dy / distance };
+          }
+
+          // 前摇阶段的后退动作（模拟蓄力）
+          const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
+          const retreatDistance = retreatProgress * 40; // 最多后退40像素
+
+          monster.vx = -monster.chargeDirection.x * retreatDistance * 2;
+          monster.vy = -monster.chargeDirection.y * retreatDistance * 2;
         }
       } else {
         // 检查是否开始冲刺（CD结束且玩家在攻击范围内）
@@ -2701,8 +2717,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 color: '#E74C3C'
               };
 
-              // 属性递增：每次刷新增加200%（每次增强一倍，不包括移速、CD、攻击距离）
-              const growthMultiplier = Math.pow(3.0, existingMeleeBossCount);
+              // 属性递增：每次刷新增加100%（每次翻倍，不包括移速、CD、攻击距离）
+              const growthMultiplier = Math.pow(2.0, existingMeleeBossCount);
               const difficulty = getDifficultyMultiplier(player.gameTime);
 
               const meleeBoss: Monster = {
@@ -3445,6 +3461,21 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const circleScreenY = worldToScreenY(circle.y);
           const alpha = 1 - progress;
 
+          // 绘制法阵范围指示器（地面光圈）
+          ctx.globalAlpha = alpha * 0.3;
+          ctx.fillStyle = '#9B59B6';
+          ctx.beginPath();
+          ctx.arc(circleScreenX, circleScreenY, circle.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 绘制法阵边界
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.strokeStyle = '#F1C40F';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(circleScreenX, circleScreenY, circle.radius, 0, Math.PI * 2);
+          ctx.stroke();
+
           ctx.globalAlpha = alpha;
 
           ctx.save();
@@ -3456,8 +3487,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const outerRing = PIXEL_ART.magicCircle.outerRing;
           outerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
-            ctx.globalAlpha = alpha * 0.6;
-            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+            ctx.globalAlpha = alpha * 0.8;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
           ctx.restore();
 
@@ -3467,8 +3498,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const middleRing = PIXEL_ART.magicCircle.middleRing;
           middleRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
-            ctx.globalAlpha = alpha * 0.5;
-            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+            ctx.globalAlpha = alpha * 0.7;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
           ctx.restore();
 
@@ -3478,8 +3509,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const innerRing = PIXEL_ART.magicCircle.innerRing;
           innerRing.forEach(pixel => {
             ctx.fillStyle = pixel.color;
-            ctx.globalAlpha = alpha * 0.7;
-            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
           ctx.restore();
 
@@ -3489,8 +3520,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const triangles = PIXEL_ART.magicCircle.triangles;
           triangles.forEach(pixel => {
             ctx.fillStyle = pixel.color;
-            ctx.globalAlpha = alpha * 0.8;
-            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
           ctx.restore();
 
@@ -3498,10 +3529,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const dots = PIXEL_ART.magicCircle.dots;
           const twinkle = (Math.sin(elapsedSeconds * 8) + 1) * 0.5;
           dots.forEach((pixel, index) => {
-            const dotAlpha = alpha * (0.3 + twinkle * 0.7) * (0.8 + Math.sin(index + elapsedSeconds * 5) * 0.2);
+            const dotAlpha = alpha * (0.5 + twinkle * 0.5) * (0.8 + Math.sin(index + elapsedSeconds * 5) * 0.2);
             ctx.fillStyle = pixel.color;
             ctx.globalAlpha = dotAlpha;
-            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
 
           // 中心符文（慢速脉冲）
@@ -3511,8 +3542,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const centerRune = PIXEL_ART.magicCircle.centerRune;
           centerRune.forEach(pixel => {
             ctx.fillStyle = pixel.color;
-            ctx.globalAlpha = alpha * 0.9;
-            ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
+            ctx.globalAlpha = alpha * 1.0;
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
           });
           ctx.restore();
 
@@ -3780,6 +3811,81 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
 
         ctx.restore();
+
+        // 绘制玩家状态条（生命值、护盾值、经验值）
+        const statusBarY = -PLAYER_SIZE - 35;
+        const statusBarWidth = 60;
+        const statusBarHeight = 5;
+        const statusBarGap = 7;
+
+        // 生命值条
+        const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(-statusBarWidth / 2, statusBarY, statusBarWidth, statusBarHeight);
+
+        const hpGradient = ctx.createLinearGradient(-statusBarWidth / 2, statusBarY, -statusBarWidth / 2 + statusBarWidth * hpPercent, statusBarY);
+        if (hpPercent > 0.5) {
+          hpGradient.addColorStop(0, '#2ECC71');
+          hpGradient.addColorStop(1, '#27AE60');
+        } else if (hpPercent > 0.3) {
+          hpGradient.addColorStop(0, '#F39C12');
+          hpGradient.addColorStop(1, '#E67E22');
+        } else {
+          hpGradient.addColorStop(0, '#E74C3C');
+          hpGradient.addColorStop(1, '#C0392B');
+        }
+        ctx.fillStyle = hpGradient;
+        ctx.fillRect(-statusBarWidth / 2, statusBarY, statusBarWidth * hpPercent, statusBarHeight);
+
+        // 生命值文字
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 9px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${Math.floor(player.hp)}`, 0, statusBarY + statusBarHeight / 2);
+
+        // 护盾值条（如果有护盾被动技能）
+        const hasShieldPassive = player.skills.some(s => s.id === 'passive_shield');
+        if (hasShieldPassive) {
+          const shieldPercent = Math.min(1, (shieldTimerRef.current / 15)); // 15秒冷却进度
+          const shieldBarY = statusBarY - statusBarHeight - statusBarGap;
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(-statusBarWidth / 2, shieldBarY, statusBarWidth, statusBarHeight);
+
+          ctx.fillStyle = '#3498DB';
+          ctx.fillRect(-statusBarWidth / 2, shieldBarY, statusBarWidth * shieldPercent, statusBarHeight);
+
+          // 护盾冷却文字
+          const remainingCooldown = Math.max(0, 15 - shieldTimerRef.current);
+          if (remainingCooldown > 0) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 8px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${remainingCooldown.toFixed(1)}s`, 0, shieldBarY + statusBarHeight / 2);
+          }
+        }
+
+        // 经验值条
+        const expPercent = Math.max(0, Math.min(1, player.exp / player.expToNext));
+        const expBarY = statusBarY + statusBarHeight + statusBarGap;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(-statusBarWidth / 2, expBarY, statusBarWidth, statusBarHeight);
+
+        const expGradient = ctx.createLinearGradient(-statusBarWidth / 2, expBarY, -statusBarWidth / 2 + statusBarWidth * expPercent, expBarY);
+        expGradient.addColorStop(0, '#7ED6DF');
+        expGradient.addColorStop(1, '#5DADE2');
+        ctx.fillStyle = expGradient;
+        ctx.fillRect(-statusBarWidth / 2, expBarY, statusBarWidth * expPercent, statusBarHeight);
+
+        // 经验值文字
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 9px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${Math.floor(player.exp)}/${player.expToNext}`, 0, expBarY + statusBarHeight / 2);
       }
 
       ctx.restore();
