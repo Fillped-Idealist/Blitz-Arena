@@ -1666,8 +1666,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     if (player.level >= 2 && typeRoll > 0.55 - difficulty * 0.05) type = 'skeleton';
     if (player.level >= 4 && typeRoll > 0.70 - difficulty * 0.05) type = 'ghost';
     if (player.level >= 5 && typeRoll > 0.82 - difficulty * 0.05) type = 'elite';
-    // 降低远程Boss刷新概率（从0.95改为0.97）
-    if (player.level >= 7 && typeRoll > 0.97 - difficulty * 0.05) type = 'boss';
+    // 远程Boss刷新阈值（阈值越高概率越低，0.98表示约2%概率）
+    if (player.level >= 7 && typeRoll > 0.98 - difficulty * 0.05) type = 'boss';
     // 近战Boss不通过普通生成逻辑生成（使用独立刷新逻辑）
 
     const monsterStats = {
@@ -2664,7 +2664,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           // 根据难度动态调整生成间隔
           // 2分钟后开始线性增加刷怪速度
-          const timeBonus = Math.max(0, (player.gameTime - 120) / 60 * 0.1); // 每分钟增加0.1（提高加成）
+          const timeBonus = Math.max(0, (player.gameTime - 120) / 60 * 0.2); // 每分钟增加0.2
           const spawnInterval = Math.max(0.15, 1.2 - Math.pow(difficultyRef.current, 0.5) * 0.3 - timeBonus);
 
           if (monsterSpawnTimerRef.current >= spawnInterval) {
