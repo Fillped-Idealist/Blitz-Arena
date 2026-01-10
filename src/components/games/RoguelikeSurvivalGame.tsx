@@ -106,6 +106,8 @@ interface Player {
   autoLockLevel: number;  // 自动锁敌技能等级（0=未解锁，1=已解锁）
   trackingMasteryLevel: number;  // 追踪精通等级（每级+20%伤害）
   damageReduction: number;  // 减伤百分比（0-0.8，上限80%）
+  shieldHp: number;  // 当前护盾值
+  shieldMaxHp: number;  // 最大护盾值
 }
 
 interface Monster {
@@ -992,7 +994,7 @@ const SKILL_POOL: Skill[] = [
     name: '护盾',
     description: '每15秒获得1500点临时护盾（被动）',
     type: 'passive',
-    apply: (p) => p,
+    apply: (p) => ({ ...p, shieldMaxHp: 1500 }),
     rarity: 'epic',
     color: COLORS.epic
   },
@@ -1763,6 +1765,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
               // 减伤（可叠加，上限80%）
               damage = Math.floor(damage * (1 - player.damageReduction));
+
+              // 玩家护盾优先吸收伤害
+              if (player.shieldHp > 0) {
+                const absorbed = Math.min(damage, player.shieldHp);
+                player.shieldHp = Math.max(0, Math.floor(player.shieldHp - absorbed));
+                damage = Math.max(0, damage - absorbed);
+                createParticles(player.x, player.y, '#3498DB', 8, 'shield');
+                playSound('shoot');
+              }
 
               if (monster.hasShield && monster.shieldHp > 0) {
                 const absorbed = Math.min(damage, monster.shieldHp);
@@ -2658,7 +2669,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         const hasShieldPassive = player.skills.some(s => s.id === 'passive_shield');
         if (hasShieldPassive && shieldTimerRef.current >= 15) {
           shieldTimerRef.current = 0;
-          // 这里可以添加护盾逻辑
+          // 添加护盾值
+          player.shieldHp = Math.min(player.shieldMaxHp, player.shieldHp + player.shieldMaxHp);
           createParticles(player.x, player.y, '#3498DB', 20, 'shield');
           playSound('levelup');
         }
@@ -2915,6 +2927,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 减伤（可叠加，上限80%）
               damage = Math.floor(damage * (1 - player.damageReduction));
 
+              // 玩家护盾优先吸收伤害
+              if (player.shieldHp > 0) {
+                const absorbed = Math.min(damage, player.shieldHp);
+                player.shieldHp = Math.max(0, Math.floor(player.shieldHp - absorbed));
+                damage = Math.max(0, damage - absorbed);
+                createParticles(player.x, player.y, '#3498DB', 8, 'shield');
+                playSound('shoot');
+              }
+
               if (monster.hasShield && monster.shieldHp > 0) {
                 const absorbed = Math.min(damage, monster.shieldHp);
                 monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
@@ -2986,23 +3007,23 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               ctx.restore();
             }
 
-            // Boss护盾视觉效果
+            // Boss护盾视觉效果（使用淡紫色，更不明显）
             if (monster.type === 'boss' && monster.hasShield && monster.shieldHp > 0) {
-              const shieldAlpha = 0.4 + Math.sin(gameTimeRef.current * 3) * 0.15;
+              const shieldAlpha = 0.2 + Math.sin(gameTimeRef.current * 3) * 0.08;
               ctx.save();
               ctx.translate(monsterScreenX, monsterScreenY + animOffset);
 
-              // 绘制外圈护盾
+              // 绘制外圈护盾（紫色）
               const outerShield = PIXEL_ART.bossShield.shield;
               outerShield.forEach(pixel => {
-                ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2));
+                ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2)).replace('52, 152, 219', '142, 68, 173');
                 ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
               });
 
-              // 绘制内圈护盾
+              // 绘制内圈护盾（淡紫色高亮）
               const innerShield = PIXEL_ART.bossShield.innerShield;
               innerShield.forEach(pixel => {
-                ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.2).toFixed(2));
+                ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.1).toFixed(2)).replace('52, 152, 219', '142, 68, 173');
                 ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
               });
 
@@ -3056,23 +3077,23 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 });
               }
 
-              // 近战Boss护盾（红色）
+              // 近战Boss护盾（淡紫色，更不明显）
               if (monster.hasShield && monster.shieldHp > 0) {
-                const shieldAlpha = 0.4 + Math.sin(gameTimeRef.current * 3) * 0.15;
+                const shieldAlpha = 0.2 + Math.sin(gameTimeRef.current * 3) * 0.08;
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
 
-                // 绘制外圈护盾（红色）
+                // 绘制外圈护盾（淡紫色）
                 const outerShield = PIXEL_ART.bossShield.shield;
                 outerShield.forEach(pixel => {
-                  ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2)).replace('52, 152, 219', '231, 76, 60');
+                  ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2)).replace('52, 152, 219', '142, 68, 173');
                   ctx.fillRect(pixel.x - 2, pixel.y - 2, 4, 4); // 放大以适应更大体型
                 });
 
-                // 绘制内圈护盾（红色高亮）
+                // 绘制内圈护盾（淡紫色高亮）
                 const innerShield = PIXEL_ART.bossShield.innerShield;
                 innerShield.forEach(pixel => {
-                  ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.2).toFixed(2)).replace('93, 173, 226', '255, 107, 107');
+                  ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.1).toFixed(2)).replace('93, 173, 226', '167, 107, 199');
                   ctx.fillRect(pixel.x - 2, pixel.y - 2, 4, 4); // 放大以适应更大体型
                 });
 
@@ -3315,6 +3336,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
                 // 减伤（可叠加，上限80%）
                 damage = Math.floor(damage * (1 - player.damageReduction));
+
+                // 玩家护盾优先吸收伤害
+                if (player.shieldHp > 0) {
+                  const absorbed = Math.min(damage, player.shieldHp);
+                  player.shieldHp = Math.max(0, Math.floor(player.shieldHp - absorbed));
+                  damage = Math.max(0, damage - absorbed);
+                  createParticles(player.x, player.y, '#3498DB', 8, 'shield');
+                  playSound('shoot');
+                }
 
                 player.hp = Math.max(0, Math.floor(player.hp - damage));
                 player.invincible = true;
@@ -3788,6 +3818,28 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         // 绘制像素艺术玩家
         drawPixelArt(ctx, PIXEL_ART.player.body, -8, -8, 1);
 
+        // 玩家护盾视觉效果（如果有护盾）
+        if (player.shieldHp > 0) {
+          const shieldAlpha = 0.35 + Math.sin(gameTimeRef.current * 4) * 0.1;
+          ctx.save();
+
+          // 外圈护盾（蓝色）
+          const outerShield = PIXEL_ART.bossShield.shield;
+          outerShield.forEach(pixel => {
+            ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2));
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
+          });
+
+          // 内圈护盾（高亮）
+          const innerShield = PIXEL_ART.bossShield.innerShield;
+          innerShield.forEach(pixel => {
+            ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.2).toFixed(2));
+            ctx.fillRect(pixel.x - 1, pixel.y - 1, 4, 4);
+          });
+
+          ctx.restore();
+        }
+
         // 近战武器（剑）- 指向鼠标方向
         ctx.save();
         ctx.rotate(mouseRef.current.angle);
@@ -3844,27 +3896,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.textBaseline = 'middle';
         ctx.fillText(`${Math.floor(player.hp)}`, 0, statusBarY + statusBarHeight / 2);
 
-        // 护盾值条（如果有护盾被动技能）
-        const hasShieldPassive = player.skills.some(s => s.id === 'passive_shield');
-        if (hasShieldPassive) {
-          const shieldPercent = Math.min(1, (shieldTimerRef.current / 15)); // 15秒冷却进度
+        // 护盾值条（显示当前护盾剩余值）
+        const hasShieldPassiveUI = player.skills.some(s => s.id === 'passive_shield');
+        if (hasShieldPassiveUI && player.shieldMaxHp > 0) {
+          const shieldPercent = Math.max(0, player.shieldHp / player.shieldMaxHp);
           const shieldBarY = statusBarY - statusBarHeight - statusBarGap;
 
           ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
           ctx.fillRect(-statusBarWidth / 2, shieldBarY, statusBarWidth, statusBarHeight);
 
-          ctx.fillStyle = '#3498DB';
+          const shieldGradient = ctx.createLinearGradient(-statusBarWidth / 2, shieldBarY, -statusBarWidth / 2 + statusBarWidth * shieldPercent, shieldBarY);
+          shieldGradient.addColorStop(0, '#5DADE2');
+          shieldGradient.addColorStop(1, '#3498DB');
+          ctx.fillStyle = shieldGradient;
           ctx.fillRect(-statusBarWidth / 2, shieldBarY, statusBarWidth * shieldPercent, statusBarHeight);
-
-          // 护盾冷却文字
-          const remainingCooldown = Math.max(0, 15 - shieldTimerRef.current);
-          if (remainingCooldown > 0) {
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 8px Arial, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`${remainingCooldown.toFixed(1)}s`, 0, shieldBarY + statusBarHeight / 2);
-          }
         }
 
         // 经验值条
@@ -4027,7 +4072,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       trackingMasteryLevel: 0,
       invincible: false,
       invincibleTime: 0,
-      damageReduction: 0  // 初始减伤为0
+      damageReduction: 0,  // 初始减伤为0
+      shieldHp: 0,  // 初始护盾为0
+      shieldMaxHp: 0  // 初始最大护盾为0
     };
 
     monstersRef.current = [];
