@@ -1711,7 +1711,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 280, color: '#E74C3C' } // 近战Boss：体型280像素
+      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 200, color: '#E74C3C' } // 近战Boss：体型200像素
     };
 
     const stats = monsterStats[type];
@@ -1848,10 +1848,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const distance = Math.sqrt(dx * dx + dy * dy);
             monster.chargeDirection = { x: dx / distance, y: dy / distance };
             monster.chargeStartPos = { x: monster.x, y: monster.y }; // 记录起点
-            // 计算终点（冲刺距离为200像素）
+            // 计算终点（冲刺距离按体型比例增加）
+            const sizeMultiplier = monster.size / 45; // 相对于普通Boss体型（45像素）的倍数
+            const chargeDistance = 200 * sizeMultiplier;
             monster.chargeEndPos = {
-              x: monster.x + monster.chargeDirection.x * 200,
-              y: monster.y + monster.chargeDirection.y * 200
+              x: monster.x + monster.chargeDirection.x * chargeDistance,
+              y: monster.y + monster.chargeDirection.y * chargeDistance
             };
           }
 
@@ -2820,7 +2822,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 baseDamage: 1200,
                 baseSpeed: 2.0,
                 baseExp: 1000,
-                baseSize: 280,
+                baseSize: 200,
                 color: '#E74C3C'
               };
 
@@ -3099,7 +3101,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (monsterPixels) {
               ctx.save();
               ctx.translate(monsterScreenX, monsterScreenY + animOffset);
-              ctx.scale(monster.scale * 1.2, monster.scale * 1.2);
+
+              // 近战Boss使用更大的缩放比例，使其显示大小与碰撞大小匹配
+              const scaleMultiplier = monster.type === 'melee_boss' ? 3.5 : 1.2;
+              ctx.scale(monster.scale * scaleMultiplier, monster.scale * scaleMultiplier);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
               ctx.restore();
             }
@@ -3133,8 +3138,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (monster.isCharging) {
                 const chargeElapsed = performance.now() - monster.chargeStartTime;
                 if (chargeElapsed <= 1000) { // 前摇阶段
-                  const pathLength = 200;
-                  const pathWidth = 60; // 冲刺区域宽度
+                  // 根据Boss体型调整冲刺距离和宽度
+                  const sizeMultiplier = monster.size / 45; // 相对于普通Boss体型（45像素）的倍数
+                  const pathLength = 200 * sizeMultiplier; // 冲刺距离按体型比例增加
+                  const pathWidth = 60 * sizeMultiplier; // 冲刺宽度按体型比例增加
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
                   const progress = chargeElapsed / 1000;
