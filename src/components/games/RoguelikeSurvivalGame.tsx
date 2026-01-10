@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Swords, Zap, Heart, Target, Play, X, Maximize2, Volume2, Flame, Sparkles, Skull, TrendingUp, Shield, Crown, Ghost, Crosshair, ShieldAlert, Gauge } from 'lucide-react';
 
 interface RoguelikeSurvivalGameProps {
   onComplete: (result: GameResult) => void;
@@ -22,28 +21,28 @@ export interface GameResult {
 }
 
 // ==================== 游戏常量 ====================
-const GAME_DURATION = 600;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
-const PLAYER_SIZE = 24;
-const MAX_MONSTERS = 80;
-const MAX_PROJECTILES = 80;
-const MAX_PARTICLES = 500;
-const MAX_DAMAGE_NUMBERS = 60;
+const PLAYER_SIZE = 20;
+const MAX_MONSTERS = 100;
+const MAX_PROJECTILES = 100;
+const MAX_PARTICLES = 600;
+const MAX_DAMAGE_NUMBERS = 80;
 const MONSTER_SPAWN_MARGIN = 200;
 
 // ==================== 颜色配置 ====================
 const COLORS = {
   player: '#FF4757',
-  playerGlow: 'rgba(255, 71, 87, 0.3)',
+  playerGlow: 'rgba(255, 71, 87, 0.35)',
   playerOutline: '#C92A2A',
-  playerWeapon: '#7BED9F',
+  playerWeapon: '#7ED6DF',
   slimeMonster: '#2ED573',
   skeletonMonster: '#A4B0BE',
   ghostMonster: '#70A1FF',
   bossMonster: '#9B59B6',
+  eliteMonster: '#E74C3C',
   projectile: '#FFA502',
-  projectileGlow: 'rgba(255, 165, 2, 0.5)',
+  projectileGlow: 'rgba(255, 165, 2, 0.6)',
   fireball: '#FF6B6B',
   blood: '#8B0000',
   spark: '#FFD700',
@@ -51,25 +50,42 @@ const COLORS = {
   slash: '#FFFFFF',
   hpBar: '#00CEC9',
   hpBarLow: '#FF7675',
-  expBar: '#7BED9F',
+  expBar: '#7ED6DF',
   expBarBackground: '#2D3436',
+  shieldBar: '#3498DB',
   common: '#95A5A6',
   rare: '#3498DB',
   epic: '#9B59B6',
   legendary: '#F1C40F',
-  mythic: '#E74C3C'
+  mythic: '#E74C3C',
+  backgroundStart: '#1A1A2E',
+  backgroundEnd: '#0F0F23',
+  obstacle: '#57606F',
+  obstacleHighlight: '#747D8C'
 };
+
+// ==================== 游戏状态枚举 ====================
+enum GameState {
+  START = 'START',
+  PLAYING = 'PLAYING',
+  PAUSED = 'PAUSED',
+  LEVEL_UP = 'LEVEL_UP',
+  GAME_OVER = 'GAME_OVER'
+}
 
 // ==================== 游戏状态接口 ====================
 interface Player {
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   hp: number;
   maxHp: number;
   level: number;
   exp: number;
   expToNext: number;
   speed: number;
+  baseSpeed: number;
   attackSpeed: number;
   lastAttack: number;
   meleeDamage: number;
@@ -82,12 +98,18 @@ interface Player {
   skills: Skill[];
   totalKills: number;
   totalDamage: number;
+  gameTime: number;
+  weaponType: 'sword' | 'bow' | 'staff';
+  invincible: boolean;
+  invincibleTime: number;
 }
 
 interface Monster {
   id: number;
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   hp: number;
   maxHp: number;
   damage: number;
@@ -104,6 +126,11 @@ interface Monster {
   stunnedTime: number;
   hasShield: boolean;
   shieldHp: number;
+  shieldMaxHp: number;
+  currentPhase: number;
+  phaseTimer: number;
+  abilityCooldown: number;
+  lastAbilityTime: number;
 }
 
 interface Projectile {
@@ -119,6 +146,7 @@ interface Projectile {
   trail: { x: number; y: number; life: number }[];
   type: 'arrow' | 'fireball' | 'lightning' | 'ice';
   pierceCount: number;
+  owner: 'player' | 'monster';
 }
 
 interface Particle {
@@ -130,7 +158,7 @@ interface Particle {
   maxLife: number;
   color: string;
   size: number;
-  type: 'blood' | 'spark' | 'explosion' | 'magic' | 'dust' | 'slash' | 'ice' | 'fire';
+  type: 'blood' | 'spark' | 'explosion' | 'magic' | 'dust' | 'slash' | 'ice' | 'fire' | 'heal' | 'shield';
   alpha: number;
   rotation: number;
   rotationSpeed: number;
@@ -145,6 +173,7 @@ interface DamageNumber {
   maxLife: number;
   color: string;
   isHeal: boolean;
+  scale: number;
 }
 
 interface ScreenShake {
@@ -160,32 +189,37 @@ interface SlashEffect {
   angle: number;
   life: number;
   maxLife: number;
-  type: 'horizontal' | 'vertical' | 'diagonal';
+  type: 'horizontal' | 'vertical' | 'diagonal' | 'spin';
+}
+
+interface Obstacle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: 'wall' | 'rock' | 'tree';
+  health: number;
 }
 
 interface Skill {
   id: string;
   name: string;
   description: string;
-  icon: React.ReactNode;
+  type: 'active' | 'passive';
   apply: (player: Player) => Player;
   rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
   color: string;
 }
 
-// ==================== 像素艺术定义 ====================
+// ==================== 像素艺术数据 ====================
 const PIXEL_ART = {
-  // 玩家像素图案（16x16网格，每像素4x4屏幕像素）
   player: {
     body: [
-      { x: -3, y: -3, color: '#FF4757' }, { x: -2, y: -3, color: '#FF4757' }, { x: -1, y: -3, color: '#FF4757' },
-      { x: 0, y: -3, color: '#FF4757' }, { x: 1, y: -3, color: '#FF4757' }, { x: 2, y: -3, color: '#FF4757' },
-      { x: 3, y: -3, color: '#FF4757' },
-      { x: -3, y: -2, color: '#FF4757' }, { x: -2, y: -2, color: '#FFF' }, { x: -1, y: -2, color: '#FFF' },
-      { x: 0, y: -2, color: '#FFF' }, { x: 1, y: -2, color: '#FFF' }, { x: 2, y: -2, color: '#FF4757' },
+      { x: -3, y: -2, color: '#FF4757' }, { x: -2, y: -2, color: '#FF4757' }, { x: -1, y: -2, color: '#FF6B6B' },
+      { x: 0, y: -2, color: '#FF6B6B' }, { x: 1, y: -2, color: '#FF6B6B' }, { x: 2, y: -2, color: '#FF4757' },
       { x: 3, y: -2, color: '#FF4757' },
-      { x: -3, y: -1, color: '#FF4757' }, { x: -2, y: -1, color: '#FFF' }, { x: -1, y: -1, color: '#C92A2A' },
-      { x: 0, y: -1, color: '#C92A2A' }, { x: 1, y: -1, color: '#FFF' }, { x: 2, y: -1, color: '#FF4757' },
+      { x: -3, y: -1, color: '#FF4757' }, { x: -2, y: -1, color: '#FFF' }, { x: -1, y: -1, color: '#FF4757' },
+      { x: 0, y: -1, color: '#C92A2A' }, { x: 1, y: -1, color: '#FF4757' }, { x: 2, y: -1, color: '#FFF' },
       { x: 3, y: -1, color: '#FF4757' },
       { x: -3, y: 0, color: '#FF4757' }, { x: -2, y: 0, color: '#FF4757' }, { x: -1, y: 0, color: '#FF4757' },
       { x: 0, y: 0, color: '#FF4757' }, { x: 1, y: 0, color: '#FF4757' }, { x: 2, y: 0, color: '#FF4757' },
@@ -194,28 +228,42 @@ const PIXEL_ART = {
       { x: 1, y: 1, color: '#FF4757' }, { x: 2, y: 1, color: '#FF4757' },
       { x: -1, y: 2, color: '#FF4757' }, { x: 0, y: 2, color: '#FF4757' }, { x: 1, y: 2, color: '#FF4757' },
     ],
-    shadow: [
-      { x: -2, y: 5, color: 'rgba(0,0,0,0.3)' }, { x: -1, y: 5, color: 'rgba(0,0,0,0.4)' },
-      { x: 0, y: 5, color: 'rgba(0,0,0,0.5)' }, { x: 1, y: 5, color: 'rgba(0,0,0,0.4)' },
-      { x: 2, y: 5, color: 'rgba(0,0,0,0.3)' },
-      { x: -1, y: 6, color: 'rgba(0,0,0,0.2)' }, { x: 0, y: 6, color: 'rgba(0,0,0,0.3)' },
-      { x: 1, y: 6, color: 'rgba(0,0,0,0.2)' },
-    ]
-  },
-  sword: {
-    handle: [
-      { x: 0, y: 6, color: '#8B4513' }, { x: 0, y: 7, color: '#8B4513' }, { x: 0, y: 8, color: '#8B4513' },
-      { x: 0, y: 9, color: '#8B4513' }, { x: 0, y: 10, color: '#8B4513' },
-      { x: -1, y: 11, color: '#8B4513' }, { x: 0, y: 11, color: '#DAA520' }, { x: 1, y: 11, color: '#8B4513' },
-    ],
-    blade: [
-      { x: 0, y: -8, color: '#C0C0C0' }, { x: 0, y: -7, color: '#E8E8E8' }, { x: 0, y: -6, color: '#C0C0C0' },
-      { x: 0, y: -5, color: '#E8E8E8' }, { x: 0, y: -4, color: '#C0C0C0' }, { x: 0, y: -3, color: '#E8E8E8' },
-      { x: 0, y: -2, color: '#C0C0C0' }, { x: 0, y: -1, color: '#E8E8E8' }, { x: 0, y: 0, color: '#DAA520' },
-      { x: 0, y: 1, color: '#E8E8E8' }, { x: 0, y: 2, color: '#C0C0C0' }, { x: 0, y: 3, color: '#E8E8E8' },
-      { x: 0, y: 4, color: '#C0C0C0' },
-      { x: -1, y: -9, color: '#E8E8E8' }, { x: 0, y: -9, color: '#FFFFFF' }, { x: 1, y: -9, color: '#E8E8E8' },
-    ]
+    weapon: {
+      sword: [
+        { x: 0, y: -8, color: '#C0C0C0' },
+        { x: 0, y: -7, color: '#E8E8E8' }, { x: -1, y: -7, color: '#C0C0C0' }, { x: 1, y: -7, color: '#C0C0C0' },
+        { x: 0, y: -6, color: '#C0C0C0' }, { x: -1, y: -6, color: '#E8E8E8' }, { x: 1, y: -6, color: '#E8E8E8' },
+        { x: 0, y: -5, color: '#E8E8E8' }, { x: -1, y: -5, color: '#C0C0C0' }, { x: 1, y: -5, color: '#C0C0C0' },
+        { x: 0, y: -4, color: '#C0C0C0' }, { x: -1, y: -4, color: '#E8E8E8' }, { x: 1, y: -4, color: '#E8E8E8' },
+        { x: 0, y: -3, color: '#E8E8E8' }, { x: -1, y: -3, color: '#C0C0C0' }, { x: 1, y: -3, color: '#C0C0C0' },
+        { x: 0, y: -2, color: '#C0C0C0' }, { x: -1, y: -2, color: '#E8E8E8' }, { x: 1, y: -2, color: '#E8E8E8' },
+        { x: 0, y: -1, color: '#DAA520' }, { x: -1, y: -1, color: '#8B4513' }, { x: 1, y: -1, color: '#8B4513' },
+        { x: 0, y: 0, color: '#DAA520' },
+        { x: 0, y: 1, color: '#8B4513' },
+        { x: -1, y: 2, color: '#8B4513' }, { x: 0, y: 2, color: '#8B4513' }, { x: 1, y: 2, color: '#8B4513' },
+      ],
+      bow: [
+        { x: 0, y: -8, color: '#8B4513' },
+        { x: -1, y: -7, color: '#8B4513' }, { x: 0, y: -7, color: '#A0522D' }, { x: 1, y: -7, color: '#8B4513' },
+        { x: -2, y: -6, color: '#8B4513' }, { x: 2, y: -6, color: '#8B4513' },
+        { x: -2, y: -5, color: '#8B4513' }, { x: 2, y: -5, color: '#8B4513' },
+        { x: -2, y: -4, color: '#8B4513' }, { x: 2, y: -4, color: '#8B4513' },
+        { x: -1, y: -3, color: '#8B4513' }, { x: 0, y: -3, color: '#A0522D' }, { x: 1, y: -3, color: '#8B4513' },
+        { x: 0, y: -2, color: '#8B4513' },
+      ],
+      staff: [
+        { x: 0, y: -8, color: '#70A1FF' }, { x: -1, y: -8, color: '#5DADE2' }, { x: 1, y: -8, color: '#5DADE2' },
+        { x: 0, y: -7, color: '#70A1FF' },
+        { x: 0, y: -6, color: '#8B4513' },
+        { x: 0, y: -5, color: '#A0522D' },
+        { x: 0, y: -4, color: '#8B4513' },
+        { x: 0, y: -3, color: '#A0522D' },
+        { x: 0, y: -2, color: '#8B4513' },
+        { x: 0, y: -1, color: '#DAA520' }, { x: -1, y: -1, color: '#8B4513' }, { x: 1, y: -1, color: '#8B4513' },
+        { x: 0, y: 0, color: '#DAA520' },
+        { x: 0, y: 1, color: '#8B4513' },
+      ]
+    }
   },
   monsters: {
     slime: [
@@ -223,27 +271,27 @@ const PIXEL_ART = {
       { x: 1, y: 2, color: '#2ED573' }, { x: 2, y: 2, color: '#2ED573' },
       { x: -2, y: 1, color: '#2ED573' }, { x: -1, y: 1, color: '#5DF078' }, { x: 0, y: 1, color: '#5DF078' },
       { x: 1, y: 1, color: '#5DF078' }, { x: 2, y: 1, color: '#2ED573' },
-      { x: -2, y: 0, color: '#2ED573' }, { x: -1, y: 0, color: '#5DF078' }, { x: 0, y: 0, color: '#FFFFFF' },
+      { x: -2, y: 0, color: '#2ED573' }, { x: -1, y: 0, color: '#5DF078' }, { x: 0, y: 0, color: '#7ED6DF' },
       { x: 1, y: 0, color: '#5DF078' }, { x: 2, y: 0, color: '#2ED573' },
       { x: -1, y: -1, color: '#2ED573' }, { x: 0, y: -1, color: '#2ED573' }, { x: 1, y: -1, color: '#2ED573' },
     ],
     skeleton: [
       { x: 0, y: -4, color: '#A4B0BE' },
-      { x: -2, y: -3, color: '#A4B0BE' }, { x: -1, y: -3, color: '#A4B0BE' }, { x: 0, y: -3, color: '#A4B0BE' },
-      { x: 1, y: -3, color: '#A4B0BE' }, { x: 2, y: -3, color: '#A4B0BE' },
-      { x: -2, y: -2, color: '#A4B0BE' }, { x: -1, y: -2, color: '#FFFFFF' }, { x: 0, y: -2, color: '#A4B0BE' },
-      { x: 1, y: -2, color: '#FFFFFF' }, { x: 2, y: -2, color: '#A4B0BE' },
-      { x: -2, y: -1, color: '#A4B0BE' }, { x: -1, y: -1, color: '#FFFFFF' }, { x: 0, y: -1, color: '#FF6B6B' },
-      { x: 1, y: -1, color: '#FFFFFF' }, { x: 2, y: -1, color: '#A4B0BE' },
-      { x: -2, y: 0, color: '#A4B0BE' }, { x: -1, y: 0, color: '#FFFFFF' }, { x: 0, y: 0, color: '#FF6B6B' },
-      { x: 1, y: 0, color: '#FFFFFF' }, { x: 2, y: 0, color: '#A4B0BE' },
+      { x: -2, y: -3, color: '#A4B0BE' }, { x: -1, y: -3, color: '#D4DBE0' }, { x: 0, y: -3, color: '#A4B0BE' },
+      { x: 1, y: -3, color: '#D4DBE0' }, { x: 2, y: -3, color: '#A4B0BE' },
+      { x: -2, y: -2, color: '#A4B0BE' }, { x: -1, y: -2, color: '#FF6B6B' }, { x: 0, y: -2, color: '#A4B0BE' },
+      { x: 1, y: -2, color: '#FF6B6B' }, { x: 2, y: -2, color: '#A4B0BE' },
+      { x: -2, y: -1, color: '#A4B0BE' }, { x: -1, y: -1, color: '#FF6B6B' }, { x: 0, y: -1, color: '#A4B0BE' },
+      { x: 1, y: -1, color: '#FF6B6B' }, { x: 2, y: -1, color: '#A4B0BE' },
+      { x: -2, y: 0, color: '#A4B0BE' }, { x: -1, y: 0, color: '#A4B0BE' }, { x: 0, y: 0, color: '#A4B0BE' },
+      { x: 1, y: 0, color: '#A4B0BE' }, { x: 2, y: 0, color: '#A4B0BE' },
       { x: -1, y: 1, color: '#A4B0BE' }, { x: 0, y: 1, color: '#A4B0BE' }, { x: 1, y: 1, color: '#A4B0BE' },
       { x: -1, y: 2, color: '#A4B0BE' }, { x: 0, y: 2, color: '#A4B0BE' }, { x: 1, y: 2, color: '#A4B0BE' },
     ],
     ghost: [
       { x: 0, y: -3, color: '#70A1FF' },
-      { x: -2, y: -2, color: '#70A1FF' }, { x: -1, y: -2, color: '#70A1FF' }, { x: 0, y: -2, color: '#70A1FF' },
-      { x: 1, y: -2, color: '#70A1FF' }, { x: 2, y: -2, color: '#70A1FF' },
+      { x: -2, y: -2, color: '#70A1FF' }, { x: -1, y: -2, color: '#85C1E9' }, { x: 0, y: -2, color: '#70A1FF' },
+      { x: 1, y: -2, color: '#85C1E9' }, { x: 2, y: -2, color: '#70A1FF' },
       { x: -2, y: -1, color: '#70A1FF' }, { x: -1, y: -1, color: '#FFFFFF' }, { x: 0, y: -1, color: '#70A1FF' },
       { x: 1, y: -1, color: '#FFFFFF' }, { x: 2, y: -1, color: '#70A1FF' },
       { x: -2, y: 0, color: '#70A1FF' }, { x: -1, y: 0, color: '#FFFFFF' }, { x: 0, y: 0, color: '#70A1FF' },
@@ -251,28 +299,6 @@ const PIXEL_ART = {
       { x: -2, y: 1, color: '#70A1FF' }, { x: -1, y: 1, color: '#FFFFFF' }, { x: 0, y: 1, color: '#70A1FF' },
       { x: 1, y: 1, color: '#FFFFFF' }, { x: 2, y: 1, color: '#70A1FF' },
       { x: -2, y: 2, color: '#70A1FF' }, { x: 0, y: 2, color: '#70A1FF' }, { x: 2, y: 2, color: '#70A1FF' },
-    ],
-    boss: [
-      { x: -4, y: -5, color: '#9B59B6' }, { x: -3, y: -5, color: '#9B59B6' }, { x: 3, y: -5, color: '#9B59B6' },
-      { x: 4, y: -5, color: '#9B59B6' },
-      { x: -4, y: -4, color: '#9B59B6' }, { x: -3, y: -4, color: '#BB6BB6' }, { x: -2, y: -4, color: '#9B59B6' },
-      { x: 2, y: -4, color: '#9B59B6' }, { x: 3, y: -4, color: '#BB6BB6' }, { x: 4, y: -4, color: '#9B59B6' },
-      { x: -4, y: -3, color: '#9B59B6' }, { x: -3, y: -3, color: '#FFFFFF' }, { x: -2, y: -3, color: '#9B59B6' },
-      { x: 2, y: -3, color: '#9B59B6' }, { x: 3, y: -3, color: '#FFFFFF' }, { x: 4, y: -3, color: '#9B59B6' },
-      { x: -4, y: -2, color: '#9B59B6' }, { x: -3, y: -2, color: '#FF6B6B' }, { x: -2, y: -2, color: '#9B59B6' },
-      { x: -1, y: -2, color: '#9B59B6' }, { x: 0, y: -2, color: '#9B59B6' }, { x: 1, y: -2, color: '#9B59B6' },
-      { x: 2, y: -2, color: '#9B59B6' }, { x: 3, y: -2, color: '#FF6B6B' }, { x: 4, y: -2, color: '#9B59B6' },
-      { x: -4, y: -1, color: '#9B59B6' }, { x: -3, y: -1, color: '#FF6B6B' }, { x: -2, y: -1, color: '#9B59B6' },
-      { x: -1, y: -1, color: '#FFFFFF' }, { x: 0, y: -1, color: '#9B59B6' }, { x: 1, y: -1, color: '#FFFFFF' },
-      { x: 2, y: -1, color: '#9B59B6' }, { x: 3, y: -1, color: '#FF6B6B' }, { x: 4, y: -1, color: '#9B59B6' },
-      { x: -4, y: 0, color: '#9B59B6' }, { x: -3, y: 0, color: '#FF6B6B' }, { x: -2, y: 0, color: '#9B59B6' },
-      { x: -1, y: 0, color: '#9B59B6' }, { x: 0, y: 0, color: '#9B59B6' }, { x: 1, y: 0, color: '#9B59B6' },
-      { x: 2, y: 0, color: '#9B59B6' }, { x: 3, y: 0, color: '#FF6B6B' }, { x: 4, y: 0, color: '#9B59B6' },
-      { x: -3, y: 1, color: '#9B59B6' }, { x: -2, y: 1, color: '#9B59B6' }, { x: -1, y: 1, color: '#9B59B6' },
-      { x: 0, y: 1, color: '#9B59B6' }, { x: 1, y: 1, color: '#9B59B6' }, { x: 2, y: 1, color: '#9B59B6' },
-      { x: 3, y: 1, color: '#9B59B6' },
-      { x: -2, y: 2, color: '#9B59B6' }, { x: -1, y: 2, color: '#9B59B6' }, { x: 0, y: 2, color: '#9B59B6' },
-      { x: 1, y: 2, color: '#9B59B6' }, { x: 2, y: 2, color: '#9B59B6' },
     ],
     elite: [
       { x: -3, y: -4, color: '#E74C3C' }, { x: -2, y: -4, color: '#E74C3C' }, { x: 2, y: -4, color: '#E74C3C' },
@@ -290,30 +316,40 @@ const PIXEL_ART = {
       { x: 3, y: 0, color: '#E74C3C' },
       { x: -2, y: 1, color: '#E74C3C' }, { x: -1, y: 1, color: '#E74C3C' }, { x: 0, y: 1, color: '#E74C3C' },
       { x: 1, y: 1, color: '#E74C3C' }, { x: 2, y: 1, color: '#E74C3C' },
+    ],
+    boss: [
+      { x: -4, y: -5, color: '#9B59B6' }, { x: -3, y: -5, color: '#9B59B6' }, { x: 3, y: -5, color: '#9B59B6' },
+      { x: 4, y: -5, color: '#9B59B6' },
+      { x: -4, y: -4, color: '#9B59B6' }, { x: -3, y: -4, color: '#BB6BB6' }, { x: -2, y: -4, color: '#9B59B6' },
+      { x: 2, y: -4, color: '#9B59B6' }, { x: 3, y: -4, color: '#BB6BB6' }, { x: 4, y: -4, color: '#9B59B6' },
+      { x: -4, y: -3, color: '#9B59B6' }, { x: -3, y: -3, color: '#BB6BB6' }, { x: -2, y: -3, color: '#9B59B6' },
+      { x: 2, y: -3, color: '#9B59B6' }, { x: 3, y: -3, color: '#BB6BB6' }, { x: 4, y: -3, color: '#9B59B6' },
+      { x: -4, y: -2, color: '#9B59B6' }, { x: -3, y: -2, color: '#FF6B6B' }, { x: -2, y: -2, color: '#9B59B6' },
+      { x: -1, y: -2, color: '#9B59B6' }, { x: 0, y: -2, color: '#9B59B6' }, { x: 1, y: -2, color: '#9B59B6' },
+      { x: 2, y: -2, color: '#9B59B6' }, { x: 3, y: -2, color: '#FF6B6B' }, { x: 4, y: -2, color: '#9B59B6' },
+      { x: -4, y: -1, color: '#9B59B6' }, { x: -3, y: -1, color: '#FF6B6B' }, { x: -2, y: -1, color: '#9B59B6' },
+      { x: -1, y: -1, color: '#FFFFFF' }, { x: 0, y: -1, color: '#9B59B6' }, { x: 1, y: -1, color: '#FFFFFF' },
+      { x: 2, y: -1, color: '#9B59B6' }, { x: 3, y: -1, color: '#FF6B6B' }, { x: 4, y: -1, color: '#9B59B6' },
+      { x: -4, y: 0, color: '#9B59B6' }, { x: -3, y: 0, color: '#FF6B6B' }, { x: -2, y: 0, color: '#9B59B6' },
+      { x: -1, y: 0, color: '#9B59B6' }, { x: 0, y: 0, color: '#9B59B6' }, { x: 1, y: 0, color: '#9B59B6' },
+      { x: 2, y: 0, color: '#9B59B6' }, { x: 3, y: 0, color: '#FF6B6B' }, { x: 4, y: 0, color: '#9B59B6' },
+      { x: -3, y: 1, color: '#9B59B6' }, { x: -2, y: 1, color: '#9B59B6' }, { x: -1, y: 1, color: '#9B59B6' },
+      { x: 0, y: 1, color: '#9B59B6' }, { x: 1, y: 1, color: '#9B59B6' }, { x: 2, y: 1, color: '#9B59B6' },
+      { x: 3, y: 1, color: '#9B59B6' },
+      { x: -2, y: 2, color: '#9B59B6' }, { x: -1, y: 2, color: '#9B59B6' }, { x: 0, y: 2, color: '#9B59B6' },
+      { x: 1, y: 2, color: '#9B59B6' }, { x: 2, y: 2, color: '#9B59B6' },
     ]
   }
 };
 
-// ==================== 绘制像素艺术的函数 ====================
-const drawPixelArt = (ctx: CanvasRenderingContext2D, pixels: { x: number; y: number; color: string }[], x: number, y: number, scale: number = 1) => {
-  pixels.forEach(pixel => {
-    ctx.fillStyle = pixel.color;
-    ctx.fillRect(
-      x + pixel.x * scale * 4,
-      y + pixel.y * scale * 4,
-      4 * scale,
-      4 * scale
-    );
-  });
-};
-
 // ==================== 技能池 ====================
 const SKILL_POOL: Skill[] = [
+  // 基础属性提升（主动）
   {
     id: 'melee_damage',
     name: '剑术精通',
     description: '近战伤害 +25%',
-    icon: <Swords className="w-6 h-6" />,
+    type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.25 }),
     rarity: 'common',
     color: COLORS.common
@@ -322,16 +358,26 @@ const SKILL_POOL: Skill[] = [
     id: 'ranged_damage',
     name: '箭术精通',
     description: '远程伤害 +25%',
-    icon: <Target className="w-6 h-6" />,
+    type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.25 }),
     rarity: 'common',
     color: COLORS.common
   },
   {
+    id: 'max_hp',
+    name: '钢铁之躯',
+    description: '最大生命值 +50',
+    type: 'active',
+    apply: (p) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
+    rarity: 'common',
+    color: COLORS.common
+  },
+  // 进阶属性提升（稀有）
+  {
     id: 'attack_speed',
     name: '迅捷之击',
     description: '攻击速度 +25%',
-    icon: <Zap className="w-6 h-6" />,
+    type: 'active',
     apply: (p) => ({ ...p, attackSpeed: p.attackSpeed * 1.25 }),
     rarity: 'rare',
     color: COLORS.rare
@@ -340,185 +386,295 @@ const SKILL_POOL: Skill[] = [
     id: 'movement_speed',
     name: '疾风步',
     description: '移动速度 +20%',
-    icon: <TrendingUp className="w-6 h-6" />,
-    apply: (p) => ({ ...p, speed: p.speed * 1.2 }),
+    type: 'active',
+    apply: (p) => ({ ...p, baseSpeed: p.baseSpeed * 1.2, speed: p.speed * 1.2 }),
     rarity: 'rare',
     color: COLORS.rare
-  },
-  {
-    id: 'max_hp',
-    name: '钢铁之躯',
-    description: '最大生命值 +50',
-    icon: <Heart className="w-6 h-6" />,
-    apply: (p) => ({ ...p, maxHp: p.maxHp + 50, hp: p.hp + 50 }),
-    rarity: 'common',
-    color: COLORS.common
-  },
-  {
-    id: 'crit_rate',
-    name: '致命一击',
-    description: '暴击率 +15%',
-    icon: <Crosshair className="w-6 h-6" />,
-    apply: (p) => ({ ...p, critRate: Math.min(p.critRate + 0.15, 1) }),
-    rarity: 'epic',
-    color: COLORS.epic
   },
   {
     id: 'attack_range',
     name: '范围扩大',
     description: '攻击范围 +30%',
-    icon: <Shield className="w-6 h-6" />,
+    type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.3 }),
     rarity: 'rare',
     color: COLORS.rare
   },
   {
-    id: 'arrow_bounce',
-    name: '弹射之箭',
-    description: '箭矢可弹射 +3 次',
-    icon: <Sparkles className="w-6 h-6" />,
-    apply: (p) => ({ ...p, arrowCount: p.arrowCount + 3 }),
+    id: 'regen_boost',
+    name: '生命恢复',
+    description: '每秒回复生命值 +3',
+    type: 'active',
+    apply: (p) => ({ ...p, regenRate: p.regenRate + 3 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  // 史诗技能
+  {
+    id: 'crit_rate',
+    name: '致命一击',
+    description: '暴击率 +20%',
+    type: 'active',
+    apply: (p) => ({ ...p, critRate: Math.min(p.critRate + 0.2, 1) }),
     rarity: 'epic',
     color: COLORS.epic
   },
   {
-    id: 'fire_mastery',
-    name: '火焰掌握',
-    description: '远程投射物变为火球，伤害+50%',
-    icon: <Flame className="w-6 h-6" />,
-    apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.5 }),
-    rarity: 'legendary',
-    color: COLORS.legendary
+    id: 'arrow_bounce',
+    name: '弹射之箭',
+    description: '箭矢可弹射 +4 次',
+    type: 'active',
+    apply: (p) => ({ ...p, arrowCount: p.arrowCount + 4 }),
+    rarity: 'epic',
+    color: COLORS.epic
   },
   {
     id: 'critical_mastery',
     name: '暴击精通',
     description: '暴击伤害 +75%',
-    icon: <Skull className="w-6 h-6" />,
+    type: 'active',
     apply: (p) => ({ ...p, critMultiplier: p.critMultiplier * 1.75 }),
-    rarity: 'legendary',
-    color: COLORS.legendary
-  },
-  {
-    id: 'regen_boost',
-    name: '生命恢复',
-    description: '每秒回复生命值 +3',
-    icon: <Heart className="w-6 h-6" />,
-    apply: (p) => ({ ...p, regenRate: p.regenRate + 3 }),
-    rarity: 'rare',
-    color: COLORS.rare
-  },
-  {
-    id: 'giant_slayer',
-    name: '巨人杀手',
-    description: '对Boss伤害 +100%',
-    icon: <ShieldAlert className="w-6 h-6" />,
-    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.5, rangedDamage: p.rangedDamage * 1.5 }),
     rarity: 'epic',
     color: COLORS.epic
   },
   {
     id: 'blade_dance',
     name: '剑舞',
-    description: '近战可以同时攻击3个敌人',
-    icon: <Sparkles className="w-6 h-6" />,
-    apply: (p) => ({ ...p, attackRange: p.attackRange * 1.4 }),
+    description: '近战可同时攻击5个敌人',
+    type: 'active',
+    apply: (p) => ({ ...p, attackRange: p.attackRange * 1.6 }),
     rarity: 'epic',
     color: COLORS.epic
   },
   {
-    id: 'berserker',
-    name: '狂战士',
-    description: '生命值越低，伤害越高（最高+100%）',
-    icon: <Flame className="w-6 h-6" />,
+    id: 'vampirism',
+    name: '吸血鬼之触',
+    description: '造成伤害的15%转化为生命值',
+    type: 'active',
+    apply: (p) => ({ ...p, regenRate: p.regenRate + 8 }),
+    rarity: 'epic',
+    color: COLORS.epic
+  },
+  // 传说技能
+  {
+    id: 'fire_mastery',
+    name: '火焰掌握',
+    description: '远程投射物变为火球，伤害+75%',
+    type: 'active',
+    apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.75 }),
+    rarity: 'legendary',
+    color: COLORS.legendary
+  },
+  {
+    id: 'giant_slayer',
+    name: '巨人杀手',
+    description: '对Boss和精英伤害 +100%',
+    type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.5, rangedDamage: p.rangedDamage * 1.5 }),
     rarity: 'legendary',
     color: COLORS.legendary
   },
   {
+    id: 'berserker',
+    name: '狂战士',
+    description: '生命值越低，伤害越高（最高+125%）',
+    type: 'active',
+    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.75, rangedDamage: p.rangedDamage * 1.75 }),
+    rarity: 'legendary',
+    color: COLORS.legendary
+  },
+  // 神话技能
+  {
     id: 'champion',
     name: '冠军之心',
-    description: '所有属性 +15%（生命值、伤害、速度）',
-    icon: <Crown className="w-6 h-6" />,
+    description: '所有属性 +20%（生命值、伤害、速度）',
+    type: 'active',
     apply: (p) => ({
       ...p,
-      maxHp: p.maxHp * 1.15,
-      hp: p.hp * 1.15,
-      meleeDamage: p.meleeDamage * 1.15,
-      rangedDamage: p.rangedDamage * 1.15,
-      speed: p.speed * 1.15
+      maxHp: p.maxHp * 1.2,
+      hp: p.hp * 1.2,
+      meleeDamage: p.meleeDamage * 1.2,
+      rangedDamage: p.rangedDamage * 1.2,
+      baseSpeed: p.baseSpeed * 1.2,
+      speed: p.speed * 1.2
     }),
     rarity: 'mythic',
     color: COLORS.mythic
   },
+  // 武器切换（主动）
   {
-    id: 'vampirism',
-    name: '吸血鬼之触',
-    description: '造成伤害的10%转化为生命值',
-    icon: <Ghost className="w-6 h-6" />,
-    apply: (p) => ({ ...p, regenRate: p.regenRate + 5 }),
+    id: 'change_bow',
+    name: '弓箭手',
+    description: '切换到弓箭，攻击范围+50%，攻击速度-15%',
+    type: 'active',
+    apply: (p) => ({ ...p, weaponType: 'bow', attackRange: p.attackRange * 1.5, attackSpeed: p.attackSpeed * 0.85 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'change_staff',
+    name: '法师',
+    description: '切换到法杖，远程伤害+40%，攻击范围+30%',
+    type: 'active',
+    apply: (p) => ({ ...p, weaponType: 'staff', rangedDamage: p.rangedDamage * 1.4, attackRange: p.attackRange * 1.3 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'change_sword',
+    name: '剑士',
+    description: '切换到剑，近战伤害+30%',
+    type: 'active',
+    apply: (p) => ({ ...p, weaponType: 'sword', meleeDamage: p.meleeDamage * 1.3 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  // 被动技能
+  {
+    id: 'passive_armor',
+    name: '坚韧',
+    description: '受到的伤害减少20%（被动）',
+    type: 'passive',
+    apply: (p) => p,
     rarity: 'epic',
     color: COLORS.epic
+  },
+  {
+    id: 'passive_thorns',
+    name: '荆棘护甲',
+    description: '受到伤害时反弹50%给攻击者（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic
+  },
+  {
+    id: 'passive_speed',
+    name: '迅捷',
+    description: '生命值低于50%时移动速度+30%（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'passive_lifesteal',
+    name: '生命汲取',
+    description: '击杀怪物回复5点生命值（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic
+  },
+  {
+    id: 'passive_exp',
+    name: '快速学习',
+    description: '获得的经验值+25%（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'passive_crit',
+    name: '弱点识别',
+    description: '暴击几率+10%（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, critRate: p.critRate + 0.1 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'passive_damage',
+    name: '力量',
+    description: '所有伤害+15%（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.15, rangedDamage: p.rangedDamage * 1.15 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'passive_shield',
+    name: '护盾',
+    description: '每15秒获得50点临时护盾（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic
+  },
+  {
+    id: 'passive_freeze',
+    name: '冰霜',
+    description: '攻击有10%几率冻结敌人1秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic
+  },
+  {
+    id: 'passive_chain',
+    name: '连锁',
+    description: '攻击有15%几率连锁到附近敌人（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'legendary',
+    color: COLORS.legendary
+  },
+  {
+    id: 'passive_revive',
+    name: '不屈',
+    description: '死亡时有20%几率回复50%生命值并继续战斗（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'mythic',
+    color: COLORS.mythic
+  },
+  {
+    id: 'passive_ultimate',
+    name: '终极',
+    description: '所有被动技能效果+50%（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'mythic',
+    color: COLORS.mythic
   }
 ];
 
 // ==================== 主组件 ====================
 export default function RoguelikeSurvivalGame({ onComplete, onCancel }: RoguelikeSurvivalGameProps) {
-  // 游戏状态
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
-  const [score, setScore] = useState(0);
+  // UI状态
   const [showTutorial, setShowTutorial] = useState(true);
-  const [showLevelUp, setShowLevelUp] = useState(false);
-  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  const [score, setScore] = useState(0);
+  const [playerStats, setPlayerStats] = useState<Player | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [uiUpdate, setUiUpdate] = useState(0);
-  const [playerStats, setPlayerStats] = useState<Player | null>(null);
+  const [gameInitialized, setGameInitialized] = useState(false);
 
-  // 游戏数据引用
-  const playerRef = useRef<Player>({
-    x: CANVAS_WIDTH / 2,
-    y: CANVAS_HEIGHT / 2,
-    hp: 100,
-    maxHp: 100,
-    level: 1,
-    exp: 0,
-    expToNext: 80,
-    speed: 5,
-    attackSpeed: 1.5,
-    lastAttack: 0,
-    meleeDamage: 25,
-    rangedDamage: 20,
-    critRate: 0.12,
-    critMultiplier: 2,
-    attackRange: 100,
-    arrowCount: 0,
-    regenRate: 1.5,
-    skills: [],
-    totalKills: 0,
-    totalDamage: 0
-  });
-
+  // 游戏核心数据引用
+  const gameStateRef = useRef<GameState>(GameState.START);
+  const playerRef = useRef<Player | null>(null);
   const monstersRef = useRef<Monster[]>([]);
   const projectilesRef = useRef<Projectile[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const damageNumbersRef = useRef<DamageNumber[]>([]);
   const slashEffectsRef = useRef<SlashEffect[]>([]);
   const screenShakeRef = useRef<ScreenShake>({ intensity: 0, duration: 0, x: 0, y: 0 });
+  const obstaclesRef = useRef<Obstacle[]>([]);
   const monsterIdCounterRef = useRef(0);
   const projectileIdCounterRef = useRef(0);
   const gameTimeRef = useRef(0);
   const lastRegenTimeRef = useRef(0);
+  const availableSkillsRef = useRef<Skill[]>([]);
+  const selectedSkillIndexRef = useRef<number>(-1);
+  const difficultyRef = useRef(1);
+  const scoreRef = useRef(0);
 
   // 音频上下文
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // 输入状态
   const keysRef = useRef<Record<string, boolean>>({});
-  const mouseRef = useRef({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 });
-  const mouseAngleRef = useRef(0);
+  const mouseRef = useRef({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, angle: 0 });
 
   // Canvas 引用
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -526,9 +682,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const monsterSpawnTimerRef = useRef<number>(0);
-  const gameTimerRef = useRef<number>(0);
   const autoAttackTimerRef = useRef<number>(0);
-  const uiUpdateTimerRef = useRef<number>(0);
+  const shieldTimerRef = useRef<number>(0);
+  const lastDamageTimeRef = useRef(0);
 
   // ==================== 音频系统 ====================
   const initAudio = useCallback(() => {
@@ -537,7 +693,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     }
   }, []);
 
-  const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage' | 'crit' | 'explosion' | 'slash' | 'heal') => {
+  const playSound = useCallback((type: 'hit' | 'kill' | 'levelup' | 'shoot' | 'damage' | 'crit' | 'explosion' | 'slash' | 'heal' | 'select' | 'hover') => {
     if (!soundEnabled || !audioContextRef.current) return;
 
     try {
@@ -553,9 +709,26 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       gainNode.connect(ctx.destination);
 
       switch (type) {
+        case 'select':
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.08);
+          gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.08);
+          break;
+        case 'hover':
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(400, ctx.currentTime);
+          gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.03);
+          break;
         case 'slash':
           oscillator.type = 'sawtooth';
-          oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+          oscillator.frequency.setValueAtTime(500, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.04);
           gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
@@ -563,15 +736,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           oscillator.stop(ctx.currentTime + 0.04);
           break;
         case 'hit':
-          oscillator.frequency.setValueAtTime(250, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.06);
+          oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.06);
           gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.06);
           oscillator.start(ctx.currentTime);
           oscillator.stop(ctx.currentTime + 0.06);
           break;
         case 'kill':
-          oscillator.frequency.setValueAtTime(350, ctx.currentTime);
+          oscillator.frequency.setValueAtTime(300, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.10);
           gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.10);
@@ -580,8 +753,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           break;
         case 'crit':
           oscillator.type = 'square';
-          oscillator.frequency.setValueAtTime(500, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.12);
+          oscillator.frequency.setValueAtTime(400, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.12);
           gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
           oscillator.start(ctx.currentTime);
@@ -590,15 +763,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         case 'levelup':
           oscillator.type = 'sine';
           oscillator.frequency.setValueAtTime(440, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-          oscillator.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.25);
+          oscillator.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+          oscillator.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.22);
           gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
           oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.25);
+          oscillator.stop(ctx.currentTime + 0.22);
           break;
         case 'shoot':
-          oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+          oscillator.frequency.setValueAtTime(500, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.03);
           gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
@@ -607,7 +780,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           break;
         case 'damage':
           oscillator.type = 'sawtooth';
-          oscillator.frequency.setValueAtTime(150, ctx.currentTime);
+          oscillator.frequency.setValueAtTime(120, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.12);
           gainNode.gain.setValueAtTime(0.25, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
@@ -616,7 +789,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           break;
         case 'explosion':
           oscillator.type = 'sawtooth';
-          oscillator.frequency.setValueAtTime(100, ctx.currentTime);
+          oscillator.frequency.setValueAtTime(80, ctx.currentTime);
           oscillator.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.15);
           gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
@@ -625,8 +798,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           break;
         case 'heal':
           oscillator.type = 'sine';
-          oscillator.frequency.setValueAtTime(400, ctx.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.10);
+          oscillator.frequency.setValueAtTime(300, ctx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.10);
           gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.10);
           oscillator.start(ctx.currentTime);
@@ -637,12 +810,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       console.error('Error playing sound:', error);
     }
   }, [soundEnabled]);
-
-  // ==================== 难度计算 ====================
-  const getDifficultyMultiplier = useCallback((): number => {
-    const elapsed = GAME_DURATION - timeLeft;
-    return 1 + (elapsed / 120) * 0.5;
-  }, [timeLeft]);
 
   // ==================== 屏幕震动 ====================
   const triggerScreenShake = useCallback((intensity: number, duration: number) => {
@@ -657,7 +824,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   // ==================== 粒子系统 ====================
   const createParticles = useCallback((x: number, y: number, color: string, count: number = 10, type: Particle['type'] = 'spark') => {
     for (let i = 0; i < count; i++) {
-      if (particlesRef.current.length >= MAX_PARTICLES) break;
+      if (particlesRef.current.length >= MAX_PARTICLES) {
+        particlesRef.current.shift();
+      }
 
       const angle = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 5;
@@ -687,7 +856,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       y,
       angle,
       life: 1,
-      maxLife: 0.2,
+      maxLife: 0.18,
       type
     });
   }, []);
@@ -707,7 +876,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       life: 1,
       maxLife: 0.7,
       color,
-      isHeal
+      isHeal,
+      scale: isCrit ? 1.3 : 1
     });
   }, []);
 
@@ -718,10 +888,27 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return Math.sqrt(dx * dx + dy * dy) < r1 + r2;
   }, []);
 
+  const checkObstacleCollision = useCallback((x: number, y: number, radius: number): boolean => {
+    for (const obs of obstaclesRef.current) {
+      if (x + radius > obs.x && x - radius < obs.x + obs.width &&
+          y + radius > obs.y && y - radius < obs.y + obs.height) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
+  // ==================== 难度计算（非线性） ====================
+  const getDifficultyMultiplier = useCallback((time: number): number => {
+    // 使用指数增长，每分钟难度显著提升
+    const minutes = time / 60;
+    const baseMultiplier = 1 + Math.pow(minutes, 1.2) * 0.4;
+    return Math.min(baseMultiplier, 10); // 上限10倍
+  }, []);
+
   // ==================== 自动攻击 ====================
-  const autoMeleeAttack = useCallback(() => {
-    const player = playerRef.current;
-    const now = Date.now();
+  const autoMeleeAttack = useCallback((player: Player) => {
+    const now = performance.now();
     const attackCooldown = 1000 / player.attackSpeed;
 
     if (now - player.lastAttack < attackCooldown) return;
@@ -732,24 +919,31 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         monster,
         distance: Math.sqrt(Math.pow(monster.x - player.x, 2) + Math.pow(monster.y - player.y, 2))
       }))
-      .filter(({ distance }) => distance < player.attackRange)
+      .filter(({ distance, monster }) => distance < player.attackRange && !checkObstacleCollision(playerRef.current!.x + (monster.x - player.x) * 0.5, playerRef.current!.y + (monster.y - player.y) * 0.5, 10))
       .sort((a, b) => a.distance - b.distance)
-      .slice(0, 3); // 最多攻击3个敌人
+      .slice(0, 5); // 最多攻击5个敌人
 
     if (targets.length === 0) return;
 
     player.lastAttack = now;
 
     targets.forEach(({ monster, distance }) => {
-      const isCrit = Math.random() < player.critRate;
-      const damage = isCrit ? player.meleeDamage * player.critMultiplier : player.meleeDamage;
+      let isCrit = Math.random() < player.critRate;
+      let damage = isCrit ? player.meleeDamage * player.critMultiplier : player.meleeDamage;
+
+      // 狂战士被动：生命值越低伤害越高
+      const hasBerserker = player.skills.some(s => s.id === 'berserker');
+      if (hasBerserker && player.hp < player.maxHp * 0.5) {
+        const hpPercent = player.hp / player.maxHp;
+        damage *= 1 + (1 - hpPercent) * 1.25;
+      }
 
       const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
       createSlashEffect(player.x, player.y, angle, 'diagonal');
 
       monster.hp -= damage;
       monster.isStunned = true;
-      monster.stunnedTime = 400;
+      monster.stunnedTime = 350;
 
       createParticles(monster.x, monster.y, COLORS.blood, 8, 'blood');
       createDamageNumber(monster.x, monster.y, damage, isCrit);
@@ -758,83 +952,129 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       player.totalDamage += damage;
 
+      // 荆棘护甲被动
+      const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
+      if (hasThorns) {
+        const thornsDamage = monster.damage * 0.5;
+        monster.hp -= thornsDamage;
+        createParticles(monster.x, monster.y, '#FF6B6B', 5, 'spark');
+      }
+
       if (monster.hp <= 0) {
-        player.exp += monster.exp;
+        let expGain = monster.exp;
+
+        // 快速学习被动
+        const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
+        if (hasFastLearning) {
+          expGain *= 1.25;
+        }
+
+        player.exp += expGain;
         player.totalKills++;
+
+        // 生命汲取被动
+        const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
+        if (hasLifesteal) {
+          const healAmount = 5;
+          player.hp = Math.min(player.hp + healAmount, player.maxHp);
+          createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+          playSound('heal');
+        }
+
         createParticles(monster.x, monster.y, monster.color, 15, 'explosion');
         triggerScreenShake(4, 0.12);
-        setScore(prev => prev + Math.floor(monster.exp));
+        scoreRef.current += Math.floor(monster.exp);
+        setScore(scoreRef.current);
         playSound('kill');
       }
     });
-  }, [createParticles, createDamageNumber, createSlashEffect, playSound, triggerScreenShake]);
+  }, [createParticles, createDamageNumber, createSlashEffect, playSound, triggerScreenShake, checkObstacleCollision]);
 
-  const autoRangedAttack = useCallback(() => {
-    const player = playerRef.current;
-    const now = Date.now();
+  const autoRangedAttack = useCallback((player: Player) => {
+    const now = performance.now();
     const attackCooldown = 1000 / player.attackSpeed;
 
     if (now - player.lastAttack < attackCooldown) return;
 
     player.lastAttack = now;
 
-    // 使用预计算的鼠标角度
-    const angle = mouseAngleRef.current;
+    const angle = mouseRef.current.angle;
 
-    const isFireball = player.rangedDamage > 30;
+    const isFireball = player.rangedDamage > 35;
 
     if (projectilesRef.current.length < MAX_PROJECTILES) {
+      let projectileType: Projectile['type'] = 'arrow';
+      if (isFireball) projectileType = 'fireball';
+      else if (player.weaponType === 'staff') projectileType = 'lightning';
+
       projectilesRef.current.push({
         id: projectileIdCounterRef.current++,
         x: player.x,
         y: player.y,
-        vx: Math.cos(angle) * 15,
-        vy: Math.sin(angle) * 15,
+        vx: Math.cos(angle) * 18,
+        vy: Math.sin(angle) * 18,
         damage: player.rangedDamage,
-        speed: 15,
+        speed: 18,
         bounceCount: player.arrowCount,
         angle,
         trail: [],
-        type: isFireball ? 'fireball' : 'arrow',
-        pierceCount: 0
+        type: projectileType,
+        pierceCount: 0,
+        owner: 'player'
       });
       playSound('shoot');
     }
   }, [playSound]);
 
   // ==================== 升级处理 ====================
-  const handleLevelUp = useCallback(() => {
-    const player = playerRef.current;
+  const handleLevelUp = useCallback((player: Player) => {
     player.level++;
     player.exp = 0;
     player.expToNext = Math.floor(player.expToNext * 1.5);
 
     const shuffled = [...SKILL_POOL].sort(() => Math.random() - 0.5);
     const selectedSkills = shuffled.slice(0, 3);
-    setAvailableSkills(selectedSkills);
-    setShowLevelUp(true);
+    availableSkillsRef.current = selectedSkills;
+    selectedSkillIndexRef.current = -1;
 
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
+    gameStateRef.current = GameState.LEVEL_UP;
 
     createParticles(player.x, player.y, COLORS.levelUp, 40, 'magic');
     playSound('levelup');
   }, [createParticles, playSound]);
 
-  const selectSkill = useCallback((skill: Skill) => {
-    playerRef.current = skill.apply(playerRef.current);
-    playerRef.current.skills.push(skill);
-    setShowLevelUp(false);
+  // ==================== 生成障碍物 ====================
+  const spawnObstacles = useCallback(() => {
+    obstaclesRef.current = [];
+    const numObstacles = 8 + Math.floor(gameTimeRef.current / 30);
 
-    lastTimeRef.current = performance.now();
-    gameLoop();
+    for (let i = 0; i < numObstacles; i++) {
+      let x, y, width, height;
+      const type = Math.random() > 0.5 ? 'rock' : 'wall';
+
+      // 确保障碍物不在玩家初始位置附近
+      do {
+        x = 100 + Math.random() * (CANVAS_WIDTH - 200);
+        y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
+      } while (Math.sqrt(Math.pow(x - CANVAS_WIDTH / 2, 2) + Math.pow(y - CANVAS_HEIGHT / 2, 2)) < 150);
+
+      if (type === 'rock') {
+        width = 40 + Math.random() * 40;
+        height = 30 + Math.random() * 30;
+      } else {
+        width = 20 + Math.random() * 20;
+        height = 80 + Math.random() * 40;
+      }
+
+      obstaclesRef.current.push({
+        x, y, width, height, type, health: type === 'wall' ? 100 : 50
+      });
+    }
   }, []);
 
   // ==================== 生成怪物 ====================
-  const spawnMonster = useCallback(() => {
-    const difficulty = getDifficultyMultiplier();
-    const player = playerRef.current;
+  const spawnMonster = useCallback((player: Player) => {
+    const difficulty = getDifficultyMultiplier(player.gameTime);
 
     const side = Math.floor(Math.random() * 4);
     let x: number, y: number;
@@ -848,21 +1088,21 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       default: x = CANVAS_WIDTH / 2; y = -margin;
     }
 
-    // 根据等级调整怪物类型概率
+    // 根据等级和难度调整怪物类型概率
     const typeRoll = Math.random();
     let type: Monster['type'] = 'slime';
 
-    if (player.level >= 2 && typeRoll > 0.60) type = 'skeleton';
-    if (player.level >= 4 && typeRoll > 0.75) type = 'ghost';
-    if (player.level >= 5 && typeRoll > 0.88) type = 'elite';
-    if (player.level >= 7 && typeRoll > 0.96) type = 'boss';
+    if (player.level >= 2 && typeRoll > 0.55 - difficulty * 0.05) type = 'skeleton';
+    if (player.level >= 4 && typeRoll > 0.70 - difficulty * 0.05) type = 'ghost';
+    if (player.level >= 5 && typeRoll > 0.82 - difficulty * 0.05) type = 'elite';
+    if (player.level >= 7 && typeRoll > 0.93 - difficulty * 0.05) type = 'boss';
 
     const monsterStats = {
-      slime: { baseHp: 35, baseDamage: 10, baseSpeed: 2.5, baseExp: 15, baseSize: 20, color: COLORS.slimeMonster },
-      skeleton: { baseHp: 50, baseDamage: 15, baseSpeed: 3, baseExp: 25, baseSize: 22, color: COLORS.skeletonMonster },
-      ghost: { baseHp: 40, baseDamage: 18, baseSpeed: 3.5, baseExp: 30, baseSize: 20, color: COLORS.ghostMonster },
-      elite: { baseHp: 80, baseDamage: 22, baseSpeed: 3, baseExp: 60, baseSize: 26, color: '#E74C3C' },
-      boss: { baseHp: 300, baseDamage: 30, baseSpeed: 2, baseExp: 150, baseSize: 40, color: COLORS.bossMonster }
+      slime: { baseHp: 40, baseDamage: 12, baseSpeed: 2.8, baseExp: 20, baseSize: 18, color: COLORS.slimeMonster },
+      skeleton: { baseHp: 55, baseDamage: 18, baseSpeed: 3.2, baseExp: 30, baseSize: 20, color: COLORS.skeletonMonster },
+      ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 3.8, baseExp: 40, baseSize: 18, color: COLORS.ghostMonster },
+      elite: { baseHp: 100, baseDamage: 28, baseSpeed: 3, baseExp: 80, baseSize: 24, color: COLORS.eliteMonster },
+      boss: { baseHp: 500, baseDamage: 40, baseSpeed: 2.2, baseExp: 200, baseSize: 45, color: COLORS.bossMonster }
     };
 
     const stats = monsterStats[type];
@@ -871,10 +1111,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       id: monsterIdCounterRef.current++,
       x,
       y,
+      vx: 0,
+      vy: 0,
       hp: stats.baseHp * difficulty,
       maxHp: stats.baseHp * difficulty,
       damage: stats.baseDamage * difficulty,
-      speed: stats.baseSpeed * (0.9 + Math.random() * 0.2),
+      speed: stats.baseSpeed * (0.95 + Math.random() * 0.1) * (1 + difficulty * 0.3),
       exp: Math.floor(stats.baseExp * difficulty),
       lastAttack: 0,
       size: stats.baseSize,
@@ -886,13 +1128,139 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       isStunned: false,
       stunnedTime: 0,
       hasShield: type === 'elite' || type === 'boss',
-      shieldHp: type === 'boss' ? 50 : 30
+      shieldHp: type === 'boss' ? 100 : 50,
+      shieldMaxHp: type === 'boss' ? 100 : 50,
+      currentPhase: 0,
+      phaseTimer: 0,
+      abilityCooldown: type === 'boss' ? 5 : 0,
+      lastAbilityTime: 0
     };
 
     if (monstersRef.current.length < MAX_MONSTERS) {
       monstersRef.current.push(monster);
     }
   }, [getDifficultyMultiplier]);
+
+  // ==================== Boss AI ====================
+  const updateBossAI = useCallback((monster: Monster, player: Player, deltaTime: number) => {
+    if (monster.type !== 'boss') return;
+
+    monster.phaseTimer += deltaTime;
+
+    // 阶段转换（每30秒）
+    if (monster.phaseTimer > 30 && monster.currentPhase < 2) {
+      monster.currentPhase++;
+      monster.phaseTimer = 0;
+
+      // 阶段转换特效
+      createParticles(monster.x, monster.y, '#FF6B6B', 30, 'explosion');
+      triggerScreenShake(10, 0.3);
+      playSound('explosion');
+
+      // 阶段转换增强
+      monster.speed *= 1.3;
+      monster.damage *= 1.5;
+    }
+
+    // Boss技能释放
+    const now = performance.now();
+    if (now - monster.lastAbilityTime > monster.abilityCooldown * 1000) {
+      monster.lastAbilityTime = now;
+
+      // 根据阶段释放不同技能
+      if (monster.currentPhase === 0) {
+        // 阶段1：扇形攻击
+        for (let i = -2; i <= 2; i++) {
+          const angle = Math.atan2(player.y - monster.y, player.x - monster.x) + i * 0.3;
+          projectilesRef.current.push({
+            id: projectileIdCounterRef.current++,
+            x: monster.x,
+            y: monster.y,
+            vx: Math.cos(angle) * 8,
+            vy: Math.sin(angle) * 8,
+            damage: monster.damage * 0.5,
+            speed: 8,
+            bounceCount: 0,
+            angle,
+            trail: [],
+            type: 'fireball',
+            pierceCount: 2,
+            owner: 'monster'
+          });
+        }
+        playSound('shoot');
+      } else if (monster.currentPhase === 1) {
+        // 阶段2：环形攻击
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          projectilesRef.current.push({
+            id: projectileIdCounterRef.current++,
+            x: monster.x,
+            y: monster.y,
+            vx: Math.cos(angle) * 6,
+            vy: Math.sin(angle) * 6,
+            damage: monster.damage * 0.3,
+            speed: 6,
+            bounceCount: 0,
+            angle,
+            trail: [],
+            type: 'ice',
+            pierceCount: 1,
+            owner: 'monster'
+          });
+        }
+        playSound('shoot');
+      } else {
+        // 阶段3：召唤小怪
+        for (let i = 0; i < 3; i++) {
+          const angle = (i / 3) * Math.PI * 2;
+          const newMonster: Monster = {
+            id: monsterIdCounterRef.current++,
+            x: monster.x + Math.cos(angle) * 80,
+            y: monster.y + Math.sin(angle) * 80,
+            vx: 0,
+            vy: 0,
+            hp: 50 * difficultyRef.current,
+            maxHp: 50 * difficultyRef.current,
+            damage: 15 * difficultyRef.current,
+            speed: 3,
+            exp: 30,
+            lastAttack: 0,
+            size: 15,
+            color: COLORS.ghostMonster,
+            type: 'ghost',
+            scale: 0.8,
+            angle: 0,
+            animationOffset: Math.random() * Math.PI * 2,
+            isStunned: false,
+            stunnedTime: 0,
+            hasShield: false,
+            shieldHp: 0,
+            shieldMaxHp: 0,
+            currentPhase: 0,
+            phaseTimer: 0,
+            abilityCooldown: 0,
+            lastAbilityTime: 0
+          };
+          monstersRef.current.push(newMonster);
+        }
+        playSound('levelup');
+      }
+    }
+  }, [createParticles, triggerScreenShake, playSound]);
+
+  // ==================== 绘制像素艺术 ====================
+  const drawPixelArt = useCallback((ctx: CanvasRenderingContext2D, pixels: { x: number; y: number; color: string }[], x: number, y: number, scale: number = 1) => {
+    pixels.forEach(pixel => {
+      ctx.fillStyle = pixel.color;
+      ctx.fillRect(
+        x + pixel.x * scale * 4,
+        y + pixel.y * scale * 4,
+        4 * scale,
+        4 * scale
+      );
+    });
+  }, []);
 
   // ==================== 绘制背景 ====================
   const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -901,17 +1269,17 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
       CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH
     );
-    gradient.addColorStop(0, '#1A1A2E');
+    gradient.addColorStop(0, COLORS.backgroundStart);
     gradient.addColorStop(0.5, '#16213E');
-    gradient.addColorStop(1, '#0F0F23');
+    gradient.addColorStop(1, COLORS.backgroundEnd);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // 滚动网格
     const tileSize = 60;
-    const gridOffset = (gameTimeRef.current * 20) % tileSize;
+    const gridOffset = (gameTimeRef.current * 15) % tileSize;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
     ctx.lineWidth = 1;
 
     for (let x = -tileSize + gridOffset; x < CANVAS_WIDTH + tileSize; x += tileSize) {
@@ -929,16 +1297,273 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     }
 
     // 闪烁的星星
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-    for (let i = 0; i < 50; i++) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    for (let i = 0; i < 60; i++) {
       const x = ((i * 137) % CANVAS_WIDTH);
       const y = ((i * 97) % CANVAS_HEIGHT);
-      const twinkle = (Math.sin(gameTimeRef.current * 3 + i * 0.5) + 1) * 0.5;
-      const size = (twinkle * 1.5 + 0.5);
+      const twinkle = (Math.sin(gameTimeRef.current * 2.5 + i * 0.5) + 1) * 0.5;
+      const size = (twinkle * 1.2 + 0.5);
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.fill();
     }
+  }, []);
+
+  // ==================== 绘制UI ====================
+  const drawUI = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
+    const padding = 10;
+
+    // 玩家信息栏
+    const barWidth = 180;
+    const barHeight = 14;
+
+    // 生命值条
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(padding + 10, padding, barWidth, barHeight);
+
+    const hpPercent = player.hp / player.maxHp;
+    const hpGradient = ctx.createLinearGradient(padding + 10, padding, padding + 10 + barWidth, padding);
+    hpGradient.addColorStop(0, '#FF6B6B');
+    hpGradient.addColorStop(1, '#FF4757');
+    ctx.fillStyle = hpGradient;
+    ctx.fillRect(padding + 10, padding, barWidth * hpPercent, barHeight);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 10px Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.floor(player.hp)}/${player.maxHp}`, padding + 12, padding + barHeight / 2);
+
+    // 经验值条
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(padding + 10, padding + barHeight + 4, barWidth, 8);
+
+    const expPercent = player.exp / player.expToNext;
+    const expGradient = ctx.createLinearGradient(padding + 10, padding + barHeight + 4, padding + 10 + barWidth, padding + barHeight + 4);
+    expGradient.addColorStop(0, '#7ED6DF');
+    expGradient.addColorStop(1, '#00CEC9');
+    ctx.fillStyle = expGradient;
+    ctx.fillRect(padding + 10, padding + barHeight + 4, barWidth * expPercent, 8);
+
+    // 等级显示
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 14px Arial, sans-serif';
+    ctx.fillText(`Lv.${player.level}`, padding + 10, padding + barHeight + 30);
+
+    // 分数显示
+    const difficulty = getDifficultyMultiplier(player.gameTime);
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Score: ${scoreRef.current}`, CANVAS_WIDTH - padding - 10, padding + 14);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '12px Arial, sans-serif';
+    ctx.fillText(`Time: ${Math.floor(player.gameTime)}s`, CANVAS_WIDTH - padding - 10, padding + 34);
+
+    ctx.fillStyle = '#FF6B6B';
+    ctx.fillText(`Difficulty: ${difficulty.toFixed(1)}x`, CANVAS_WIDTH - padding - 10, padding + 52);
+
+    // 状态指示器
+    let yOffset = 80;
+    const hasArmor = player.skills.some(s => s.id === 'passive_armor');
+    const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
+    const hasSpeed = player.skills.some(s => s.id === 'passive_speed');
+
+    if (hasArmor || hasThorns || hasSpeed) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(padding + 10, yOffset - 10, 12, 60);
+
+      if (hasArmor) {
+        ctx.fillStyle = '#3498DB';
+        ctx.fillRect(padding + 12, yOffset, 8, 8);
+        yOffset += 15;
+      }
+      if (hasThorns) {
+        ctx.fillStyle = '#E74C3C';
+        ctx.fillRect(padding + 12, yOffset, 8, 8);
+        yOffset += 15;
+      }
+      if (hasSpeed) {
+        ctx.fillStyle = '#2ECC71';
+        ctx.fillRect(padding + 12, yOffset, 8, 8);
+        yOffset += 15;
+      }
+    }
+  }, [getDifficultyMultiplier]);
+
+  // ==================== 绘制升级面板 ====================
+  const drawLevelUpPanel = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
+    // 半透明遮罩
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 标题
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 36px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('升级了！选择一个技能', CANVAS_WIDTH / 2, 120);
+
+    const skills = availableSkillsRef.current;
+    const panelWidth = 350;
+    const panelHeight = 420;
+    const panelGap = 30;
+    const totalWidth = panelWidth * 3 + panelGap * 2;
+    const startX = (CANVAS_WIDTH - totalWidth) / 2;
+    const startY = 180;
+
+    skills.forEach((skill, index) => {
+      const x = startX + index * (panelWidth + panelGap);
+      const isSelected = selectedSkillIndexRef.current === index;
+
+      // 背景面板
+      ctx.fillStyle = isSelected ? 'rgba(155, 89, 182, 0.4)' : 'rgba(30, 30, 50, 0.95)';
+      ctx.strokeStyle = isSelected ? '#9B59B6' : 'rgba(155, 89, 182, 0.5)';
+      ctx.lineWidth = isSelected ? 4 : 2;
+
+      // 绘制圆角矩形
+      const radius = 10;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, startY);
+      ctx.lineTo(x + panelWidth - radius, startY);
+      ctx.quadraticCurveTo(x + panelWidth, startY, x + panelWidth, startY + radius);
+      ctx.lineTo(x + panelWidth, startY + panelHeight - radius);
+      ctx.quadraticCurveTo(x + panelWidth, startY + panelHeight, x + panelWidth - radius, startY + panelHeight);
+      ctx.lineTo(x + radius, startY + panelHeight);
+      ctx.quadraticCurveTo(x, startY + panelHeight, x, startY + panelHeight - radius);
+      ctx.lineTo(x, startY + radius);
+      ctx.quadraticCurveTo(x, startY, x + radius, startY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 稀有度标签
+      ctx.fillStyle = skill.color;
+      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(skill.rarity.toUpperCase(), x + panelWidth / 2, startY + 30);
+
+      // 技能名称
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 20px Arial, sans-serif';
+      ctx.fillText(skill.name, x + panelWidth / 2, startY + 70);
+
+      // 技能描述
+      ctx.fillStyle = '#BDC3C7';
+      ctx.font = '14px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      // 文字换行处理
+      const maxWidth = panelWidth - 30;
+      const words = skill.description.split('');
+      let line = '';
+      let lineY = startY + 110;
+
+      for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i];
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && i > 0) {
+          ctx.fillText(line, x + 15, lineY);
+          line = words[i];
+          lineY += 20;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x + 15, lineY);
+
+      // 技能类型
+      ctx.fillStyle = skill.type === 'passive' ? '#2ECC71' : '#3498DB';
+      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(skill.type === 'passive' ? '被动' : '主动', x + panelWidth / 2, startY + panelHeight - 50);
+
+      // 键盘快捷键提示
+      ctx.fillStyle = '#7F8C8D';
+      ctx.font = '12px Arial, sans-serif';
+      ctx.fillText(`按 ${index + 1} 选择`, x + panelWidth / 2, startY + panelHeight - 25);
+    });
+  }, []);
+
+  // ==================== 绘制开始屏幕 ====================
+  const drawStartScreen = useCallback((ctx: CanvasRenderingContext2D) => {
+    drawBackground(ctx);
+
+    // 标题
+    ctx.fillStyle = '#FF4757';
+    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('肉鸽割草', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 100);
+
+    // 副标题
+    ctx.fillStyle = '#BDC3C7';
+    ctx.font = '24px Arial, sans-serif';
+    ctx.fillText('生存 · 战斗 · 进化', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
+
+    // 操作说明
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '18px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    const instructions = [
+      'WASD 或 方向键 - 移动',
+      '鼠标移动 - 瞄准',
+      '自动攻击 - 近战/远程自动切换',
+      '按空格键开始游戏'
+    ];
+    instructions.forEach((instruction, index) => {
+      ctx.fillText(instruction, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30 + index * 35);
+    });
+
+    // 闪烁的开始提示
+    const alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+    ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.fillText('按空格键开始游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 220);
+  }, [drawBackground]);
+
+  // ==================== 绘制游戏结束屏幕 ====================
+  const drawGameOverScreen = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
+    // 半透明遮罩
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 标题
+    ctx.fillStyle = '#FF4757';
+    ctx.font = 'bold 64px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('游戏结束', CANVAS_WIDTH / 2, 150);
+
+    // 分数
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.fillText(scoreRef.current.toString(), CANVAS_WIDTH / 2, 240);
+
+    ctx.fillStyle = '#BDC3C7';
+    ctx.font = '24px Arial, sans-serif';
+    ctx.fillText('最终得分', CANVAS_WIDTH / 2, 285);
+
+    // 统计信息
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '20px Arial, sans-serif';
+    const stats = [
+      `等级: ${player.level}`,
+      `击杀: ${player.totalKills}`,
+      `存活: ${Math.floor(player.gameTime)}秒`,
+      `总伤害: ${Math.floor(player.totalDamage)}`
+    ];
+    stats.forEach((stat, index) => {
+      ctx.fillText(stat, CANVAS_WIDTH / 2, 340 + index * 35);
+    });
+
+    // 操作提示
+    ctx.fillStyle = '#7F8C8D';
+    ctx.font = '18px Arial, sans-serif';
+    ctx.fillText('按 R 重新开始', CANVAS_WIDTH / 2, 530);
+    ctx.fillText('按 Q 退出', CANVAS_WIDTH / 2, 565);
   }, []);
 
   // ==================== 游戏主循环 ====================
@@ -953,8 +1578,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const now = performance.now();
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = now;
-      gameTimeRef.current += deltaTime;
 
+      const gameState = gameStateRef.current;
+      const player = playerRef.current;
+
+      // 根据游戏状态渲染不同内容
+      if (gameState === GameState.START) {
+        drawStartScreen(ctx);
+        animationFrameRef.current = requestAnimationFrame(gameLoop);
+        return;
+      }
+
+      if (!player) return;
+
+      // 屏幕震动
       let shakeX = 0, shakeY = 0;
       if (screenShakeRef.current.duration > 0) {
         const shakeRatio = screenShakeRef.current.duration / 0.15;
@@ -968,459 +1605,694 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       drawBackground(ctx);
 
-      const player = playerRef.current;
-
-      // 玩家移动
-      let dx = 0, dy = 0;
-      if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
-      if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
-      if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
-      if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
-
-      if (dx !== 0 || dy !== 0) {
-        const length = Math.sqrt(dx * dx + dy * dy);
-        dx /= length;
-        dy /= length;
-
-        player.x += dx * player.speed;
-        player.y += dy * player.speed;
-
-        player.x = Math.max(PLAYER_SIZE + 10, Math.min(CANVAS_WIDTH - PLAYER_SIZE - 10, player.x));
-        player.y = Math.max(PLAYER_SIZE + 10, Math.min(CANVAS_HEIGHT - PLAYER_SIZE - 10, player.y));
-
-        if (Math.random() < 0.25) {
-          createParticles(player.x, player.y + PLAYER_SIZE, '#555', 1, 'dust');
+      if (gameState === GameState.PLAYING || gameState === GameState.LEVEL_UP) {
+        // 更新游戏时间
+        if (gameState === GameState.PLAYING) {
+          player.gameTime += deltaTime;
+          gameTimeRef.current = player.gameTime;
         }
-      }
 
-      // 生命恢复
-      lastRegenTimeRef.current += deltaTime;
-      if (lastRegenTimeRef.current >= 1 && player.regenRate > 0) {
-        lastRegenTimeRef.current = 0;
-        if (player.hp < player.maxHp) {
-          const healAmount = Math.min(player.regenRate, player.maxHp - player.hp);
-          player.hp += healAmount;
-          if (healAmount > 0.5) {
-            createDamageNumber(player.x, player.y - 20, healAmount, false, true);
-            playSound('heal');
+        // 更新难度
+        difficultyRef.current = getDifficultyMultiplier(player.gameTime);
+
+        // 玩家移动（带惯性）
+        let dx = 0, dy = 0;
+        if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
+        if (keysRef.current['s'] || keysRef.current['arrowdown']) dy += 1;
+        if (keysRef.current['a'] || keysRef.current['arrowleft']) dx -= 1;
+        if (keysRef.current['d'] || keysRef.current['arrowright']) dx += 1;
+
+        if (dx !== 0 || dy !== 0) {
+          const length = Math.sqrt(dx * dx + dy * dy);
+          dx /= length;
+          dy /= length;
+
+          // 惯性处理
+          player.vx = player.vx * 0.85 + dx * player.speed * 0.15;
+          player.vy = player.vy * 0.85 + dy * player.speed * 0.15;
+
+          // 迅捷被动：低血量时加速
+          const hasSpeed = player.skills.some(s => s.id === 'passive_speed');
+          let speedMultiplier = 1;
+          if (hasSpeed && player.hp < player.maxHp * 0.5) {
+            speedMultiplier = 1.3;
+          }
+
+          const newX = player.x + player.vx * speedMultiplier * deltaTime * 60;
+          const newY = player.y + player.vy * speedMultiplier * deltaTime * 60;
+
+          // 边界和障碍物碰撞检测
+          if (!checkObstacleCollision(newX, player.y, PLAYER_SIZE) &&
+              newX > PLAYER_SIZE + 10 && newX < CANVAS_WIDTH - PLAYER_SIZE - 10) {
+            player.x = newX;
+          }
+          if (!checkObstacleCollision(player.x, newY, PLAYER_SIZE) &&
+              newY > PLAYER_SIZE + 10 && newY < CANVAS_HEIGHT - PLAYER_SIZE - 10) {
+            player.y = newY;
+          }
+
+          if (Math.random() < 0.3) {
+            createParticles(player.x, player.y + PLAYER_SIZE, '#555', 1, 'dust');
+          }
+        } else {
+          player.vx *= 0.9;
+          player.vy *= 0.9;
+        }
+
+        // 生命恢复
+        lastRegenTimeRef.current += deltaTime;
+        if (lastRegenTimeRef.current >= 1 && player.regenRate > 0) {
+          lastRegenTimeRef.current = 0;
+          if (player.hp < player.maxHp) {
+            const healAmount = Math.min(player.regenRate, player.maxHp - player.hp);
+            player.hp += healAmount;
+            if (healAmount > 0.5) {
+              createDamageNumber(player.x, player.y - 25, healAmount, false, true);
+              playSound('heal');
+            }
           }
         }
-      }
 
-      // UI更新
-      uiUpdateTimerRef.current += deltaTime;
-      if (uiUpdateTimerRef.current >= 0.1) {
-        uiUpdateTimerRef.current = 0;
-        setUiUpdate(prev => prev + 1);
+        // 护盾被动
+        shieldTimerRef.current += deltaTime;
+        const hasShieldPassive = player.skills.some(s => s.id === 'passive_shield');
+        if (hasShieldPassive && shieldTimerRef.current >= 15) {
+          shieldTimerRef.current = 0;
+          // 这里可以添加护盾逻辑
+          createParticles(player.x, player.y, '#3498DB', 20, 'shield');
+          playSound('levelup');
+        }
+
+        // UI更新
         setPlayerStats({ ...player });
-      }
 
-      // 生成怪物
-      const difficulty = getDifficultyMultiplier();
-      monsterSpawnTimerRef.current += deltaTime;
-      const spawnInterval = Math.max(0.3, 1.5 - difficulty * 0.4);
+        // 生成怪物（仅在游戏中）
+        if (gameState === GameState.PLAYING) {
+          monsterSpawnTimerRef.current += deltaTime;
 
-      if (monsterSpawnTimerRef.current >= spawnInterval) {
-        spawnMonster();
-        monsterSpawnTimerRef.current = 0;
-      }
+          // 根据难度动态调整生成间隔
+          const spawnInterval = Math.max(0.2, 1.2 - Math.pow(difficultyRef.current, 0.5) * 0.3);
 
-      // 自动攻击
-      autoAttackTimerRef.current += deltaTime;
-      const autoAttackInterval = 1 / player.attackSpeed;
+          if (monsterSpawnTimerRef.current >= spawnInterval) {
+            spawnMonster(player);
+            monsterSpawnTimerRef.current = 0;
+          }
 
-      if (autoAttackTimerRef.current >= autoAttackInterval) {
-        autoAttackTimerRef.current = 0;
+          // 自动攻击
+          autoAttackTimerRef.current += deltaTime;
+          const autoAttackInterval = 1 / player.attackSpeed;
 
-        let hasNearbyEnemy = false;
-        for (const monster of monstersRef.current) {
-          const mdx = monster.x - player.x;
-          const mdy = monster.y - player.y;
+          if (autoAttackTimerRef.current >= autoAttackInterval) {
+            autoAttackTimerRef.current = 0;
+
+            let hasNearbyEnemy = false;
+            for (const monster of monstersRef.current) {
+              const mdx = monster.x - player.x;
+              const mdy = monster.y - player.y;
+              const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+
+              if (mDistance < player.attackRange) {
+                hasNearbyEnemy = true;
+                break;
+              }
+            }
+
+            if (hasNearbyEnemy) {
+              autoMeleeAttack(player);
+            } else {
+              autoRangedAttack(player);
+            }
+          }
+        }
+
+        // 更新怪物
+        monstersRef.current = monstersRef.current.filter(monster => {
+          const mdx = player.x - monster.x;
+          const mdy = player.y - monster.y;
           const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
 
-          if (mDistance < player.attackRange) {
-            hasNearbyEnemy = true;
-            break;
-          }
-        }
+          if (mDistance > 1) {
+            const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
 
-        if (hasNearbyEnemy) {
-          autoMeleeAttack();
-        } else {
-          autoRangedAttack();
-        }
-      }
+            // 避障AI
+            let targetX = player.x;
+            let targetY = player.y;
 
-      // 更新怪物
-      monstersRef.current = monstersRef.current.filter(monster => {
-        const mdx = player.x - monster.x;
-        const mdy = player.y - monster.y;
-        const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
+            // 检查前方是否有障碍物
+            const checkX = monster.x + (mdx / mDistance) * 30;
+            const checkY = monster.y + (mdy / mDistance) * 30;
 
-        if (mDistance > 1) {
-          const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
-          monster.x += (mdx / mDistance) * moveSpeed;
-          monster.y += (mdy / mDistance) * moveSpeed;
-        }
-
-        if (monster.isStunned) {
-          monster.stunnedTime -= deltaTime * 1000;
-          if (monster.stunnedTime <= 0) {
-            monster.isStunned = false;
-          }
-        }
-
-        // 碰撞检测
-        const now = Date.now();
-        if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
-          if (now - monster.lastAttack > 800) {
-            // 护盾优先吸收伤害
-            let damage = monster.damage;
-            if (monster.hasShield && monster.shieldHp > 0) {
-              const absorbed = Math.min(damage, monster.shieldHp);
-              monster.shieldHp -= absorbed;
-              damage -= absorbed;
-              createParticles(monster.x, monster.y, '#3498DB', 5, 'spark');
+            if (checkObstacleCollision(checkX, checkY, monster.size)) {
+              // 尝试绕过障碍物
+              if (!checkObstacleCollision(monster.x + (mdy / mDistance) * 30, monster.y - (mdx / mDistance) * 30, monster.size)) {
+                targetX = player.x + mdy;
+                targetY = player.y - mdx;
+              } else {
+                targetX = player.x - mdy;
+                targetY = player.y + mdx;
+              }
             }
 
-            if (damage > 0) {
-              player.hp -= damage;
-              monster.lastAttack = now;
-              createDamageNumber(player.x, player.y, damage, false);
-              triggerScreenShake(6, 0.25);
-              playSound('damage');
-              createParticles(player.x, player.y, COLORS.player, 8, 'blood');
+            const tdx = targetX - monster.x;
+            const tdy = targetY - monster.y;
+            const tDistance = Math.sqrt(tdx * tdx + tdy * tdy);
+
+            if (tDistance > 1) {
+              monster.vx = (tdx / tDistance) * moveSpeed;
+              monster.vy = (tdy / tDistance) * moveSpeed;
             }
 
-            if (player.hp <= 0) {
-              endGame();
+            const newX = monster.x + monster.vx;
+            const newY = monster.y + monster.vy;
+
+            if (!checkObstacleCollision(newX, monster.y, monster.size)) {
+              monster.x = newX;
+            }
+            if (!checkObstacleCollision(monster.x, newY, monster.size)) {
+              monster.y = newY;
+            }
+          }
+
+          if (monster.isStunned) {
+            monster.stunnedTime -= deltaTime * 1000;
+            if (monster.stunnedTime <= 0) {
+              monster.isStunned = false;
+            }
+          }
+
+          // Boss AI
+          updateBossAI(monster, player, deltaTime);
+
+          // 玩家与怪物碰撞
+          if (gameState === GameState.PLAYING && checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
+            if (performance.now() - monster.lastAttack > 700) {
+              // 护盾优先吸收伤害
+              let damage = monster.damage;
+
+              // 坚韧被动
+              const hasArmor = player.skills.some(s => s.id === 'passive_armor');
+              if (hasArmor) {
+                damage *= 0.8;
+              }
+
+              if (monster.hasShield && monster.shieldHp > 0) {
+                const absorbed = Math.min(damage, monster.shieldHp);
+                monster.shieldHp -= absorbed;
+                damage -= absorbed;
+                createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
+                playSound('shoot');
+              }
+
+              // 无敌帧
+              if (!player.invincible) {
+                if (damage > 0) {
+                  player.hp -= damage;
+                  monster.lastAttack = performance.now();
+                  createDamageNumber(player.x, player.y, damage, false);
+                  triggerScreenShake(7, 0.28);
+                  playSound('damage');
+                  createParticles(player.x, player.y, COLORS.player, 10, 'blood');
+
+                  player.invincible = true;
+                  player.invincibleTime = 500;
+
+                  // 不屈被动检查
+                  const hasRevive = player.skills.some(s => s.id === 'passive_revive');
+                  if (hasRevive && player.hp <= 0 && Math.random() < 0.2) {
+                    player.hp = player.maxHp * 0.5;
+                    createParticles(player.x, player.y, '#00FF00', 30, 'magic');
+                    triggerScreenShake(15, 0.5);
+                    playSound('levelup');
+                    player.invincible = true;
+                    player.invincibleTime = 2000;
+                  }
+                }
+              }
+            }
+          }
+
+          // 更新无敌帧
+          if (player.invincible) {
+            player.invincibleTime -= deltaTime * 1000;
+            if (player.invincibleTime <= 0) {
+              player.invincible = false;
+            }
+          }
+
+          // 绘制怪物
+          ctx.save();
+          ctx.translate(monster.x, monster.y);
+
+          // 阴影
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+          ctx.beginPath();
+          ctx.ellipse(0, monster.size * 0.4, monster.size * 0.7, monster.size * 0.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 动画偏移
+          const bounce = Math.sin(gameTimeRef.current * 7 + monster.animationOffset) * 2;
+          const scale = monster.type === 'boss' ? 1.6 : (monster.type === 'elite' ? 1.3 : 1);
+          ctx.translate(0, bounce);
+          ctx.scale(scale, scale);
+
+          // 绘制像素艺术怪物
+          const monsterArt = PIXEL_ART.monsters[monster.type];
+          if (monsterArt) {
+            drawPixelArt(ctx, monsterArt, -8, -8, 1);
+          } else {
+            ctx.fillStyle = monster.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 护盾效果
+          if (monster.hasShield && monster.shieldHp > 0) {
+            ctx.strokeStyle = '#3498DB';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.8 + Math.sin(gameTimeRef.current * 5) * 0.2;
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.size + 8, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+
+          ctx.restore();
+
+          // 怪物血条
+          const hpPercent = monster.hp / monster.maxHp;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(monster.x - monster.size - 2, monster.y - monster.size - 14, monster.size * 2 + 4, 6);
+          ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
+          ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 12, monster.size * 2 * hpPercent, 4);
+
+          // 护盾条
+          if (monster.hasShield && monster.shieldHp > 0) {
+            const shieldPercent = monster.shieldHp / monster.shieldMaxHp;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(monster.x - monster.size - 2, monster.y - monster.size - 20, monster.size * 2 + 4, 4);
+            ctx.fillStyle = '#3498DB';
+            ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 18, monster.size * 2 * shieldPercent, 2);
+          }
+
+          return monster.hp > 0;
+        });
+
+        // 更新投射物
+        projectilesRef.current = projectilesRef.current.filter(projectile => {
+          projectile.x += projectile.vx;
+          projectile.y += projectile.vy;
+
+          projectile.trail.push({ x: projectile.x, y: projectile.y, life: 1 });
+          if (projectile.trail.length > 25) projectile.trail.shift();
+          projectile.trail.forEach(t => t.life -= deltaTime * 12);
+
+          // 边界弹射（仅玩家投射物）
+          if (projectile.owner === 'player') {
+            if (projectile.x <= 0 || projectile.x >= CANVAS_WIDTH) {
+              projectile.vx *= -1;
+              projectile.bounceCount--;
+            }
+            if (projectile.y <= 0 || projectile.y >= CANVAS_HEIGHT) {
+              projectile.vy *= -1;
+              projectile.bounceCount--;
+            }
+          }
+
+          // 绘制轨迹
+          ctx.strokeStyle = projectile.type === 'fireball' ? '#FF6B6B' :
+                           (projectile.type === 'ice' ? '#85C1E9' :
+                           (projectile.type === 'lightning' ? '#F1C40F' : COLORS.projectileGlow));
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          projectile.trail.forEach((t, i) => {
+            if (t.life > 0) {
+              ctx.globalAlpha = t.life * 0.5;
+              if (i === 0) {
+                ctx.moveTo(t.x, t.y);
+              } else {
+                ctx.lineTo(t.x, t.y);
+              }
+            }
+          });
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          // 绘制投射物
+          const glowColor = projectile.type === 'fireball' ? '#FF6B6B' :
+                           (projectile.type === 'ice' ? '#85C1E9' :
+                           (projectile.type === 'lightning' ? '#F1C40F' : COLORS.projectileGlow));
+          const glowSize = projectile.type === 'fireball' ? 18 :
+                          (projectile.type === 'ice' ? 14 :
+                          (projectile.type === 'lightning' ? 16 : 12));
+          const glow = ctx.createRadialGradient(projectile.x, projectile.y, 0, projectile.x, projectile.y, glowSize);
+          glow.addColorStop(0, glowColor);
+          glow.addColorStop(1, 'rgba(255, 165, 2, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y, glowSize, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = projectile.type === 'fireball' ? COLORS.fireball :
+                        (projectile.type === 'ice' ? '#85C1E9' :
+                        (projectile.type === 'lightning' ? '#F1C40F' : COLORS.projectile));
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 7 :
+                 (projectile.type === 'ice' ? 5 :
+                 (projectile.type === 'lightning' ? 6 : 5)), 0, Math.PI * 2);
+          ctx.fill();
+
+          // 碰撞检测
+          if (projectile.owner === 'player') {
+            let hit = false;
+            for (const monster of monstersRef.current) {
+              const hitRadius = projectile.type === 'fireball' ? 12 :
+                              (projectile.type === 'ice' ? 10 :
+                              (projectile.type === 'lightning' ? 11 : 8));
+              if (checkCollision(projectile.x, projectile.y, hitRadius, monster.x, monster.y, monster.size)) {
+                let isCrit = Math.random() < player.critRate;
+                let damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
+
+                // 狂战士被动
+                const hasBerserker = player.skills.some(s => s.id === 'berserker');
+                if (hasBerserker && player.hp < player.maxHp * 0.5) {
+                  const hpPercent = player.hp / player.maxHp;
+                  damage *= 1 + (1 - hpPercent) * 1.25;
+                }
+
+                // 巨人杀手被动
+                const hasGiantSlayer = player.skills.some(s => s.id === 'giant_slayer');
+                if (hasGiantSlayer && (monster.type === 'boss' || monster.type === 'elite')) {
+                  damage *= 1.5;
+                }
+
+                // 护盾优先吸收
+                if (monster.hasShield && monster.shieldHp > 0) {
+                  const absorbed = Math.min(damage, monster.shieldHp);
+                  monster.shieldHp -= absorbed;
+                  damage -= absorbed;
+                  createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
+                  playSound('shoot');
+                }
+
+                // 冰霜被动
+                const hasFreeze = player.skills.some(s => s.id === 'passive_freeze');
+                if (hasFreeze && Math.random() < 0.1) {
+                  monster.isStunned = true;
+                  monster.stunnedTime = 1000;
+                  createParticles(monster.x, monster.y, '#85C1E9', 10, 'ice');
+                }
+
+                if (damage > 0) {
+                  monster.hp -= damage;
+                  createParticles(projectile.x, projectile.y, COLORS.spark, 8, 'spark');
+                  createDamageNumber(monster.x, monster.y, damage, isCrit);
+                  playSound(isCrit ? 'crit' : 'hit');
+                  triggerScreenShake(isCrit ? 3.5 : 1.8, isCrit ? 0.11 : 0.07);
+                }
+
+                player.totalDamage += damage;
+
+                // 荆棘护甲被动
+                const hasThorns = player.skills.some(s => s.id === 'passive_thorns');
+                if (hasThorns) {
+                  const thornsDamage = monster.damage * 0.5;
+                  monster.hp -= thornsDamage;
+                  createParticles(monster.x, monster.y, '#FF6B6B', 5, 'spark');
+                }
+
+                // 连锁被动
+                const hasChain = player.skills.some(s => s.id === 'passive_chain');
+                if (hasChain && Math.random() < 0.15) {
+                  for (const otherMonster of monstersRef.current) {
+                    if (otherMonster.id !== monster.id && checkCollision(monster.x, monster.y, 100, otherMonster.x, otherMonster.y, otherMonster.size)) {
+                      otherMonster.hp -= damage * 0.5;
+                      createParticles(otherMonster.x, otherMonster.y, '#F1C40F', 6, 'magic');
+                    }
+                  }
+                }
+
+                if (monster.hp <= 0) {
+                  let expGain = monster.exp;
+
+                  // 快速学习被动
+                  const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
+                  if (hasFastLearning) {
+                    expGain *= 1.25;
+                  }
+
+                  player.exp += expGain;
+                  player.totalKills++;
+
+                  // 生命汲取被动
+                  const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
+                  if (hasLifesteal) {
+                    const healAmount = 5;
+                    player.hp = Math.min(player.hp + healAmount, player.maxHp);
+                    createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+                    playSound('heal');
+                  }
+
+                  createParticles(monster.x, monster.y, monster.color, 12, 'explosion');
+                  triggerScreenShake(4, 0.12);
+                  scoreRef.current += Math.floor(monster.exp);
+                  setScore(scoreRef.current);
+                  playSound('kill');
+                }
+
+                hit = true;
+                break;
+              }
+            }
+
+            if (hit) {
+              if (projectile.pierceCount > 0) {
+                projectile.pierceCount--;
+                return true;
+              }
+              if (projectile.bounceCount <= 0) {
+                return false;
+              }
+            }
+          } else {
+            // 怪物投射物与玩家碰撞
+            if (checkCollision(projectile.x, projectile.y, 8, player.x, player.y, PLAYER_SIZE)) {
+              if (!player.invincible) {
+                let damage = projectile.damage;
+
+                // 坚韧被动
+                const hasArmor = player.skills.some(s => s.id === 'passive_armor');
+                if (hasArmor) {
+                  damage *= 0.8;
+                }
+
+                player.hp -= damage;
+                player.invincible = true;
+                player.invincibleTime = 500;
+
+                createDamageNumber(player.x, player.y, damage, false);
+                triggerScreenShake(6, 0.22);
+                playSound('damage');
+                createParticles(player.x, player.y, COLORS.player, 8, 'blood');
+
+                if (player.hp <= 0) {
+                  gameStateRef.current = GameState.GAME_OVER;
+                  return false;
+                }
+              }
               return false;
             }
           }
-        }
 
-        // 绘制怪物（使用像素艺术）
+          if (projectile.x < -70 || projectile.x > CANVAS_WIDTH + 70 ||
+              projectile.y < -70 || projectile.y > CANVAS_HEIGHT + 70 ||
+              projectile.bounceCount < 0) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // 更新刀光特效
+        slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
+          slash.life -= deltaTime / slash.maxLife;
+
+          if (slash.life <= 0) return false;
+
+          const alpha = slash.life;
+          ctx.globalAlpha = alpha;
+
+          ctx.save();
+          ctx.translate(slash.x, slash.y);
+          ctx.rotate(slash.angle);
+
+          ctx.strokeStyle = COLORS.slash;
+          ctx.lineWidth = 5;
+          ctx.shadowColor = COLORS.slash;
+          ctx.shadowBlur = 14;
+
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(40, -28, 80, 0);
+          ctx.quadraticCurveTo(40, 10, 0, 0);
+          ctx.stroke();
+
+          ctx.restore();
+          ctx.globalAlpha = 1;
+
+          return true;
+        });
+
+        // 更新粒子
+        particlesRef.current = particlesRef.current.filter(particle => {
+          particle.life -= deltaTime;
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          particle.vy += 0.25;
+          particle.rotation += particle.rotationSpeed;
+
+          if (particle.life <= 0) return false;
+
+          const alpha = particle.life / particle.maxLife;
+          ctx.globalAlpha = alpha;
+
+          if (particle.type === 'blood') {
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (particle.type === 'spark') {
+            const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size);
+            gradient.addColorStop(0, particle.color);
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (particle.type === 'magic' || particle.type === 'shield') {
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * alpha * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (particle.type === 'explosion') {
+            const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 2.5);
+            gradient.addColorStop(0, particle.color);
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * alpha * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (particle.type === 'dust') {
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * alpha * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (particle.type === 'ice') {
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.globalAlpha = 1;
+          return true;
+        });
+
+        // 更新伤害数字
+        damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
+          dn.life -= deltaTime;
+          dn.y -= 3;
+
+          if (dn.life <= 0) return false;
+
+          const alpha = dn.life / dn.maxLife;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = dn.color;
+          ctx.font = dn.isCrit ? `bold ${36 * dn.scale}px Arial, sans-serif` : `bold ${28 * dn.scale}px Arial, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = dn.color;
+          ctx.shadowBlur = dn.isHeal ? 7 : 12;
+          ctx.fillText(dn.damage.toString(), dn.x, dn.y);
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
+
+          return true;
+        });
+
+        // 绘制障碍物
+        obstaclesRef.current.forEach(obs => {
+          ctx.fillStyle = obs.type === 'rock' ? '#57606F' : '#636E72';
+          ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+          // 高光
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+          ctx.fillRect(obs.x, obs.y, obs.width, 4);
+          ctx.fillRect(obs.x, obs.y, 4, obs.height);
+        });
+
+        // 绘制玩家
         ctx.save();
-        ctx.translate(monster.x, monster.y);
+        ctx.translate(player.x, player.y);
 
         // 阴影
         ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.beginPath();
-        ctx.ellipse(0, monster.size * 0.4, monster.size * 0.7, monster.size * 0.25, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, PLAYER_SIZE * 0.35, PLAYER_SIZE * 0.7, PLAYER_SIZE * 0.25, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 动画偏移
-        const bounce = Math.sin(gameTimeRef.current * 6 + monster.animationOffset) * 2;
-        const scale = monster.type === 'boss' ? 1.5 : (monster.type === 'elite' ? 1.2 : 1);
-        ctx.translate(0, bounce);
-        ctx.scale(scale, scale);
-
-        // 绘制像素艺术怪物
-        const monsterArt = PIXEL_ART.monsters[monster.type];
-        if (monsterArt) {
-          drawPixelArt(ctx, monsterArt, -8, -8, 1);
-        } else {
-          // 回退到圆形
-          ctx.fillStyle = monster.color;
-          ctx.beginPath();
-          ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // 护盾效果
-        if (monster.hasShield && monster.shieldHp > 0) {
-          ctx.strokeStyle = '#3498DB';
-          ctx.lineWidth = 2;
-          ctx.globalAlpha = 0.7 + Math.sin(gameTimeRef.current * 4) * 0.3;
-          ctx.beginPath();
-          ctx.arc(0, 0, monster.size + 6, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
-
-        ctx.restore();
-
-        // 怪物血条
-        const hpPercent = monster.hp / monster.maxHp;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(monster.x - monster.size - 2, monster.y - monster.size - 12, monster.size * 2 + 4, 6);
-        ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
-        ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 10, monster.size * 2 * hpPercent, 4);
-
-        // 护盾条
-        if (monster.hasShield && monster.shieldHp > 0) {
-          const shieldMaxHp = monster.type === 'boss' ? 50 : 30;
-          const shieldPercent = monster.shieldHp / shieldMaxHp;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-          ctx.fillRect(monster.x - monster.size - 2, monster.y - monster.size - 18, monster.size * 2 + 4, 4);
-          ctx.fillStyle = '#3498DB';
-          ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 17, monster.size * 2 * shieldPercent, 2);
-        }
-
-        return monster.hp > 0;
-      });
-
-      // 更新投射物
-      projectilesRef.current = projectilesRef.current.filter(projectile => {
-        projectile.x += projectile.vx;
-        projectile.y += projectile.vy;
-
-        projectile.trail.push({ x: projectile.x, y: projectile.y, life: 1 });
-        if (projectile.trail.length > 20) projectile.trail.shift();
-        projectile.trail.forEach(t => t.life -= deltaTime * 10);
-
-        // 边界弹射
-        if (projectile.x <= 0 || projectile.x >= CANVAS_WIDTH) {
-          projectile.vx *= -1;
-          projectile.bounceCount--;
-        }
-        if (projectile.y <= 0 || projectile.y >= CANVAS_HEIGHT) {
-          projectile.vy *= -1;
-          projectile.bounceCount--;
-        }
-
-        // 绘制轨迹
-        ctx.strokeStyle = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectileGlow;
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
+        // 玩家光晕
+        const playerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, PLAYER_SIZE * 2.8);
+        playerGlow.addColorStop(0, COLORS.playerGlow);
+        playerGlow.addColorStop(1, 'rgba(255, 71, 87, 0)');
+        ctx.fillStyle = playerGlow;
         ctx.beginPath();
-        projectile.trail.forEach((t, i) => {
-          if (t.life > 0) {
-            ctx.globalAlpha = t.life * 0.5;
-            if (i === 0) {
-              ctx.moveTo(t.x, t.y);
-            } else {
-              ctx.lineTo(t.x, t.y);
-            }
-          }
-        });
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-
-        // 绘制投射物
-        const glowColor = projectile.type === 'fireball' ? '#FF6B6B' : COLORS.projectileGlow;
-        const glowSize = projectile.type === 'fireball' ? 16 : 12;
-        const glow = ctx.createRadialGradient(projectile.x, projectile.y, 0, projectile.x, projectile.y, glowSize);
-        glow.addColorStop(0, glowColor);
-        glow.addColorStop(1, 'rgba(255, 165, 2, 0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, glowSize, 0, Math.PI * 2);
+        ctx.arc(0, 0, PLAYER_SIZE * 2.8, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = projectile.type === 'fireball' ? COLORS.fireball : COLORS.projectile;
-        ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 6 : 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 碰撞检测
-        let hit = false;
-        for (const monster of monstersRef.current) {
-          const hitRadius = projectile.type === 'fireball' ? 10 : 6;
-          if (checkCollision(projectile.x, projectile.y, hitRadius, monster.x, monster.y, monster.size)) {
-            const isCrit = Math.random() < player.critRate;
-            let damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
-
-            // 护盾优先吸收伤害
-            if (monster.hasShield && monster.shieldHp > 0) {
-              const absorbed = Math.min(damage, monster.shieldHp);
-              monster.shieldHp -= absorbed;
-              damage -= absorbed;
-              createParticles(monster.x, monster.y, '#3498DB', 5, 'spark');
-            }
-
-            if (damage > 0) {
-              monster.hp -= damage;
-              createParticles(projectile.x, projectile.y, COLORS.spark, 6, 'spark');
-              createDamageNumber(monster.x, monster.y, damage, isCrit);
-              playSound(isCrit ? 'crit' : 'hit');
-              triggerScreenShake(isCrit ? 3 : 1.5, isCrit ? 0.1 : 0.06);
-            }
-
-            player.totalDamage += damage;
-
-            if (monster.hp <= 0) {
-              player.exp += monster.exp;
-              player.totalKills++;
-              createParticles(monster.x, monster.y, monster.color, 12, 'explosion');
-              setScore(prev => prev + Math.floor(monster.exp));
-              playSound('kill');
-            }
-
-            hit = true;
-            break;
-          }
+        // 无敌闪烁
+        if (player.invincible) {
+          ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 50) * 0.5;
         }
 
-        if (hit) {
-          if (projectile.pierceCount > 0) {
-            projectile.pierceCount--;
-            return true;
-          }
-          if (projectile.bounceCount <= 0) {
-            return false;
-          }
-        }
+        // 绘制像素艺术玩家
+        drawPixelArt(ctx, PIXEL_ART.player.body, -8, -8, 1);
 
-        if (projectile.x < -60 || projectile.x > CANVAS_WIDTH + 60 ||
-            projectile.y < -60 || projectile.y > CANVAS_HEIGHT + 60 ||
-            projectile.bounceCount < 0) {
-          return false;
-        }
-
-        return true;
-      });
-
-      // 更新刀光特效
-      slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
-        slash.life -= deltaTime / slash.maxLife;
-
-        if (slash.life <= 0) return false;
-
-        const alpha = slash.life;
-        ctx.globalAlpha = alpha;
-
+        // 武器（指向鼠标方向）
         ctx.save();
-        ctx.translate(slash.x, slash.y);
-        ctx.rotate(slash.angle);
+        ctx.rotate(mouseRef.current.angle);
+        ctx.translate(0, -8);
 
-        ctx.strokeStyle = COLORS.slash;
-        ctx.lineWidth = 4;
-        ctx.shadowColor = COLORS.slash;
-        ctx.shadowBlur = 12;
+        const weaponArt = PIXEL_ART.player.weapon[player.weaponType];
+        if (weaponArt) {
+          drawPixelArt(ctx, weaponArt, -3, -8, 0.8);
+        }
 
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(35, -25, 70, 0);
-        ctx.quadraticCurveTo(35, 8, 0, 0);
-        ctx.stroke();
+        ctx.restore();
 
         ctx.restore();
         ctx.globalAlpha = 1;
+      }
 
-        return true;
-      });
+      // 绘制升级面板
+      if (gameState === GameState.LEVEL_UP) {
+        drawLevelUpPanel(ctx, player);
+      } else {
+        // 绘制UI
+        drawUI(ctx, player);
+      }
 
-      // 更新粒子
-      particlesRef.current = particlesRef.current.filter(particle => {
-        particle.life -= deltaTime;
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        particle.vy += 0.2;
-        particle.rotation += particle.rotationSpeed;
-
-        if (particle.life <= 0) return false;
-
-        const alpha = particle.life / particle.maxLife;
-        ctx.globalAlpha = alpha;
-
-        if (particle.type === 'blood') {
-          ctx.fillStyle = particle.color;
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (particle.type === 'spark') {
-          const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size);
-          gradient.addColorStop(0, particle.color);
-          gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (particle.type === 'magic') {
-          ctx.fillStyle = particle.color;
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.size * alpha * 2, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (particle.type === 'explosion') {
-          const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 2);
-          gradient.addColorStop(0, particle.color);
-          gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.size * alpha * 2, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (particle.type === 'dust') {
-          ctx.fillStyle = particle.color;
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.size * alpha * 0.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        ctx.globalAlpha = 1;
-        return true;
-      });
-
-      // 更新伤害数字
-      damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
-        dn.life -= deltaTime;
-        dn.y -= 2.5;
-
-        if (dn.life <= 0) return false;
-
-        const alpha = dn.life / dn.maxLife;
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = dn.color;
-        ctx.font = dn.isCrit ? 'bold 36px Arial, sans-serif' : 'bold 28px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = dn.color;
-        ctx.shadowBlur = dn.isHeal ? 6 : 10;
-        ctx.fillText(dn.damage.toString(), dn.x, dn.y);
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
-
-        return true;
-      });
-
-      // 绘制玩家
-      ctx.save();
-      ctx.translate(player.x, player.y);
-
-      // 阴影
-      drawPixelArt(ctx, PIXEL_ART.player.shadow, 0, 0, 1);
-
-      // 玩家光晕
-      const playerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, PLAYER_SIZE * 2.5);
-      playerGlow.addColorStop(0, COLORS.playerGlow);
-      playerGlow.addColorStop(1, 'rgba(255, 71, 87, 0)');
-      ctx.fillStyle = playerGlow;
-      ctx.beginPath();
-      ctx.arc(0, 0, PLAYER_SIZE * 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 绘制像素艺术玩家
-      drawPixelArt(ctx, PIXEL_ART.player.body, -8, -8, 1);
-
-      // 武器（指向鼠标方向）
-      ctx.save();
-      ctx.rotate(mouseAngleRef.current);
-      ctx.translate(0, -8);
-      drawPixelArt(ctx, PIXEL_ART.sword.handle, 0, 0, 0.8);
-      drawPixelArt(ctx, PIXEL_ART.sword.blade, 0, 0, 0.8);
-      ctx.restore();
-
-      ctx.restore();
-
-      // 玩家血条
-      const hpPercent = player.hp / player.maxHp;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60, 8);
-      ctx.fillStyle = hpPercent > 0.3 ? COLORS.hpBar : COLORS.hpBarLow;
-      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 20, 60 * hpPercent, 8);
-
-      // 玩家经验条
-      const expPercent = player.exp / player.expToNext;
-      ctx.fillStyle = COLORS.expBarBackground;
-      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 28, 60, 5);
-      ctx.fillStyle = COLORS.expBar;
-      ctx.fillRect(player.x - 30, player.y - PLAYER_SIZE - 28, 60 * expPercent, 5);
+      // 绘制游戏结束屏幕
+      if (gameState === GameState.GAME_OVER) {
+        drawGameOverScreen(ctx, player);
+      }
 
       ctx.restore();
 
       // 检查升级
-      if (player.exp >= player.expToNext) {
-        handleLevelUp();
+      if (gameState === GameState.PLAYING && player.exp >= player.expToNext) {
+        handleLevelUp(player);
         return;
       }
 
@@ -1430,47 +2302,60 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       lastTimeRef.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [checkCollision, createDamageNumber, createParticles, getDifficultyMultiplier, handleLevelUp, autoMeleeAttack, autoRangedAttack, spawnMonster, playSound, triggerScreenShake, createSlashEffect, drawBackground]);
+  }, [
+    drawStartScreen,
+    drawBackground,
+    drawUI,
+    drawLevelUpPanel,
+    drawGameOverScreen,
+    drawPixelArt,
+    checkCollision,
+    checkObstacleCollision,
+    getDifficultyMultiplier,
+    createParticles,
+    createDamageNumber,
+    createSlashEffect,
+    autoMeleeAttack,
+    autoRangedAttack,
+    spawnMonster,
+    updateBossAI,
+    handleLevelUp,
+    playSound,
+    triggerScreenShake
+  ]);
 
   // ==================== 游戏控制 ====================
-  const startGame = () => {
-    console.log('Starting game...');
-    setGameStarted(true);
-    setGameOver(false);
-    setTimeLeft(GAME_DURATION);
-    setScore(0);
-    setShowTutorial(false);
-    setShowLevelUp(false);
-    setUiUpdate(0);
-    setPlayerStats(null);
-
-    initAudio();
-
-    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
+  const initializeGame = useCallback(() => {
+    console.log('Initializing game...');
 
     playerRef.current = {
       x: CANVAS_WIDTH / 2,
       y: CANVAS_HEIGHT / 2,
+      vx: 0,
+      vy: 0,
       hp: 100,
       maxHp: 100,
       level: 1,
       exp: 0,
-      expToNext: 80,
-      speed: 5,
-      attackSpeed: 1.5,
+      expToNext: 100,
+      speed: 6,
+      baseSpeed: 6,
+      attackSpeed: 2,
       lastAttack: 0,
-      meleeDamage: 25,
-      rangedDamage: 20,
-      critRate: 0.12,
+      meleeDamage: 30,
+      rangedDamage: 25,
+      critRate: 0.15,
       critMultiplier: 2,
-      attackRange: 100,
+      attackRange: 110,
       arrowCount: 0,
-      regenRate: 1.5,
+      regenRate: 2,
       skills: [],
       totalKills: 0,
-      totalDamage: 0
+      totalDamage: 0,
+      gameTime: 0,
+      weaponType: 'sword',
+      invincible: false,
+      invincibleTime: 0
     };
 
     monstersRef.current = [];
@@ -1479,80 +2364,47 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     damageNumbersRef.current = [];
     slashEffectsRef.current = [];
     screenShakeRef.current = { intensity: 0, duration: 0, x: 0, y: 0 };
+    obstaclesRef.current = [];
     monsterIdCounterRef.current = 0;
     projectileIdCounterRef.current = 0;
     monsterSpawnTimerRef.current = 0;
     autoAttackTimerRef.current = 0;
     gameTimeRef.current = 0;
     lastRegenTimeRef.current = 0;
-    uiUpdateTimerRef.current = 0;
+    shieldTimerRef.current = 0;
+    scoreRef.current = 0;
+    difficultyRef.current = 1;
 
-    gameTimerRef.current = window.setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          endGame();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    spawnObstacles();
+    setScore(0);
+    setGameInitialized(true);
+
+    gameStateRef.current = GameState.START;
+
+    initAudio();
+
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
 
     setTimeout(() => {
       const canvas = canvasRef.current;
       if (canvas) {
         console.log('Canvas found, starting game loop...');
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          drawBackground(ctx);
-        }
-
         lastTimeRef.current = performance.now();
         gameLoop();
       } else {
-        console.error('Canvas still not found after timeout!');
+        console.error('Canvas not found!');
         toast.error('游戏启动失败，请重试');
-        endGame();
       }
-    }, 100);
-  };
-
-  const endGame = () => {
-    if (gameTimerRef.current) {
-      clearInterval(gameTimerRef.current);
-    }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    setGameOver(true);
-    setGameStarted(false);
-    setShowLevelUp(false);
-    toast.success(`游戏结束！得分：${score}`);
-  };
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
+    }, 200);
+  }, [initAudio, spawnObstacles, gameLoop]);
 
   // ==================== 副作用 ====================
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+    initializeGame();
 
-  useEffect(() => {
     return () => {
-      if (gameTimerRef.current) {
-        clearInterval(gameTimerRef.current);
-      }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -1563,8 +2415,74 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   }, []);
 
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key.toLowerCase()] = true;
+
+      // 游戏控制
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        if (gameStateRef.current === GameState.START) {
+          gameStateRef.current = GameState.PLAYING;
+          playSound('select');
+        } else if (gameStateRef.current === GameState.GAME_OVER) {
+          initializeGame();
+          playSound('select');
+        }
+      }
+
+      if (e.key.toLowerCase() === 'r') {
+        if (gameStateRef.current === GameState.GAME_OVER) {
+          initializeGame();
+          playSound('select');
+        }
+      }
+
+      if (e.key.toLowerCase() === 'q') {
+        if (gameStateRef.current === GameState.GAME_OVER) {
+          onCancel();
+          playSound('select');
+        }
+      }
+
+      // 升级面板选择
+      if (gameStateRef.current === GameState.LEVEL_UP) {
+        if (e.key === '1' || e.key === '2' || e.key === '3') {
+          const index = parseInt(e.key) - 1;
+          if (availableSkillsRef.current[index]) {
+            selectedSkillIndexRef.current = index;
+            playSound('select');
+
+            setTimeout(() => {
+              const skill = availableSkillsRef.current[index];
+              if (playerRef.current) {
+                playerRef.current = skill.apply(playerRef.current);
+                playerRef.current.skills.push(skill);
+              }
+              gameStateRef.current = GameState.PLAYING;
+              lastTimeRef.current = performance.now();
+            }, 200);
+          }
+        }
+
+        // 鼠标选择
+        if (e.key === 'Enter' || e.key === ' ') {
+          const selectedSkill = availableSkillsRef.current[selectedSkillIndexRef.current];
+          if (selectedSkill && playerRef.current) {
+            playerRef.current = selectedSkill.apply(playerRef.current);
+            playerRef.current.skills.push(selectedSkill);
+            gameStateRef.current = GameState.PLAYING;
+            lastTimeRef.current = performance.now();
+          }
+        }
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -1578,11 +2496,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [initializeGame, onCancel, playSound]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !gameInitialized) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
@@ -1591,32 +2509,74 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
 
-      mouseRef.current.x = mouseX;
-      mouseRef.current.y = mouseY;
-
-      // 预计算角度，避免每帧重复计算
-      const dx = mouseX - playerRef.current.x;
-      const dy = mouseY - playerRef.current.y;
+      // 计算鼠标角度并存储
+      const dx = mouseX - playerRef.current!.x;
+      const dy = mouseY - playerRef.current!.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
+
       if (distance > 1) {
-        mouseAngleRef.current = Math.atan2(dy, dx);
+        const angle = Math.atan2(dy, dx);
+        mouseRef.current.x = mouseX;
+        mouseRef.current.y = mouseY;
+        mouseRef.current.angle = angle;
       }
     };
 
+    const handleClick = (e: MouseEvent) => {
+      if (gameStateRef.current !== GameState.LEVEL_UP) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const clickY = (e.clientY - rect.top) * scaleY;
+
+      // 检查点击的是哪个技能面板
+      const panelWidth = 350;
+      const panelGap = 30;
+      const totalWidth = panelWidth * 3 + panelGap * 2;
+      const startX = (CANVAS_WIDTH - totalWidth) / 2;
+      const startY = 180;
+
+      availableSkillsRef.current.forEach((skill, index) => {
+        const x = startX + index * (panelWidth + panelGap);
+        const panelHeight = 420;
+
+        if (clickX >= x && clickX <= x + panelWidth &&
+            clickY >= startY && clickY <= startY + panelHeight) {
+          selectedSkillIndexRef.current = index;
+          playSound('hover');
+
+          setTimeout(() => {
+            if (playerRef.current) {
+              playerRef.current = skill.apply(playerRef.current);
+              playerRef.current.skills.push(skill);
+            }
+            gameStateRef.current = GameState.PLAYING;
+            lastTimeRef.current = performance.now();
+          }, 150);
+        }
+      });
+    };
+
     canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleClick);
 
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('click', handleClick);
     };
-  }, []);
+  }, [gameInitialized, playSound]);
 
   // ==================== 提交结果 ====================
   const handleSubmit = async () => {
     try {
       const timestamp = Math.floor(Date.now() / 1000);
       const player = playerRef.current;
-      const metadata = [score, player.level, player.totalKills, player.totalDamage];
-      const gameHash = computeHash(4, score, timestamp, metadata);
+      if (!player) return;
+
+      const metadata = [scoreRef.current, player.level, player.totalKills, player.totalDamage, Math.floor(player.gameTime)];
+      const gameHash = computeHash(4, scoreRef.current, timestamp, metadata);
 
       if (typeof window !== 'undefined' && window.ethereum) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
@@ -1627,7 +2587,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         const result: GameResult = {
           gameType: 4,
-          score,
+          score: scoreRef.current,
           timestamp,
           gameHash,
           metadata,
@@ -1651,10 +2611,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       .join('');
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
   };
 
   const player = playerStats || playerRef.current;
@@ -1678,243 +2642,134 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             </p>
           </div>
 
-          <AnimatePresence mode="wait">
-            {!gameStarted && !gameOver ? (
-              <motion.div
-                key="start"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
+          {showTutorial && (
+            <div className="bg-purple-500/10 rounded-lg p-6 backdrop-blur-sm border border-purple-500/20">
+              <h3 className="text-lg font-semibold text-purple-300 mb-4">游戏规则</h3>
+              <div className="grid md:grid-cols-2 gap-6 text-sm">
+                <div>
+                  <p className="font-semibold mb-3 text-white">操作方式</p>
+                  <ul className="space-y-2 text-gray-300">
+                    <li>WASD / 方向键 - 移动</li>
+                    <li>鼠标移动 - 瞄准</li>
+                    <li>自动攻击 - 近战/远程自动切换</li>
+                    <li>空格键 - 开始游戏</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-semibold mb-3 text-white">游戏机制</p>
+                  <ul className="space-y-2 text-gray-300">
+                    <li>• 无时间限制，根据能力生存</li>
+                    <li>• 非线性难度曲线</li>
+                    <li>• 30+技能，包含主动/被动</li>
+                    <li>• 3种武器可切换</li>
+                    <li>• 地形障碍物</li>
+                    <li>• Boss有特殊技能和阶段</li>
+                  </ul>
+                </div>
+              </div>
+              <Button
+                onClick={() => setShowTutorial(false)}
+                className="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-600"
               >
-                {showTutorial ? (
-                  <div className="bg-purple-500/10 rounded-lg p-6 backdrop-blur-sm border border-purple-500/20">
-                    <h3 className="text-lg font-semibold text-purple-300 mb-4 flex items-center gap-2">
-                      <Zap className="w-5 h-5" />
-                      游戏规则
-                    </h3>
-                    <div className="grid md:grid-cols-2 gap-6 text-sm">
-                      <div>
-                        <p className="font-semibold mb-3 text-white">操作方式</p>
-                        <ul className="space-y-2 text-gray-300">
-                          <li className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">W</div>
-                            <span>移动：WASD 或 方向键</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Target className="w-4 h-4" />
-                            <span>瞄准：鼠标移动</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Swords className="w-4 h-4" />
-                            <span>近战：靠近怪物自动攻击</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4" />
-                            <span>远程：自动向鼠标方向射击</span>
-                          </li>
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="font-semibold mb-3 text-white">游戏机制</p>
-                        <ul className="space-y-2 text-gray-300">
-                          <li>• 游戏时间：10分钟</li>
-                          <li>• 击杀怪物获得经验升级</li>
-                          <li>• 每次升级从3个技能中选择1个</li>
-                          <li>• 难度随时间逐渐增加</li>
-                          <li>• 主角会缓慢恢复生命值</li>
-                          <li>• 5种怪物类型：史莱姆、骷髅、幽灵、精英、Boss</li>
-                          <li>• 精英和Boss拥有护盾</li>
-                          <li>• 护盾优先承受伤害</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-                <Button
-                  onClick={startGame}
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-purple-500/50"
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  开始游戏
-                </Button>
-              </motion.div>
-            ) : gameStarted ? (
-              <motion.div
-                key="game"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
+                知道了，开始游戏
+              </Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-purple-500/20">
+              <div className="text-2xl font-bold text-purple-400">{player ? Math.floor(player.gameTime) : 0}</div>
+              <div className="text-xs text-gray-400 mt-1">存活时间</div>
+            </div>
+            <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-blue-500/20">
+              <div className="text-2xl font-bold text-blue-400">{score}</div>
+              <div className="text-xs text-gray-400 mt-1">得分</div>
+            </div>
+            <div className="bg-yellow-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-yellow-500/20">
+              <div className="text-2xl font-bold text-yellow-400">{player ? player.level : 1}</div>
+              <div className="text-xs text-gray-400 mt-1">等级</div>
+            </div>
+            <div className="bg-red-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-red-500/20">
+              <div className="text-xl font-bold text-red-400">{player ? `${Math.floor(player.hp)}/${player.maxHp}` : '100/100'}</div>
+              <div className="text-xs text-gray-400 mt-1">生命值</div>
+            </div>
+            <div className="bg-green-500/10 backdrop-blur-sm rounded-lg p-3 text-center flex items-center justify-center gap-2 border border-green-500/20">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleFullscreen}
+                className="text-white hover:bg-white/10"
               >
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-purple-500/20">
-                    <div className="text-2xl font-bold text-purple-400">{formatTime(timeLeft)}</div>
-                    <div className="text-xs text-gray-400 mt-1">剩余时间</div>
-                  </div>
-                  <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-blue-500/20">
-                    <div className="text-2xl font-bold text-blue-400">{score}</div>
-                    <div className="text-xs text-gray-400 mt-1">得分</div>
-                  </div>
-                  <div className="bg-yellow-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-yellow-500/20">
-                    <div className="text-2xl font-bold text-yellow-400">{player.level}</div>
-                    <div className="text-xs text-gray-400 mt-1">等级</div>
-                  </div>
-                  <div className="bg-red-500/10 backdrop-blur-sm rounded-lg p-3 text-center border border-red-500/20">
-                    <div className="text-xl font-bold text-red-400">{Math.floor(player.hp)}/{player.maxHp}</div>
-                    <div className="text-xs text-gray-400 mt-1">生命值</div>
-                  </div>
-                  <div className="bg-green-500/10 backdrop-blur-sm rounded-lg p-3 text-center flex items-center justify-center gap-2 border border-green-500/20">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleFullscreen}
-                      className="text-white hover:bg-white/10"
-                    >
-                      <Maximize2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSoundEnabled(!soundEnabled)}
-                      className="text-white hover:bg-white/10"
-                    >
-                      <Volume2 className={`w-4 h-4 ${!soundEnabled ? 'opacity-50' : ''}`} />
-                    </Button>
-                  </div>
-                </div>
-
-                <div ref={containerRef} className="relative rounded-xl overflow-hidden border-2 border-purple-500/30 shadow-2xl shadow-purple-500/10 aspect-video bg-black">
-                  <canvas
-                    ref={canvasRef}
-                    width={CANVAS_WIDTH}
-                    height={CANVAS_HEIGHT}
-                    className="w-full h-full object-contain"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                </div>
-
-                <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 border border-purple-500/20">
-                  <div className="flex justify-between text-sm text-gray-300 mb-1">
-                    <span>经验值</span>
-                    <span>{player.exp} / {player.expToNext}</span>
-                  </div>
-                  <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
-                      style={{ width: `${(player.exp / player.expToNext) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => {
-                    endGame();
-                    onCancel();
-                  }}
-                  variant="outline"
-                  className="w-full h-12 border-gray-600 hover:bg-gray-800"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  退出游戏
-                </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="result"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-4"
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                </svg>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className="text-white hover:bg-white/10"
               >
-                <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg p-8 text-center backdrop-blur-sm border border-purple-500/30">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200 }}
-                    className="mb-4"
-                  >
-                    <div className="text-6xl mb-4">⚔️</div>
-                  </motion.div>
-                  <p className="text-2xl font-bold text-white mb-2">游戏结束！</p>
-                  <div className="space-y-3">
-                    <p className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                      {score}
-                    </p>
-                    <p className="text-gray-300">总得分</p>
-                    <div className="text-sm text-gray-400 space-y-1">
-                      <p>最终等级：{player.level}</p>
-                      <p>击杀数：{player.totalKills}</p>
-                      <p>存活时间：{formatTime(GAME_DURATION - timeLeft)}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={startGame}
-                    className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-600"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    再玩一次
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    className="flex-1 h-12 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-600"
-                  >
-                    提交成绩
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              </Button>
+            </div>
+          </div>
 
-          <AnimatePresence>
-            {showLevelUp && availableSkills.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
+          <div ref={containerRef} className="relative rounded-xl overflow-hidden border-2 border-purple-500/30 shadow-2xl shadow-purple-500/10 aspect-video bg-black">
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_WIDTH}
+              height={CANVAS_HEIGHT}
+              className="w-full h-full object-contain"
+              style={{ imageRendering: 'pixelated' }}
+            />
+          </div>
+
+          {player && (
+            <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 border border-purple-500/20">
+              <div className="flex justify-between text-sm text-gray-300 mb-1">
+                <span>经验值</span>
+                <span>{player.exp} / {player.expToNext}</span>
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${(player.exp / player.expToNext) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={onCancel}
+            variant="outline"
+            className="w-full h-12 border-gray-600 hover:bg-gray-800"
+          >
+            返回主页
+          </Button>
+
+          {gameStateRef.current === GameState.GAME_OVER && (
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  initializeGame();
+                }}
+                className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-600"
               >
-                <motion.div
-                  initial={{ scale: 0.9, y: 20 }}
-                  animate={{ scale: 1, y: 0 }}
-                  className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 max-w-4xl w-full border border-purple-500/30 shadow-2xl"
-                >
-                  <h3 className="text-2xl font-bold text-center text-yellow-400 mb-6 flex items-center justify-center gap-2">
-                    <Sparkles className="w-6 h-6" />
-                    升级了！选择一个技能
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {availableSkills.map((skill, index) => (
-                      <Button
-                        key={skill.id}
-                        onClick={() => selectSkill(skill)}
-                        className="h-auto p-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 flex flex-col items-center gap-4 transition-all hover:scale-105"
-                      >
-                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg">
-                          {skill.icon}
-                        </div>
-                        <div className="text-left w-full">
-                          <div className="flex items-center gap-2 mb-1 justify-center">
-                            <p className="font-semibold text-white text-lg">{skill.name}</p>
-                          </div>
-                          <div className="flex justify-center mb-2">
-                            <div
-                              className="px-2 py-0.5 rounded text-xs font-semibold"
-                              style={{ backgroundColor: skill.color, color: '#FFFFFF' }}
-                            >
-                              {skill.rarity.toUpperCase()}
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-400 text-center">{skill.description}</p>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                再玩一次
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                className="flex-1 h-12 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-600"
+              >
+                提交成绩
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
     </motion.div>
