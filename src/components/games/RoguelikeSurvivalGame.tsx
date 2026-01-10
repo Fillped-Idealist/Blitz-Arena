@@ -834,8 +834,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const lastScoreUpdateTimeRef = useRef(0);  // 上次更新分数的时间
   const lastStatsUpdateTimeRef = useRef(0);  // 上次更新玩家状态的时间
 
-  // 摄像机位置
+  // 摄像机位置（左上角的世界坐标）
   const cameraRef = useRef({ x: 0, y: 0 });
+
+  // ==================== 坐标转换函数 ====================
+  const worldToScreenX = (worldX: number) => worldX - cameraRef.current.x;
+  const worldToScreenY = (worldY: number) => worldY - cameraRef.current.y;
+  const screenToWorldX = (screenX: number) => screenX + cameraRef.current.x;
+  const screenToWorldY = (screenY: number) => screenY + cameraRef.current.y;
 
   // 音效冷却记录（防止重叠）
   const soundCooldownsRef = useRef<Record<string, number>>({});
@@ -1530,50 +1536,62 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     });
   }, []);
 
-  // ==================== 绘制背景（用于游戏世界） ====================
+  // ==================== 绘制背景（使用屏幕坐标） ====================
   const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
-    // 深空渐变背景（覆盖整个世界）
+    // 深空渐变背景（覆盖整个屏幕）
+    const screenCenterX = CANVAS_WIDTH / 2;
+    const screenCenterY = CANVAS_HEIGHT / 2;
+
     const gradient = ctx.createRadialGradient(
-      WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 0,
-      WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH
+      screenCenterX, screenCenterY, 0,
+      screenCenterX, screenCenterY, CANVAS_WIDTH
     );
     gradient.addColorStop(0, COLORS.backgroundStart);
     gradient.addColorStop(0.5, '#16213E');
     gradient.addColorStop(1, COLORS.backgroundEnd);
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 滚动网格（覆盖整个世界）
+    // 滚动网格（根据摄像机位置偏移）
     const tileSize = 60;
-    const gridOffset = (gameTimeRef.current * 15) % tileSize;
+    const gridOffsetX = cameraRef.current.x % tileSize;
+    const gridOffsetY = cameraRef.current.y % tileSize;
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
     ctx.lineWidth = 1;
 
-    for (let x = -tileSize + gridOffset; x < WORLD_WIDTH + tileSize; x += tileSize) {
+    for (let x = -gridOffsetX; x < CANVAS_WIDTH + tileSize; x += tileSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
-      ctx.lineTo(x, WORLD_HEIGHT);
+      ctx.lineTo(x, CANVAS_HEIGHT);
       ctx.stroke();
     }
 
-    for (let y = -tileSize + gridOffset; y < WORLD_HEIGHT + tileSize; y += tileSize) {
+    for (let y = -gridOffsetY; y < CANVAS_HEIGHT + tileSize; y += tileSize) {
       ctx.beginPath();
       ctx.moveTo(0, y);
-      ctx.lineTo(WORLD_WIDTH, y);
+      ctx.lineTo(CANVAS_WIDTH, y);
       ctx.stroke();
     }
 
-    // 闪烁的星星（覆盖整个世界）
+    // 闪烁的星星（只绘制屏幕范围内的）
     ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
     for (let i = 0; i < 100; i++) {
-      const x = ((i * 137) % WORLD_WIDTH);
-      const y = ((i * 97) % WORLD_HEIGHT);
-      const twinkle = (Math.sin(gameTimeRef.current * 2.5 + i * 0.5) + 1) * 0.5;
-      const size = (twinkle * 1.2 + 0.5);
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
+      const worldX = ((i * 137) % WORLD_WIDTH);
+      const worldY = ((i * 97) % WORLD_HEIGHT);
+
+      // 只绘制屏幕范围内的星星
+      const screenX = worldToScreenX(worldX);
+      const screenY = worldToScreenY(worldY);
+
+      if (screenX >= -20 && screenX <= CANVAS_WIDTH + 20 &&
+          screenY >= -20 && screenY <= CANVAS_HEIGHT + 20) {
+        const twinkle = (Math.sin(gameTimeRef.current * 2.5 + i * 0.5) + 1) * 0.5;
+        const size = (twinkle * 1.2 + 0.5);
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }, []);
 
@@ -2092,7 +2110,48 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         return;
       }
 
-      // 更新摄像机位置（每帧更新，确保跟随玩家）
+      // 根据游戏状态渲染不同内容
+      if (gameState === GameState.START) {
+        // 开始界面：绘制静态背景
+        drawStaticBackground(ctx);
+
+        // 标题
+        ctx.fillStyle = '#FF4757';
+        ctx.font = 'bold 72px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('肉鸽割草', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 100);
+
+        // 副标题
+        ctx.fillStyle = '#BDC3C7';
+        ctx.font = '24px Arial, sans-serif';
+        ctx.fillText('生存 · 战斗 · 进化', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
+
+        // 操作说明
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '18px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        const instructions = [
+          'WASD 或 方向键 - 移动',
+          '鼠标移动 - 瞄准',
+          '自动攻击 - 近战/远程自动切换',
+          '按空格键开始游戏'
+        ];
+        instructions.forEach((instruction, index) => {
+          ctx.fillText(instruction, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30 + index * 35);
+        });
+
+        // 闪烁的开始提示
+        const alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+        ctx.font = 'bold 28px Arial, sans-serif';
+        ctx.fillText('按空格键开始游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 220);
+
+        animationFrameRef.current = requestAnimationFrame(gameLoop);
+        return;
+      }
+
+      // 游戏进行中：更新摄像机位置
       updateCamera(player);
 
       // 清空画布（避免重影）
@@ -2111,12 +2170,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.save();
       ctx.translate(shakeX, shakeY);
 
-      // 应用摄像机偏移（将世界坐标转换为屏幕坐标）
-      // screenX = worldX - cameraX
-      // screenY = worldY - cameraY
-      ctx.translate(-cameraRef.current.x, -cameraRef.current.y);
-
-      // 绘制背景（受摄像机影响）
+      // 绘制背景（使用屏幕坐标）
       drawBackground(ctx);
 
       if (gameState === GameState.PLAYING || gameState === GameState.LEVEL_UP) {
@@ -2423,12 +2477,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return monster.hp > 0;
           });
 
-          // 绘制怪物（仅在PLAYING状态下）
+          // 绘制怪物（仅在PLAYING状态下，使用屏幕坐标）
           monstersRef.current.forEach(monster => {
+            const monsterScreenX = worldToScreenX(monster.x);
+            const monsterScreenY = worldToScreenY(monster.y);
+
             // 怪物阴影
             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.beginPath();
-            ctx.ellipse(monster.x, monster.y + monster.size * 0.4, monster.size * 0.7, monster.size * 0.25, 0, 0, Math.PI * 2);
+            ctx.ellipse(monsterScreenX, monsterScreenY + monster.size * 0.4, monster.size * 0.7, monster.size * 0.25, 0, 0, Math.PI * 2);
             ctx.fill();
 
             // 怪物动画
@@ -2438,7 +2495,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const monsterPixels = PIXEL_ART.monsters[monster.type];
             if (monsterPixels) {
               ctx.save();
-              ctx.translate(monster.x, monster.y + animOffset);
+              ctx.translate(monsterScreenX, monsterScreenY + animOffset);
               ctx.scale(monster.scale * 1.2, monster.scale * 1.2);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
               ctx.restore();
@@ -2448,8 +2505,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (monster.hp < monster.maxHp) {
               const barWidth = monster.size * 1.5;
               const barHeight = 4;
-              const barX = monster.x - barWidth / 2;
-              const barY = monster.y - monster.size - 10;
+              const barX = monsterScreenX - barWidth / 2;
+              const barY = monsterScreenY - monster.size - 10;
 
               ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
               ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -2464,8 +2521,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (monster.hasShield && monster.shieldHp > 0) {
               const barWidth = monster.size * 1.5;
               const barHeight = 3;
-              const barX = monster.x - barWidth / 2;
-              const barY = monster.y - monster.size - 6;
+              const barX = monsterScreenX - barWidth / 2;
+              const barY = monsterScreenY - monster.size - 6;
 
               ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
               ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -2499,7 +2556,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             }
           }
 
-          // 绘制轨迹
+          // 绘制轨迹（使用屏幕坐标）
+          const projScreenX = worldToScreenX(projectile.x);
+          const projScreenY = worldToScreenY(projectile.y);
+
           ctx.strokeStyle = projectile.type === 'fireball' ? '#FF6B6B' :
                            (projectile.type === 'ice' ? '#85C1E9' :
                            (projectile.type === 'lightning' ? '#F1C40F' : COLORS.projectileGlow));
@@ -2508,37 +2568,39 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.beginPath();
           projectile.trail.forEach((t, i) => {
             if (t.life > 0) {
+              const trailScreenX = worldToScreenX(t.x);
+              const trailScreenY = worldToScreenY(t.y);
               ctx.globalAlpha = t.life * 0.5;
               if (i === 0) {
-                ctx.moveTo(t.x, t.y);
+                ctx.moveTo(trailScreenX, trailScreenY);
               } else {
-                ctx.lineTo(t.x, t.y);
+                ctx.lineTo(trailScreenX, trailScreenY);
               }
             }
           });
           ctx.stroke();
           ctx.globalAlpha = 1;
 
-          // 绘制投射物
+          // 绘制投射物（使用屏幕坐标）
           const glowColor = projectile.type === 'fireball' ? '#FF6B6B' :
                            (projectile.type === 'ice' ? '#85C1E9' :
                            (projectile.type === 'lightning' ? '#F1C40F' : COLORS.projectileGlow));
           const glowSize = projectile.type === 'fireball' ? 18 :
                           (projectile.type === 'ice' ? 14 :
                           (projectile.type === 'lightning' ? 16 : 12));
-          const glow = ctx.createRadialGradient(projectile.x, projectile.y, 0, projectile.x, projectile.y, glowSize);
+          const glow = ctx.createRadialGradient(projScreenX, projScreenY, 0, projScreenX, projScreenY, glowSize);
           glow.addColorStop(0, glowColor);
           glow.addColorStop(1, 'rgba(255, 165, 2, 0)');
           ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.arc(projectile.x, projectile.y, glowSize, 0, Math.PI * 2);
+          ctx.arc(projScreenX, projScreenY, glowSize, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.fillStyle = projectile.type === 'fireball' ? COLORS.fireball :
                         (projectile.type === 'ice' ? '#85C1E9' :
                         (projectile.type === 'lightning' ? '#F1C40F' : COLORS.projectile));
           ctx.beginPath();
-          ctx.arc(projectile.x, projectile.y, projectile.type === 'fireball' ? 7 :
+          ctx.arc(projScreenX, projScreenY, projectile.type === 'fireball' ? 7 :
                  (projectile.type === 'ice' ? 5 :
                  (projectile.type === 'lightning' ? 6 : 5)), 0, Math.PI * 2);
           ctx.fill();
@@ -2706,7 +2768,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           });
         }
 
-        // 更新刀光特效
+        // 更新刀光特效（使用屏幕坐标）
         slashEffectsRef.current = slashEffectsRef.current.filter(slash => {
           slash.life -= deltaTime / slash.maxLife;
 
@@ -2715,8 +2777,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const alpha = slash.life;
           ctx.globalAlpha = alpha;
 
+          const slashScreenX = worldToScreenX(slash.x);
+          const slashScreenY = worldToScreenY(slash.y);
+
           ctx.save();
-          ctx.translate(slash.x, slash.y);
+          ctx.translate(slashScreenX, slashScreenY);
           ctx.rotate(slash.angle);
 
           ctx.strokeStyle = COLORS.slash;
@@ -2736,7 +2801,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return true;
         });
 
-        // 更新粒子
+        // 更新粒子（使用屏幕坐标）
         particlesRef.current = particlesRef.current.filter(particle => {
           particle.life -= deltaTime;
           particle.x += particle.vx;
@@ -2747,43 +2812,46 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           if (particle.life <= 0) return false;
 
           const alpha = particle.life / particle.maxLife;
+          const particleScreenX = worldToScreenX(particle.x);
+          const particleScreenY = worldToScreenY(particle.y);
+
           ctx.globalAlpha = alpha;
 
           if (particle.type === 'blood') {
             ctx.fillStyle = particle.color;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+            ctx.arc(particleScreenX, particleScreenY, particle.size * alpha, 0, Math.PI * 2);
             ctx.fill();
           } else if (particle.type === 'spark') {
-            const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size);
+            const gradient = ctx.createRadialGradient(particleScreenX, particleScreenY, 0, particleScreenX, particleScreenY, particle.size);
             gradient.addColorStop(0, particle.color);
             gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
             ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.arc(particleScreenX, particleScreenY, particle.size, 0, Math.PI * 2);
             ctx.fill();
           } else if (particle.type === 'magic' || particle.type === 'shield') {
             ctx.fillStyle = particle.color;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size * alpha * 2.5, 0, Math.PI * 2);
+            ctx.arc(particleScreenX, particleScreenY, particle.size * alpha * 2.5, 0, Math.PI * 2);
             ctx.fill();
           } else if (particle.type === 'explosion') {
-            const gradient = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.size * 2.5);
+            const gradient = ctx.createRadialGradient(particleScreenX, particleScreenY, 0, particleScreenX, particleScreenY, particle.size * 2.5);
             gradient.addColorStop(0, particle.color);
             gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
             ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size * alpha * 2.5, 0, Math.PI * 2);
+            ctx.arc(particleScreenX, particleScreenY, particle.size * alpha * 2.5, 0, Math.PI * 2);
             ctx.fill();
           } else if (particle.type === 'dust') {
             ctx.fillStyle = particle.color;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size * alpha * 0.6, 0, Math.PI * 2);
+            ctx.arc(particleScreenX, particleScreenY, particle.size * alpha * 0.6, 0, Math.PI * 2);
             ctx.fill();
           } else if (particle.type === 'ice') {
             ctx.fillStyle = particle.color;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+            ctx.arc(particleScreenX, particleScreenY, particle.size * alpha, 0, Math.PI * 2);
             ctx.fill();
           }
 
@@ -2791,7 +2859,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return true;
         });
 
-        // 更新伤害数字
+        // 更新伤害数字（使用屏幕坐标）
         damageNumbersRef.current = damageNumbersRef.current.filter(dn => {
           dn.life -= deltaTime;
           dn.y -= 3;
@@ -2799,6 +2867,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           if (dn.life <= 0) return false;
 
           const alpha = dn.life / dn.maxLife;
+          const dnScreenX = worldToScreenX(dn.x);
+          const dnScreenY = worldToScreenY(dn.y);
+
           ctx.globalAlpha = alpha;
           ctx.fillStyle = dn.color;
           ctx.font = dn.isCrit ? `bold ${36 * dn.scale}px Arial, sans-serif` : `bold ${28 * dn.scale}px Arial, sans-serif`;
@@ -2806,31 +2877,34 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           ctx.textBaseline = 'middle';
           ctx.shadowColor = dn.color;
           ctx.shadowBlur = dn.isHeal ? 7 : 12;
-          ctx.fillText(dn.damage.toString(), dn.x, dn.y);
+          ctx.fillText(dn.damage.toString(), dnScreenX, dnScreenY);
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
 
           return true;
         });
 
-        // 绘制障碍物
+        // 绘制障碍物（使用屏幕坐标）
         obstaclesRef.current.forEach(obs => {
+          const obsScreenX = worldToScreenX(obs.x);
+          const obsScreenY = worldToScreenY(obs.y);
+
           if (obs.type === 'tree') {
             // 树木特殊绘制 - 精致像素风格
-            const centerX = obs.x + obs.width / 2;
-            const centerY = obs.y + obs.height / 2;
+            const centerX = obsScreenX + obs.width / 2;
+            const centerY = obsScreenY + obs.height / 2;
             const radius = obs.width / 2;
 
             // 树影（更柔和的大阴影）
             const shadowGradient = ctx.createRadialGradient(
-              centerX + 8, obs.y + obs.height + 5, 0,
-              centerX + 8, obs.y + obs.height + 5, radius * 1.2
+              centerX + 8, obsScreenY + obs.height + 5, 0,
+              centerX + 8, obsScreenY + obs.height + 5, radius * 1.2
             );
             shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
             shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = shadowGradient;
             ctx.beginPath();
-            ctx.ellipse(centerX + 8, obs.y + obs.height + 5, radius * 1.1, radius * 0.4, 0, 0, Math.PI * 2);
+            ctx.ellipse(centerX + 8, obsScreenY + obs.height + 5, radius * 1.1, radius * 0.4, 0, 0, Math.PI * 2);
             ctx.fill();
 
             // 树干（渐变立体感）
@@ -2916,25 +2990,28 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           } else {
             // 石头和墙壁
             ctx.fillStyle = obs.type === 'rock' ? '#57606F' : '#636E72';
-            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.fillRect(obsScreenX, obsScreenY, obs.width, obs.height);
 
             // 高光
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fillRect(obs.x, obs.y, obs.width, 4);
-            ctx.fillRect(obs.x, obs.y, 4, obs.height);
+            ctx.fillRect(obsScreenX, obsScreenY, obs.width, 4);
+            ctx.fillRect(obsScreenX, obsScreenY, 4, obs.height);
 
             // 岩石纹理
             if (obs.type === 'rock') {
               ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-              ctx.fillRect(obs.x + 10, obs.y + 10, obs.width - 20, 4);
-              ctx.fillRect(obs.x + obs.width / 2 - 8, obs.y + obs.height / 2, 16, 4);
+              ctx.fillRect(obsScreenX + 10, obsScreenY + 10, obs.width - 20, 4);
+              ctx.fillRect(obsScreenX + obs.width / 2 - 8, obsScreenY + obs.height / 2, 16, 4);
             }
           }
         });
 
-        // 绘制玩家
+        // 绘制玩家（使用屏幕坐标）
+        const playerScreenX = worldToScreenX(player.x);
+        const playerScreenY = worldToScreenY(player.y);
+
         ctx.save();
-        ctx.translate(player.x, player.y);
+        ctx.translate(playerScreenX, playerScreenY);
 
         // 阴影
         ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
@@ -3360,8 +3437,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
       } else {
         // 将鼠标Canvas坐标转换为世界坐标（用于计算攻击角度）
-        const worldMouseX = mouseX + cameraRef.current.x;
-        const worldMouseY = mouseY + cameraRef.current.y;
+        const worldMouseX = screenToWorldX(mouseX);
+        const worldMouseY = screenToWorldY(mouseY);
 
         // 计算鼠标角度并存储
         const dx = worldMouseX - playerRef.current!.x;
