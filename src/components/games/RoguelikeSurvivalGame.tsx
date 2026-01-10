@@ -1985,6 +1985,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制开始屏幕 ====================
   const drawStartScreen = useCallback((ctx: CanvasRenderingContext2D) => {
+    // 清空画布（避免之前的内容残留）
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
     drawStaticBackground(ctx);
 
     // 标题
@@ -2022,6 +2026,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
   // ==================== 绘制游戏结束屏幕 ====================
   const drawGameOverScreen = useCallback((ctx: CanvasRenderingContext2D, player: Player) => {
+    // 清空画布（避免之前的内容残留）
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
     // 半透明遮罩
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -2109,47 +2117,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       if (!player) {
         console.warn('Player not initialized, stopping game loop');
-        return;
-      }
-
-      // 根据游戏状态渲染不同内容
-      if (gameState === GameState.START) {
-        // 开始界面：绘制静态背景
-        drawStaticBackground(ctx);
-
-        // 标题
-        ctx.fillStyle = '#FF4757';
-        ctx.font = 'bold 72px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('肉鸽割草', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 100);
-
-        // 副标题
-        ctx.fillStyle = '#BDC3C7';
-        ctx.font = '24px Arial, sans-serif';
-        ctx.fillText('生存 · 战斗 · 进化', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
-
-        // 操作说明
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '18px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        const instructions = [
-          'WASD 或 方向键 - 移动',
-          '鼠标移动 - 瞄准',
-          '自动攻击 - 近战/远程自动切换',
-          '按空格键开始游戏'
-        ];
-        instructions.forEach((instruction, index) => {
-          ctx.fillText(instruction, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30 + index * 35);
-        });
-
-        // 闪烁的开始提示
-        const alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
-        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
-        ctx.font = 'bold 28px Arial, sans-serif';
-        ctx.fillText('按空格键开始游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 220);
-
-        animationFrameRef.current = requestAnimationFrame(gameLoop);
         return;
       }
 
