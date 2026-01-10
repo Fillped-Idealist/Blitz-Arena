@@ -788,6 +788,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [gameInitialized, setGameInitialized] = useState(false);
 
+  // showTutorial引用（用于键盘事件检查）
+  const showTutorialRef = useRef(true);
+
+  // 同步showTutorial到ref
+  useEffect(() => {
+    showTutorialRef.current = showTutorial;
+  }, [showTutorial]);
+
   // 游戏核心数据引用
   const gameStateRef = useRef<GameState>(GameState.START);
   const playerRef = useRef<Player | null>(null);
@@ -3204,8 +3212,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key.toLowerCase()] = true;
 
-      // 游戏控制（仅在游戏初始化后才响应）
-      if (gameInitialized) {
+      // 游戏控制（仅在教程关闭且游戏初始化后才响应）
+      if (!showTutorialRef.current && gameInitialized) {
         if (e.key === ' ' || e.code === 'Space') {
           e.preventDefault();
           if (gameStateRef.current === GameState.START) {
