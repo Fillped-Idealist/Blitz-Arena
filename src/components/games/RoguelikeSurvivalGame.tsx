@@ -1711,7 +1711,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 80, baseSize: 18, color: COLORS.ghostMonster },
       elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 150, baseSize: 24, color: COLORS.eliteMonster },
       boss: { baseHp: 800, baseDamage: 60, baseSpeed: 1.5, baseExp: 500, baseSize: 45, color: COLORS.bossMonster },
-      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 846, color: '#E74C3C' } // 近战Boss：体型放大3倍（282*3=846）
+      melee_boss: { baseHp: 50000, baseDamage: 1200, baseSpeed: 2.0, baseExp: 1000, baseSize: 280, color: '#E74C3C' } // 近战Boss：体型280像素
     };
 
     const stats = monsterStats[type];
@@ -2778,15 +2778,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monsterSpawnTimerRef.current = 0;
           }
 
-            // 近战Boss刷新逻辑：6分钟后立即刷新第一个，之后每75秒刷新一个（但场上只能有一个，属性递增100%）
-            if (player.gameTime >= 360) { // 6分钟后开始刷新
+            // 近战Boss刷新逻辑：游戏开始后立即刷新第一个，之后每75秒刷新一个（但场上只能有一个，属性递增100%）
+            if (player.gameTime >= 0) { // 游戏开始后就可以刷新
               meleeBossSpawnTimerRef.current += deltaTime;
 
               // 检查场上是否已有近战Boss
               const existingMeleeBoss = monstersRef.current.find(m => m.type === 'melee_boss');
 
-              // 刷新条件：第一次（6分钟刚到）或每75秒刷新一个（且场上没有近战Boss）
-              const isFirstSpawn = player.gameTime >= 360 && !existingMeleeBoss && meleeBossSpawnTimerRef.current < 0.1;
+              // 刷新条件：第一次（游戏开始后立即）或每75秒刷新一个（且场上没有近战Boss）
+              const isFirstSpawn = !existingMeleeBoss && meleeBossSpawnTimerRef.current < 0.1;
               const shouldSpawn = (isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) && !existingMeleeBoss;
 
               if (shouldSpawn) {
@@ -2820,7 +2820,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 baseDamage: 1200,
                 baseSpeed: 2.0,
                 baseExp: 1000,
-                baseSize: 846,
+                baseSize: 280,
                 color: '#E74C3C'
               };
 
@@ -2870,11 +2870,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               triggerScreenShake(4, 0.12);
               playSound('explosion');
             }
-          } else if (player.gameTime >= 330 && player.gameTime < 330.5) { // 在5分30秒时预警一次
-            console.log('[MeleeBoss] Warning: Melee boss approaching in 30 seconds', {
-              gameTime: player.gameTime
-            });
-            createNotification('⚡ 近战Boss将在30秒后刷新！', '#F39C12');
           }
 
           // 自动攻击 - 近战和远程同时进行
