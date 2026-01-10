@@ -23,6 +23,10 @@ export interface GameResult {
 // ==================== 游戏常量 ====================
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 900;
+const VIEWPORT_WIDTH = 800;  // 可视区域宽度
+const VIEWPORT_HEIGHT = 450;  // 可视区域高度
+const WORLD_WIDTH = 3200;  // 游戏世界总宽度
+const WORLD_HEIGHT = 1800;  // 游戏世界总高度
 const PLAYER_SIZE = 20;
 const MAX_MONSTERS = 150;
 const MAX_PROJECTILES = 120;
@@ -824,6 +828,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const lastScoreUpdateTimeRef = useRef(0);  // 上次更新分数的时间
   const lastStatsUpdateTimeRef = useRef(0);  // 上次更新玩家状态的时间
 
+  // 摄像机位置
+  const cameraRef = useRef({ x: 0, y: 0 });
+
   // 音效冷却记录（防止重叠）
   const soundCooldownsRef = useRef<Record<string, number>>({});
 
@@ -1353,11 +1360,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     if (player.level >= 7 && typeRoll > 0.93 - difficulty * 0.05) type = 'boss';
 
     const monsterStats = {
-      slime: { baseHp: 40, baseDamage: 12, baseSpeed: 2.8, baseExp: 20, baseSize: 18, color: COLORS.slimeMonster },
-      skeleton: { baseHp: 55, baseDamage: 18, baseSpeed: 3.2, baseExp: 30, baseSize: 20, color: COLORS.skeletonMonster },
-      ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 3.8, baseExp: 40, baseSize: 18, color: COLORS.ghostMonster },
-      elite: { baseHp: 100, baseDamage: 28, baseSpeed: 3, baseExp: 80, baseSize: 24, color: COLORS.eliteMonster },
-      boss: { baseHp: 500, baseDamage: 40, baseSpeed: 2.2, baseExp: 200, baseSize: 45, color: COLORS.bossMonster }
+      slime: { baseHp: 40, baseDamage: 12, baseSpeed: 1.8, baseExp: 20, baseSize: 18, color: COLORS.slimeMonster },
+      skeleton: { baseHp: 55, baseDamage: 18, baseSpeed: 2.0, baseExp: 30, baseSize: 20, color: COLORS.skeletonMonster },
+      ghost: { baseHp: 45, baseDamage: 22, baseSpeed: 2.3, baseExp: 40, baseSize: 18, color: COLORS.ghostMonster },
+      elite: { baseHp: 100, baseDamage: 28, baseSpeed: 1.9, baseExp: 80, baseSize: 24, color: COLORS.eliteMonster },
+      boss: { baseHp: 500, baseDamage: 40, baseSpeed: 1.5, baseExp: 200, baseSize: 45, color: COLORS.bossMonster }
     };
 
     const stats = monsterStats[type];
@@ -1371,7 +1378,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       hp: Math.floor(stats.baseHp * difficulty),
       maxHp: Math.floor(stats.baseHp * difficulty),
       damage: Math.floor(stats.baseDamage * difficulty),
-      speed: stats.baseSpeed * (0.95 + Math.random() * 0.1) * (1 + difficulty * 0.3),
+      speed: stats.baseSpeed * (0.95 + Math.random() * 0.1),  // 基础速度 ±5% 随机波动，不受难度影响
       exp: Math.floor(stats.baseExp * difficulty),
       lastAttack: 0,
       size: stats.baseSize,
@@ -1741,16 +1748,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 动态背景粒子
-    ctx.fillStyle = 'rgba(155, 89, 182, 0.03)';
-    for (let i = 0; i < 30; i++) {
-      const px = (Math.sin(Date.now() / 1000 + i * 0.5) + 1) * CANVAS_WIDTH / 2;
-      const py = (Math.cos(Date.now() / 1500 + i * 0.7) + 1) * CANVAS_HEIGHT / 2;
-      ctx.beginPath();
-      ctx.arc(px, py, 30 + Math.sin(Date.now() / 500 + i) * 10, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
     // 标题（带光晕）
     ctx.save();
     ctx.shadowColor = '#FFD700';
@@ -1993,6 +1990,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.fillText('按 Q 退出', CANVAS_WIDTH / 2, 565);
   }, []);
 
+  // ==================== 更新摄像机位置 ====================
+  const updateCamera = useCallback((player: Player) => {
+    // 摄像机中心跟随玩家，但限制在世界边界内
+    const targetX = player.x - VIEWPORT_WIDTH / 2;
+    const targetY = player.y - VIEWPORT_HEIGHT / 2;
+
+    cameraRef.current.x = Math.max(0, Math.min(WORLD_WIDTH - VIEWPORT_WIDTH, targetX));
+    cameraRef.current.y = Math.max(0, Math.min(WORLD_HEIGHT - VIEWPORT_HEIGHT, targetY));
+  }, []);
+
   // ==================== 游戏主循环 ====================
   const gameLoop = useCallback(() => {
     try {
@@ -2042,6 +2049,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       ctx.save();
       ctx.translate(shakeX, shakeY);
+
+      // 应用摄像机偏移
+      if (gameState === GameState.PLAYING || gameState === GameState.LEVEL_UP) {
+        updateCamera(player);
+        ctx.translate(-cameraRef.current.x, -cameraRef.current.y);
+      }
 
       drawBackground(ctx);
 
@@ -2229,7 +2242,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
         }
 
-        // 更新怪物（仅在PLAYING状态下，升级时暂停怪物移动）
+        // 更新怪物（仅在PLAYING状态下，升级时暂停怪物移动和绘制）
         if (gameState === GameState.PLAYING) {
           monstersRef.current = monstersRef.current.filter(monster => {
             const mdx = player.x - monster.x;
@@ -2342,62 +2355,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (player.invincibleTime <= 0) {
               player.invincible = false;
             }
-          }
-
-          // 绘制怪物
-          ctx.save();
-          ctx.translate(monster.x, monster.y);
-
-          // 阴影
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-          ctx.beginPath();
-          ctx.ellipse(0, monster.size * 0.4, monster.size * 0.7, monster.size * 0.25, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // 动画偏移
-          const bounce = Math.sin(gameTimeRef.current * 7 + monster.animationOffset) * 2;
-          const scale = monster.type === 'boss' ? 1.6 : (monster.type === 'elite' ? 1.3 : 1);
-          ctx.translate(0, bounce);
-          ctx.scale(scale, scale);
-
-          // 绘制像素艺术怪物
-          const monsterArt = PIXEL_ART.monsters[monster.type];
-          if (monsterArt) {
-            drawPixelArt(ctx, monsterArt, -8, -8, 1);
-          } else {
-            ctx.fillStyle = monster.color;
-            ctx.beginPath();
-            ctx.arc(0, 0, monster.size, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          // 护盾效果
-          if (monster.hasShield && monster.shieldHp > 0) {
-            ctx.strokeStyle = '#3498DB';
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.8 + Math.sin(gameTimeRef.current * 5) * 0.2;
-            ctx.beginPath();
-            ctx.arc(0, 0, monster.size + 8, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
-
-          ctx.restore();
-
-          // 怪物血条
-          const hpPercent = monster.hp / monster.maxHp;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-          ctx.fillRect(monster.x - monster.size - 2, monster.y - monster.size - 14, monster.size * 2 + 4, 6);
-          ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#FF5252';
-          ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 12, monster.size * 2 * hpPercent, 4);
-
-          // 护盾条
-          if (monster.hasShield && monster.shieldHp > 0) {
-            const shieldPercent = monster.shieldHp / monster.shieldMaxHp;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(monster.x - monster.size - 2, monster.y - monster.size - 20, monster.size * 2 + 4, 4);
-            ctx.fillStyle = '#3498DB';
-            ctx.fillRect(monster.x - monster.size, monster.y - monster.size - 18, monster.size * 2 * shieldPercent, 2);
           }
 
           return monster.hp > 0;
@@ -2743,29 +2700,103 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         // 绘制障碍物
         obstaclesRef.current.forEach(obs => {
           if (obs.type === 'tree') {
-            // 树木特殊绘制
+            // 树木特殊绘制 - 精致像素风格
             const centerX = obs.x + obs.width / 2;
             const centerY = obs.y + obs.height / 2;
             const radius = obs.width / 2;
 
-            // 树影
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            // 树影（更柔和的大阴影）
+            const shadowGradient = ctx.createRadialGradient(
+              centerX + 8, obs.y + obs.height + 5, 0,
+              centerX + 8, obs.y + obs.height + 5, radius * 1.2
+            );
+            shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+            shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = shadowGradient;
             ctx.beginPath();
-            ctx.ellipse(centerX + 5, obs.y + obs.height, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2);
+            ctx.ellipse(centerX + 8, obs.y + obs.height + 5, radius * 1.1, radius * 0.4, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 树干
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(centerX - 6, centerY - 10, 12, 20);
+            // 树干（渐变立体感）
+            const trunkGradient = ctx.createLinearGradient(centerX - 10, centerY - 15, centerX + 10, centerY + 20);
+            trunkGradient.addColorStop(0, '#A0522D');
+            trunkGradient.addColorStop(0.5, '#8B4513');
+            trunkGradient.addColorStop(1, '#654321');
+            ctx.fillStyle = trunkGradient;
 
-            // 树冠
-            const treeColors = ['#228B22', '#32CD32', '#2E8B57'];
-            for (let i = 0; i < 3; i++) {
-              ctx.fillStyle = treeColors[i];
-              ctx.beginPath();
-              ctx.arc(centerX - 10 + i * 10, centerY - 20 - i * 8, radius * 0.4, 0, Math.PI * 2);
-              ctx.fill();
-            }
+            // 更精致的树干形状（底部宽，顶部窄）
+            ctx.beginPath();
+            ctx.moveTo(centerX - 8, centerY + 20);
+            ctx.lineTo(centerX + 8, centerY + 20);
+            ctx.lineTo(centerX + 5, centerY - 15);
+            ctx.lineTo(centerX - 5, centerY - 15);
+            ctx.closePath();
+            ctx.fill();
+
+            // 树干纹理
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(centerX - 2, centerY - 5, 4, 15);
+
+            // 树冠（多层渐变，营造立体感）
+            // 底层大叶子
+            const bottomLeafGradient = ctx.createRadialGradient(
+              centerX - 15, centerY - 25, 0,
+              centerX - 15, centerY - 25, radius * 0.7
+            );
+            bottomLeafGradient.addColorStop(0, '#228B22');
+            bottomLeafGradient.addColorStop(0.7, '#2E8B57');
+            bottomLeafGradient.addColorStop(1, '#1B5E20');
+            ctx.fillStyle = bottomLeafGradient;
+            ctx.beginPath();
+            ctx.ellipse(centerX - 15, centerY - 25, radius * 0.6, radius * 0.45, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            const bottomLeafGradient2 = ctx.createRadialGradient(
+              centerX + 15, centerY - 23, 0,
+              centerX + 15, centerY - 23, radius * 0.7
+            );
+            bottomLeafGradient2.addColorStop(0, '#228B22');
+            bottomLeafGradient2.addColorStop(0.7, '#2E8B57');
+            bottomLeafGradient2.addColorStop(1, '#1B5E20');
+            ctx.fillStyle = bottomLeafGradient2;
+            ctx.beginPath();
+            ctx.ellipse(centerX + 15, centerY - 23, radius * 0.55, radius * 0.4, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 中层叶子
+            const midLeafGradient = ctx.createRadialGradient(
+              centerX, centerY - 40, 0,
+              centerX, centerY - 40, radius * 0.65
+            );
+            midLeafGradient.addColorStop(0, '#32CD32');
+            midLeafGradient.addColorStop(0.7, '#228B22');
+            midLeafGradient.addColorStop(1, '#1B5E20');
+            ctx.fillStyle = midLeafGradient;
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY - 40, radius * 0.5, radius * 0.35, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 顶层小叶子（明亮）
+            const topLeafGradient = ctx.createRadialGradient(
+              centerX, centerY - 55, 0,
+              centerX, centerY - 55, radius * 0.5
+            );
+            topLeafGradient.addColorStop(0, '#90EE90');
+            topLeafGradient.addColorStop(0.6, '#32CD32');
+            topLeafGradient.addColorStop(1, '#228B22');
+            ctx.fillStyle = topLeafGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY - 55, radius * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 树冠高光（营造光照感）
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.beginPath();
+            ctx.arc(centerX - 10, centerY - 45, radius * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(centerX + 12, centerY - 35, radius * 0.12, 0, Math.PI * 2);
+            ctx.fill();
           } else {
             // 石头和墙壁
             ctx.fillStyle = obs.type === 'rock' ? '#57606F' : '#636E72';
