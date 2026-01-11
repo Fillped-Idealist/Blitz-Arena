@@ -706,15 +706,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     };
   }, []);
 
-  // 切换全屏
+  // 切换全屏（伪全屏：只放大游戏区域）
   const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
+    setIsFullscreen(prev => !prev);
   }, []);
 
   // 切换音效
@@ -884,9 +878,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className={`w-full max-w-6xl mx-auto ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-black' : ''}`}
+      className={`w-full max-w-6xl mx-auto ${isFullscreen ? 'fixed inset-0 z-[9999] p-4 bg-black/95 backdrop-blur-md' : ''}`}
     >
-      <Card className="p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative">
+      <Card className={`p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative transition-all duration-300 ${isFullscreen ? 'h-full' : ''}`}>
         {/* 动态背景光晕 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
