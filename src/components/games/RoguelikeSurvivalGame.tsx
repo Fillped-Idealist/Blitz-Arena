@@ -1111,6 +1111,142 @@ const SKILL_POOL: Skill[] = [
     apply: (p) => p,
     rarity: 'mythic',
     color: COLORS.mythic
+  },
+  // ==================== 后期传奇技能（25级后）====================
+  {
+    id: 'ultimate_blade',
+    name: '剑圣',
+    description: '近战伤害永久+150%，攻击范围+80%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 2.5, attackRange: p.attackRange * 1.8 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.sword
+  },
+  {
+    id: 'ultimate_magic',
+    name: '法神',
+    description: '远程伤害永久+150%，弹射次数+6（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 2.5, arrowCount: p.arrowCount + 6 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'ultimate_vitality',
+    name: '生命之源',
+    description: '最大生命值+3000，每秒回复+15（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, maxHp: p.maxHp + 3000, hp: p.hp + 3000, regenRate: p.regenRate + 15 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.heart
+  },
+  {
+    id: 'ultimate_speed',
+    name: '神速',
+    description: '移动速度+50%，攻击速度+40%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, baseSpeed: p.baseSpeed * 1.5, speed: p.speed * 1.5, attackSpeed: p.attackSpeed * 1.4 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.speed
+  },
+  {
+    id: 'ultimate_crit',
+    name: '致命节奏',
+    description: '暴击率+25%，暴击伤害+150%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, critRate: Math.min(p.critRate + 0.25, 1), critMultiplier: p.critMultiplier * 2.5 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.star
+  },
+  {
+    id: 'ultimate_range',
+    name: '远程主宰',
+    description: '攻击范围+100%，攻击速度+50%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, attackRange: p.attackRange * 2, attackSpeed: p.attackSpeed * 1.5 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.arrow
+  },
+  // ==================== 后期神话技能（30级后）====================
+  {
+    id: 'mythic_titan',
+    name: '泰坦之力',
+    description: '所有伤害+200%，最大生命+5000（可累加）',
+    type: 'active',
+    apply: (p) => ({
+      ...p,
+      meleeDamage: p.meleeDamage * 3,
+      rangedDamage: p.rangedDamage * 3,
+      maxHp: p.maxHp + 5000,
+      hp: p.hp + 5000
+    }),
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.skull
+  },
+  {
+    id: 'mythic_ragnarok',
+    name: '诸神黄昏',
+    description: '暴击率+50%，暴击伤害+200%，攻击时触发元素爆炸（可累加）',
+    type: 'active',
+    apply: (p) => ({
+      ...p,
+      critRate: Math.min(p.critRate + 0.5, 1),
+      critMultiplier: p.critMultiplier * 3
+    }),
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.bolt
+  },
+  {
+    id: 'mythic_immortal',
+    name: '不朽之身',
+    description: '死亡时回复50%生命值，冷却300秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.heart
+  },
+  {
+    id: 'mythic_elements',
+    name: '元素掌控',
+    description: '所有伤害+150%，攻击有20%几率触发连锁爆炸（被动）',
+    type: 'active',
+    apply: (p) => ({
+      ...p,
+      meleeDamage: p.meleeDamage * 2.5,
+      rangedDamage: p.rangedDamage * 2.5
+    }),
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.fire
+  },
+  {
+    id: 'mythic_omnipotence',
+    name: '全能',
+    description: '所有属性+30%（生命、伤害、速度、范围、暴击）（可累加）',
+    type: 'active',
+    apply: (p) => ({
+      ...p,
+      maxHp: p.maxHp * 1.3,
+      hp: p.hp * 1.3,
+      meleeDamage: p.meleeDamage * 1.3,
+      rangedDamage: p.rangedDamage * 1.3,
+      baseSpeed: p.baseSpeed * 1.3,
+      speed: p.speed * 1.3,
+      attackRange: p.attackRange * 1.3,
+      critRate: Math.min(p.critRate + 0.3, 1)
+    }),
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.star
   }
 ];
 
@@ -1675,6 +1811,17 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 需要先解锁自动追踪
           return player.autoLockLevel >= 1;
         }
+
+        // 神话技能（30级后才能刷到）
+        if (skill.rarity === 'mythic' && player.level < 30) {
+          return false;
+        }
+
+        // 传奇技能（25级后才能刷到，不包括神话技能）
+        if (skill.rarity === 'legendary' && player.level < 25) {
+          return false;
+        }
+
         return true;
       });
 
@@ -1685,24 +1832,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       });
 
       // 早期增加立场灼伤技能的刷新概率（前10级）
-      let shuffled = [...filteredSkills];
-      if (player.level <= 10) {
+      // 数学计算：要使前10级至少刷到一次立场灼伤的概率为60%
+      // 设每次升级刷到立场灼伤的概率为p，则 1 - (1-p)^10 = 0.6
+      // 解得 p ≈ 0.079，即每次升级约7.9%的概率
+      // 实现方法：每次升级时，每个技能位置有约2.7%的概率被替换为立场灼伤（1 - (1-0.027)^3 ≈ 0.079）
+      let shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
+      const selectedSkills = shuffled.slice(0, 3);
+      
+      if (player.level < 10) {
         const auraSkill = filteredSkills.find(s => s.id === 'aura_burn');
         if (auraSkill) {
-          // 将立场灼伤技能复制多份，增加被选中的概率（占60%概率）
-          const weightedSkills = [...filteredSkills];
-          for (let i = 0; i < 5; i++) {
-            weightedSkills.push(auraSkill);
-          }
-          shuffled = weightedSkills.sort(() => Math.random() - 0.5);
-        } else {
-          shuffled = shuffled.sort(() => Math.random() - 0.5);
+          // 对每个技能位置，有2.7%的概率被替换为立场灼伤
+          selectedSkills.forEach((skill, index) => {
+            if (Math.random() < 0.027) {
+              selectedSkills[index] = auraSkill;
+            }
+          });
         }
-      } else {
-        shuffled = shuffled.sort(() => Math.random() - 0.5);
       }
-
-      const selectedSkills = shuffled.slice(0, 3);
 
       console.log('[Level Up] Skills selected', {
         skillCount: selectedSkills.length,
@@ -1829,13 +1976,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const bossMultiplier = type === 'boss' ? 1.3 : 1;
     const finalDifficulty = difficulty * bossMultiplier;
 
-    // 后期怪物增强机制（0-10分钟，每10秒血量+20%，伤害+10%）
+    // 后期怪物增强机制（10分钟后开始增强，每15秒新刷新的小怪属性提升）
     let lateGameHpMultiplier = 1;
     let lateGameDamageMultiplier = 1;
-    if (player.gameTime > 0 && player.gameTime <= 600) { // 0-10分钟
-      const tenSecondBlocks = Math.floor(player.gameTime / 10); // 每10秒一个周期
-      lateGameHpMultiplier = 1 + (tenSecondBlocks * 0.2); // 每个周期血量+20%
-      lateGameDamageMultiplier = 1 + (tenSecondBlocks * 0.1); // 每个周期伤害+10%
+    if (player.gameTime > 600) { // 10分钟后（600秒）
+      const fifteenSecondBlocks = Math.floor((player.gameTime - 600) / 15); // 每15秒一个周期
+      lateGameHpMultiplier = 1 + (fifteenSecondBlocks * 0.2); // 每个周期血量+20%
+      lateGameDamageMultiplier = 1 + (fifteenSecondBlocks * 0.1); // 每个周期伤害+10%
     }
 
     // 应用后期增强系数（仅对小怪生效，不包含Boss）
@@ -1939,6 +2086,17 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             // 正常冲刺
             monster.vx = monster.chargeDirection.x * currentSpeed;
             monster.vy = monster.chargeDirection.y * currentSpeed;
+          }
+
+          // 边界限制：防止冲刺冲出地图太远（最多允许冲出20像素）
+          const mapMargin = 20;
+          const clampedX = Math.max(-mapMargin, Math.min(WORLD_WIDTH + mapMargin, monster.x + monster.vx));
+          const clampedY = Math.max(-mapMargin, Math.min(WORLD_HEIGHT + mapMargin, monster.y + monster.vy));
+          
+          // 如果超出边界，调整速度向量
+          if (clampedX !== monster.x + monster.vx || clampedY !== monster.y + monster.vy) {
+            monster.vx = clampedX - monster.x;
+            monster.vy = clampedY - monster.y;
           }
 
           // 记录冲刺轨迹（每帧都记录，形成连续轨迹）
@@ -2592,23 +2750,53 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const startX = (CANVAS_WIDTH - totalWidth) / 2;
     const startY = 190;
 
-    skills.forEach((skill, index) => {
+      skills.forEach((skill, index) => {
       const x = startX + index * (panelWidth + panelGap);
       const isSelected = selectedSkillIndexRef.current === index;
+
+      // 判断是否为高级技能（25级后的传奇/神话）
+      const isHighTierSkill = skill.rarity === 'legendary' || skill.rarity === 'mythic';
+      const isLegendary = skill.rarity === 'legendary';
+      const isMythic = skill.rarity === 'mythic';
 
       // 背景面板（渐变）
       const panelGradient = ctx.createLinearGradient(x, startY, x, startY + panelHeight);
       if (isSelected) {
-        panelGradient.addColorStop(0, 'rgba(155, 89, 182, 0.5)');
-        panelGradient.addColorStop(1, 'rgba(155, 89, 182, 0.3)');
+        if (isMythic) {
+          panelGradient.addColorStop(0, 'rgba(231, 76, 60, 0.6)');
+          panelGradient.addColorStop(1, 'rgba(192, 57, 43, 0.4)');
+        } else if (isLegendary) {
+          panelGradient.addColorStop(0, 'rgba(241, 196, 15, 0.6)');
+          panelGradient.addColorStop(1, 'rgba(243, 156, 18, 0.4)');
+        } else {
+          panelGradient.addColorStop(0, 'rgba(155, 89, 182, 0.5)');
+          panelGradient.addColorStop(1, 'rgba(155, 89, 182, 0.3)');
+        }
       } else {
-        panelGradient.addColorStop(0, 'rgba(40, 35, 55, 0.95)');
-        panelGradient.addColorStop(1, 'rgba(30, 25, 45, 0.95)');
+        if (isMythic) {
+          panelGradient.addColorStop(0, 'rgba(80, 20, 20, 0.95)');
+          panelGradient.addColorStop(1, 'rgba(60, 15, 15, 0.95)');
+        } else if (isLegendary) {
+          panelGradient.addColorStop(0, 'rgba(60, 50, 20, 0.95)');
+          panelGradient.addColorStop(1, 'rgba(45, 40, 15, 0.95)');
+        } else {
+          panelGradient.addColorStop(0, 'rgba(40, 35, 55, 0.95)');
+          panelGradient.addColorStop(1, 'rgba(30, 25, 45, 0.95)');
+        }
       }
       ctx.fillStyle = panelGradient;
 
-      ctx.strokeStyle = isSelected ? '#FFD700' : 'rgba(155, 89, 182, 0.6)';
-      ctx.lineWidth = isSelected ? 5 : 2;
+      // 边框样式（根据稀有度调整）
+      if (isMythic) {
+        ctx.strokeStyle = isSelected ? '#FF4757' : '#C0392B';
+        ctx.lineWidth = isSelected ? 7 : 5;
+      } else if (isLegendary) {
+        ctx.strokeStyle = isSelected ? '#FFD700' : '#F39C12';
+        ctx.lineWidth = isSelected ? 6 : 4;
+      } else {
+        ctx.strokeStyle = isSelected ? '#FFD700' : 'rgba(155, 89, 182, 0.6)';
+        ctx.lineWidth = isSelected ? 5 : 2;
+      }
 
       // 绘制圆角矩形
       const radius = 16;
@@ -2626,10 +2814,56 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.fill();
       ctx.stroke();
 
+      // 高级技能的额外装饰（金色边框、光晕效果）
+      if (isHighTierSkill) {
+        // 金色内边框
+        ctx.save();
+        ctx.strokeStyle = isMythic ? '#FF4757' : '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x + radius + 4, startY + 4);
+        ctx.lineTo(x + panelWidth - radius - 4, startY + 4);
+        ctx.quadraticCurveTo(x + panelWidth - 4, startY + 4, x + panelWidth - 4, startY + radius + 4);
+        ctx.lineTo(x + panelWidth - 4, startY + panelHeight - radius - 4);
+        ctx.quadraticCurveTo(x + panelWidth - 4, startY + panelHeight - 4, x + panelWidth - radius - 4, startY + panelHeight - 4);
+        ctx.lineTo(x + radius + 4, startY + panelHeight - 4);
+        ctx.quadraticCurveTo(x + 4, startY + panelHeight - 4, x + 4, startY + panelHeight - radius - 4);
+        ctx.lineTo(x + 4, startY + radius + 4);
+        ctx.quadraticCurveTo(x + 4, startY + 4, x + radius + 4, startY + 4);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+
+        // 角落装饰
+        ctx.save();
+        ctx.fillStyle = isMythic ? '#FF4757' : '#FFD700';
+        const cornerSize = 20;
+        // 左上角
+        ctx.fillRect(x, startY, cornerSize, 4);
+        ctx.fillRect(x, startY, 4, cornerSize);
+        // 右上角
+        ctx.fillRect(x + panelWidth - cornerSize, startY, cornerSize, 4);
+        ctx.fillRect(x + panelWidth - 4, startY, 4, cornerSize);
+        // 左下角
+        ctx.fillRect(x, startY + panelHeight - cornerSize, cornerSize, 4);
+        ctx.fillRect(x, startY + panelHeight - 4, 4, cornerSize);
+        // 右下角
+        ctx.fillRect(x + panelWidth - cornerSize, startY + panelHeight - cornerSize, cornerSize, 4);
+        ctx.fillRect(x + panelWidth - 4, startY + panelHeight - cornerSize, 4, cornerSize);
+        ctx.restore();
+      }
+
       // 选中时的光晕效果
       if (isSelected) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+        if (isMythic) {
+          ctx.strokeStyle = 'rgba(255, 71, 87, 0.4)';
+        } else if (isLegendary) {
+          ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+        } else {
+          ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+        }
         ctx.lineWidth = 12;
         ctx.stroke();
         ctx.restore();
