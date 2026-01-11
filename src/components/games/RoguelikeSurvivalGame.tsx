@@ -58,7 +58,7 @@ const COLORS = {
   common: '#95A5A6',
   rare: '#3498DB',
   epic: '#9B59B6',
-  legendary: '#F1C40F',
+  legendary: '#D4AF37',
   mythic: '#E74C3C',
   backgroundStart: '#1A1A2E',
   backgroundEnd: '#0F0F23',
@@ -1136,9 +1136,9 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'ultimate_vitality',
     name: '生命之源',
-    description: '最大生命值+3000，每秒回复+15（可累加）',
+    description: '最大生命值+3000，每秒回复+50，击杀怪物+15生命值（可累加）',
     type: 'active',
-    apply: (p) => ({ ...p, maxHp: p.maxHp + 3000, hp: p.hp + 3000, regenRate: p.regenRate + 15 }),
+    apply: (p) => ({ ...p, maxHp: p.maxHp + 3000, hp: p.hp + 3000, regenRate: p.regenRate + 50 }),
     rarity: 'legendary',
     color: COLORS.legendary,
     icon: SKILL_ICONS.heart
@@ -1723,6 +1723,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           playSound('heal');
         }
 
+        // 生命之源：击杀回血
+        const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
+        if (hasVitalitySource) {
+          const healAmount = 15;
+          player.hp = Math.min(player.hp + healAmount, player.maxHp);
+          createDamageNumber(player.x, player.y - 35, healAmount, false, true);
+          playSound('heal');
+        }
+
         createParticles(monster.x, monster.y, monster.color, 15, 'explosion');
         triggerScreenShake(1.5, 0.05);
         scoreRef.current += Math.floor(monster.exp);
@@ -1801,6 +1810,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             skill.id.startsWith('tracking_pierce')) {
           const hasSkill = player.skills.some(s => s.id === skill.id);
           if (hasSkill) return false;
+        }
+
+        // 限制传奇技能只能选择一个
+        if (skill.rarity === 'legendary') {
+          const hasLegendary = player.skills.some(s => s.rarity === 'legendary');
+          if (hasLegendary) return false;
+        }
+
+        // 限制神话技能只能选择一个
+        if (skill.rarity === 'mythic') {
+          const hasMythic = player.skills.some(s => s.rarity === 'mythic');
+          if (hasMythic) return false;
         }
 
         // 天命法阵（自动追踪）需要先解锁
@@ -2090,14 +2111,21 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           // 边界限制：防止冲刺冲出地图太远（最多允许冲出20像素）
           const mapMargin = 20;
-          const clampedX = Math.max(-mapMargin, Math.min(WORLD_WIDTH + mapMargin, monster.x + monster.vx));
-          const clampedY = Math.max(-mapMargin, Math.min(WORLD_HEIGHT + mapMargin, monster.y + monster.vy));
-          
-          // 如果超出边界，调整速度向量
-          if (clampedX !== monster.x + monster.vx || clampedY !== monster.y + monster.vy) {
-            monster.vx = clampedX - monster.x;
-            monster.vy = clampedY - monster.y;
-          }
+          const minX = -mapMargin;
+          const maxX = WORLD_WIDTH + mapMargin;
+          const minY = -mapMargin;
+          const maxY = WORLD_HEIGHT + mapMargin;
+
+          const newX = monster.x + monster.vx;
+          const newY = monster.y + monster.vy;
+
+          // 硬性限制Boss不能冲出这些边界
+          const clampedX = Math.max(minX, Math.min(maxX, newX));
+          const clampedY = Math.max(minY, Math.min(maxY, newY));
+
+          // 调整速度向量以适应边界
+          monster.vx = clampedX - monster.x;
+          monster.vy = clampedY - monster.y;
 
           // 记录冲刺轨迹（每帧都记录，形成连续轨迹）
           monster.chargeTrail.push({ 
@@ -2114,7 +2142,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 碰撞检测：冲刺造成双倍伤害并击退
           // 计算冲刺路径参数
           const sizeMultiplier = monster.size / 140;
-          const chargePathLength = 280 * sizeMultiplier; // 与显示区域一致（从400缩至70%）
+          const chargePathLength = 220 * sizeMultiplier; // 与显示区域一致（从280缩至78.5%）
           const chargePathWidth = 100 * sizeMultiplier; // 与显示区域一致
 
           // 检查玩家是否在冲刺路径上
@@ -2214,9 +2242,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monster.chargeDirection = { x: directionX, y: directionY };
             monster.chargeStartPos = { x: monster.x, y: monster.y };
             
-            // 计算终点（冲刺距离280像素，从400缩至70%）
+            // 计算终点（冲刺距离220像素，从280缩至78.5%）
             const sizeMultiplier = monster.size / 140;
-            const chargeDistance = 280 * sizeMultiplier;
+            const chargeDistance = 220 * sizeMultiplier;
             monster.chargeEndPos = {
               x: monster.x + directionX * chargeDistance,
               y: monster.y + directionY * chargeDistance
@@ -2715,9 +2743,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     // 标题（带光晕）
     ctx.save();
-    ctx.shadowColor = '#FFD700';
+    ctx.shadowColor = '#D4AF37';
     ctx.shadowBlur = 20;
-    ctx.fillStyle = '#FFD700';
+    ctx.fillStyle = '#D4AF37';
     ctx.font = 'bold 48px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -2766,8 +2794,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           panelGradient.addColorStop(0, 'rgba(231, 76, 60, 0.6)');
           panelGradient.addColorStop(1, 'rgba(192, 57, 43, 0.4)');
         } else if (isLegendary) {
-          panelGradient.addColorStop(0, 'rgba(241, 196, 15, 0.6)');
-          panelGradient.addColorStop(1, 'rgba(243, 156, 18, 0.4)');
+          panelGradient.addColorStop(0, 'rgba(212, 175, 55, 0.6)');
+          panelGradient.addColorStop(1, 'rgba(180, 150, 40, 0.4)');
         } else {
           panelGradient.addColorStop(0, 'rgba(155, 89, 182, 0.5)');
           panelGradient.addColorStop(1, 'rgba(155, 89, 182, 0.3)');
@@ -2777,8 +2805,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           panelGradient.addColorStop(0, 'rgba(80, 20, 20, 0.95)');
           panelGradient.addColorStop(1, 'rgba(60, 15, 15, 0.95)');
         } else if (isLegendary) {
-          panelGradient.addColorStop(0, 'rgba(60, 50, 20, 0.95)');
-          panelGradient.addColorStop(1, 'rgba(45, 40, 15, 0.95)');
+          panelGradient.addColorStop(0, 'rgba(70, 60, 30, 0.95)');
+          panelGradient.addColorStop(1, 'rgba(50, 45, 20, 0.95)');
         } else {
           panelGradient.addColorStop(0, 'rgba(40, 35, 55, 0.95)');
           panelGradient.addColorStop(1, 'rgba(30, 25, 45, 0.95)');
@@ -2791,10 +2819,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.strokeStyle = isSelected ? '#FF4757' : '#C0392B';
         ctx.lineWidth = isSelected ? 7 : 5;
       } else if (isLegendary) {
-        ctx.strokeStyle = isSelected ? '#FFD700' : '#F39C12';
+        ctx.strokeStyle = isSelected ? '#D4AF37' : '#B8960C';
         ctx.lineWidth = isSelected ? 6 : 4;
       } else {
-        ctx.strokeStyle = isSelected ? '#FFD700' : 'rgba(155, 89, 182, 0.6)';
+        ctx.strokeStyle = isSelected ? '#D4AF37' : 'rgba(155, 89, 182, 0.6)';
         ctx.lineWidth = isSelected ? 5 : 2;
       }
 
@@ -2814,43 +2842,47 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.fill();
       ctx.stroke();
 
-      // 高级技能的额外装饰（金色边框、光晕效果）
+      // 高级技能的额外装饰（边框、光晕效果）
       if (isHighTierSkill) {
-        // 金色内边框
+        // 内边框（优化后的虚线，确保完全在面板内）
         ctx.save();
-        ctx.strokeStyle = isMythic ? '#FF4757' : '#FFD700';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]);
+        ctx.strokeStyle = isMythic ? '#FF4757' : '#D4AF37';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 6]);
         ctx.beginPath();
-        ctx.moveTo(x + radius + 4, startY + 4);
-        ctx.lineTo(x + panelWidth - radius - 4, startY + 4);
-        ctx.quadraticCurveTo(x + panelWidth - 4, startY + 4, x + panelWidth - 4, startY + radius + 4);
-        ctx.lineTo(x + panelWidth - 4, startY + panelHeight - radius - 4);
-        ctx.quadraticCurveTo(x + panelWidth - 4, startY + panelHeight - 4, x + panelWidth - radius - 4, startY + panelHeight - 4);
-        ctx.lineTo(x + radius + 4, startY + panelHeight - 4);
-        ctx.quadraticCurveTo(x + 4, startY + panelHeight - 4, x + 4, startY + panelHeight - radius - 4);
-        ctx.lineTo(x + 4, startY + radius + 4);
-        ctx.quadraticCurveTo(x + 4, startY + 4, x + radius + 4, startY + 4);
+        // 使用更小的内边距，确保虚线边框在主边框内部
+        const innerPadding = 6;
+        const innerRadius = radius - innerPadding;
+        ctx.moveTo(x + innerPadding + innerRadius, startY + innerPadding);
+        ctx.lineTo(x + panelWidth - innerPadding - innerRadius, startY + innerPadding);
+        ctx.quadraticCurveTo(x + panelWidth - innerPadding, startY + innerPadding, x + panelWidth - innerPadding, startY + innerPadding + innerRadius);
+        ctx.lineTo(x + panelWidth - innerPadding, startY + panelHeight - innerPadding - innerRadius);
+        ctx.quadraticCurveTo(x + panelWidth - innerPadding, startY + panelHeight - innerPadding, x + panelWidth - innerPadding - innerRadius, startY + panelHeight - innerPadding);
+        ctx.lineTo(x + innerPadding + innerRadius, startY + panelHeight - innerPadding);
+        ctx.quadraticCurveTo(x + innerPadding, startY + panelHeight - innerPadding, x + innerPadding, startY + panelHeight - innerPadding - innerRadius);
+        ctx.lineTo(x + innerPadding, startY + innerPadding + innerRadius);
+        ctx.quadraticCurveTo(x + innerPadding, startY + innerPadding, x + innerPadding + innerRadius, startY + innerPadding);
         ctx.closePath();
         ctx.stroke();
         ctx.restore();
 
-        // 角落装饰
+        // 角落装饰（优化后的位置，确保不超出边框）
         ctx.save();
-        ctx.fillStyle = isMythic ? '#FF4757' : '#FFD700';
-        const cornerSize = 20;
+        ctx.fillStyle = isMythic ? '#FF4757' : '#D4AF37';
+        const cornerSize = 18;
+        const cornerThickness = 3;
         // 左上角
-        ctx.fillRect(x, startY, cornerSize, 4);
-        ctx.fillRect(x, startY, 4, cornerSize);
+        ctx.fillRect(x + 2, startY + 2, cornerSize, cornerThickness);
+        ctx.fillRect(x + 2, startY + 2, cornerThickness, cornerSize);
         // 右上角
-        ctx.fillRect(x + panelWidth - cornerSize, startY, cornerSize, 4);
-        ctx.fillRect(x + panelWidth - 4, startY, 4, cornerSize);
+        ctx.fillRect(x + panelWidth - cornerSize - 2, startY + 2, cornerSize, cornerThickness);
+        ctx.fillRect(x + panelWidth - cornerThickness - 2, startY + 2, cornerThickness, cornerSize);
         // 左下角
-        ctx.fillRect(x, startY + panelHeight - cornerSize, cornerSize, 4);
-        ctx.fillRect(x, startY + panelHeight - 4, 4, cornerSize);
+        ctx.fillRect(x + 2, startY + panelHeight - cornerSize - 2, cornerSize, cornerThickness);
+        ctx.fillRect(x + 2, startY + panelHeight - cornerThickness - 2, cornerThickness, cornerSize);
         // 右下角
-        ctx.fillRect(x + panelWidth - cornerSize, startY + panelHeight - cornerSize, cornerSize, 4);
-        ctx.fillRect(x + panelWidth - 4, startY + panelHeight - cornerSize, 4, cornerSize);
+        ctx.fillRect(x + panelWidth - cornerSize - 2, startY + panelHeight - cornerSize - 2, cornerSize, cornerThickness);
+        ctx.fillRect(x + panelWidth - cornerThickness - 2, startY + panelHeight - cornerSize - 2, cornerThickness, cornerSize);
         ctx.restore();
       }
 
@@ -2860,9 +2892,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         if (isMythic) {
           ctx.strokeStyle = 'rgba(255, 71, 87, 0.4)';
         } else if (isLegendary) {
-          ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+          ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
         } else {
-          ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+          ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
         }
         ctx.lineWidth = 12;
         ctx.stroke();
@@ -3480,7 +3512,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             // 检查怪物是否在立场范围内
             if (distance < currentAuraRadius) {
               const now = performance.now();
-              const auraDamageCooldown = 200; // 立场伤害冷却200毫秒
+              const auraDamageCooldown = 500; // 立场伤害冷却500毫秒（每0.5秒一次）
               
               if (now - player.auraLastDamageTime > auraDamageCooldown) {
                 // 立场灼烧伤害
@@ -3714,7 +3746,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 if (chargeElapsed <= 1000) { // 前摇阶段
                   // 根据Boss体型调整冲刺距离和宽度
                   const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
-                  const pathLength = 280 * sizeMultiplier; // 冲刺距离按体型比例调整（从400缩至70%，与实际冲刺距离一致）
+                  const pathLength = 220 * sizeMultiplier; // 冲刺距离按体型比例调整（从280缩至78.5%，与实际冲刺距离一致）
                   const pathWidth = 100 * sizeMultiplier; // 冲刺宽度按体型比例调整
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
@@ -3833,7 +3865,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 近战Boss护盾（淡紫色，更明显）
               if (monster.hasShield && monster.shieldHp > 0) {
                 const shieldAlpha = 0.35 + Math.sin(gameTimeRef.current * 2) * 0.1;
-                const shieldScale = monster.size / 140 * 12; // 进一步增大护盾显示，从8.5倍提升至12倍
+                const shieldScale = monster.size / 140 * 18; // 进一步增大护盾显示，从12倍提升至18倍
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
                 ctx.scale(shieldScale, shieldScale); // 整体缩放护盾
@@ -4068,6 +4100,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                     playSound('heal');
                   }
 
+                  // 生命之源：击杀回血
+                  const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
+                  if (hasVitalitySource) {
+                    const healAmount = 15;
+                    player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                    createDamageNumber(player.x, player.y - 35, healAmount, false, true);
+                    playSound('heal');
+                  }
+
                   createParticles(monster.x, monster.y, monster.color, 12, 'explosion');
                   triggerScreenShake(1.5, 0.05);
                   scoreRef.current += Math.floor(monster.exp);
@@ -4248,6 +4289,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                       const healAmount = 5;
                       player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                       createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+                      playSound('heal');
+                    }
+
+                    // 生命之源：击杀回血
+                    const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
+                    if (hasVitalitySource) {
+                      const healAmount = 15;
+                      player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                      createDamageNumber(player.x, player.y - 35, healAmount, false, true);
                       playSound('heal');
                     }
 
@@ -4898,8 +4948,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       damageReduction: 0,  // 初始减伤为0
       shieldHp: 0,  // 初始护盾为0
       shieldMaxHp: 0,  // 初始最大护盾为0
-      auraRadius: 80,  // 初始立场范围80像素
-      auraDamage: 10,  // 初始立场灼烧伤害10
+      auraRadius: 200,  // 初始立场范围200像素（扩大2.5倍）
+      auraDamage: 70,  // 初始立场灼烧伤害70（每0.5秒）
       auraLastDamageTime: 0  // 上次立场伤害时间
     };
 
