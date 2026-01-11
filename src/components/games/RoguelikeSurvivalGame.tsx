@@ -1584,7 +1584,7 @@ const SKILL_POOL: Skill[] = [
     name: '护盾',
     description: '每15秒获得1500点临时护盾（被动）',
     type: 'passive',
-    apply: (p) => ({ ...p, shieldMaxHp: 1500 }),
+    apply: (p) => ({ ...p, shieldMaxHp: 4500 }),
     rarity: 'epic',
     color: COLORS.epic
   },
@@ -2375,8 +2375,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return false;
         }
 
-        // 英雄技能（15级后才能刷到）
-        if (skill.rarity === 'hero' && player.level < 15) {
+        // 英雄技能（14级后才能刷到）
+        if (skill.rarity === 'hero' && player.level < 14) {
           return false;
         }
 
@@ -2551,8 +2551,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     if (player.level >= 2 && typeRoll > 0.55 - difficulty * 0.05) type = 'skeleton';
     if (player.level >= 4 && typeRoll > 0.70 - difficulty * 0.05) type = 'ghost';
     if (player.level >= 5 && typeRoll > 0.82 - difficulty * 0.05) type = 'elite';
-    // 远程Boss刷新阈值（阈值越高概率越低，0.99表示约1%概率，降低一半）
-    if (player.level >= 7 && typeRoll > 0.99 - difficulty * 0.05) type = 'boss';
+    // 远程Boss刷新阈值（阈值越高概率越低，0.996表示约0.4%概率，降至原来的40%）
+    if (player.level >= 7 && typeRoll > 0.996 - difficulty * 0.05) type = 'boss';
     // 近战Boss不通过普通生成逻辑生成（使用独立刷新逻辑）
 
     const monsterStats = {
@@ -4816,11 +4816,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   playSound('shoot');
                 }
 
-                // 冰霜被动（20%冻结概率，不可叠加，强化视觉效果）
+                // 冰霜被动（12%冻结概率，冻结1.5秒，不可叠加，强化视觉效果）
                 const hasFreeze = player.skills.some(s => s.id === 'passive_freeze');
-                if (hasFreeze && !monster.isStunned && Math.random() < 0.2) {
+                if (hasFreeze && !monster.isStunned && Math.random() < 0.12) {
                   monster.isStunned = true;
-                  monster.stunnedTime = 1000;
+                  monster.stunnedTime = 1500;
                   // 增加冻结粒子数量和范围
                   createParticles(monster.x, monster.y, '#85C1E9', 25, 'ice');
                   createParticles(monster.x, monster.y, '#00CEC9', 15, 'ice');
