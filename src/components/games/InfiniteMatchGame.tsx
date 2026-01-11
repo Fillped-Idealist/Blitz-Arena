@@ -1102,35 +1102,35 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 状态显示栏（固定在顶部，不影响游戏区域） */}
-                <div className={`grid ${isFullscreen ? 'grid-cols-4' : 'grid-cols-4'} gap-2 sm:gap-3 shrink-0`}>
-                  <div className="bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-violet-500/20">
-                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                <div className={`grid ${isFullscreen ? 'grid-cols-4' : 'grid-cols-4'} gap-1.5 sm:gap-2 md:gap-3 shrink-0`}>
+                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl text-center backdrop-blur-sm border border-violet-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
                       {formatTime(timeLeft)}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{t.ui.timeLeft}</div>
+                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.timeLeft}</div>
                   </div>
-                  <div className="bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-fuchsia-500/20">
-                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl text-center backdrop-blur-sm border border-fuchsia-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
                       {score}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{t.ui.score}</div>
+                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.score}</div>
                   </div>
-                  <div className="bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-pink-500/20">
-                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">
+                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl text-center backdrop-blur-sm border border-pink-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
                       {level}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{t.ui.level}</div>
+                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.level}</div>
                   </div>
-                  <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-cyan-500/20">
-                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl text-center backdrop-blur-sm border border-cyan-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
                       {tilesLeft}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{t.ui.tilesLeft}</div>
+                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.tilesLeft}</div>
                   </div>
                 </div>
 
                 {/* 游戏区域 */}
-                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-2 sm:p-3' : 'p-2 sm:p-3 md:p-4'}`}>
+                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-1 sm:p-2' : 'p-1 sm:p-2 md:p-3'}`}>
                   {/* 连击显示（在游戏区域内） */}
                   {comboCount > 1 && (
                     <motion.div
@@ -1170,8 +1170,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         className="absolute w-3 h-3 rounded-full"
                         style={{
                           backgroundColor: particle.color,
-                          left: `${(particle.x / (BOARD_COLS + 2)) * 100}%`,
-                          top: `${(particle.y / (BOARD_ROWS + 2)) * 100}%`,
+                          left: `${((particle.x + 0.5) / (BOARD_COLS + 2)) * 100}%`,
+                          top: `${((particle.y + 0.5) / (BOARD_ROWS + 2)) * 100}%`,
                           filter: 'blur(1px)',
                           boxShadow: `0 0 6px ${particle.color}, 0 0 12px ${particle.color}`
                         }}
@@ -1205,8 +1205,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         {/* 连线发光效果（更宽，更明显） */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100;
-                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100;
+                            const x = ((point.x + 0.5) / (BOARD_COLS + 2)) * 100;
+                            const y = ((point.y + 0.5) / (BOARD_ROWS + 2)) * 100;
                             return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                           }).join(' ')}
                           stroke="url(#lineGlowGradient)"
@@ -1222,8 +1222,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         {/* 主连线 */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100;
-                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100;
+                            const x = ((point.x + 0.5) / (BOARD_COLS + 2)) * 100;
+                            const y = ((point.y + 0.5) / (BOARD_ROWS + 2)) * 100;
                             return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                           }).join(' ')}
                           stroke="url(#lineGradient)"
@@ -1237,8 +1237,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         />
                         {/* 连接点高亮 */}
                         {matchedPath.map((point, index) => {
-                          const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100;
-                          const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100;
+                          const x = ((point.x + 0.5) / (BOARD_COLS + 2)) * 100;
+                          const y = ((point.y + 0.5) / (BOARD_ROWS + 2)) * 100;
                           return (
                             <motion.circle
                               key={`point-${index}`}
@@ -1257,7 +1257,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   </svg>
 
                   <div
-                    className={`grid gap-1 sm:gap-1.5 md:gap-2 relative z-10 ${isFullscreen ? 'h-full' : ''}`}
+                    className={`grid gap-0.5 sm:gap-0.75 md:gap-1 relative z-10 ${isFullscreen ? 'h-full' : ''}`}
                     style={{
                       gridTemplateColumns: `repeat(${BOARD_COLS + 2}, minmax(0, 1fr))`,
                       gridTemplateRows: `repeat(${BOARD_ROWS + 2}, minmax(0, 1fr))`
@@ -1275,7 +1275,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             transition-all duration-200
                             ${tile === 0 ? 'invisible' : 'visible'}
                             ${selectedTile?.x === x && selectedTile?.y === y
-                              ? 'ring-3 ring-yellow-400 scale-110 z-10 shadow-xl shadow-yellow-400/30'
+                              ? 'ring-2 ring-yellow-400 scale-105 z-10 shadow-xl shadow-yellow-400/30'
                               : ''}
                             ${eliminationTiles.some(t => t.x === x && t.y === y)
                               ? 'scale-0 opacity-0'
@@ -1304,7 +1304,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           whileTap={tile > 0 ? { scale: 0.92 } : {}}
                         >
                           {tile > 0 && (
-                            <div className="relative z-10 w-4/5 h-4/5">
+                            <div className="relative z-10 w-3/5 h-3/5">
                               <TileIcon type={tile} />
                             </div>
                           )}
