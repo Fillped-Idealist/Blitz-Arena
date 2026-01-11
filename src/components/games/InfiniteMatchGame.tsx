@@ -163,15 +163,18 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
   }, []);
 
-  // 播放背景音乐（更优美的旋律，降低音量）
+  // 播放背景音乐（更优美的旋律，降低音量，改进循环机制）
   const playBackgroundMusic = useCallback(() => {
-    if (!soundEnabled || !audioContextRef.current || bgMusicPlaying) return;
+    if (!soundEnabled || !audioContextRef.current) return;
 
     const ctx = audioContextRef.current;
 
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
+
+    // 如果音乐已经在播放，先停止
+    if (bgMusicPlaying) return;
 
     const now = ctx.currentTime;
 
@@ -199,19 +202,19 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     const createNote = (time: number, freq: number, duration: number, volume: number = 1) => {
       const osc = ctx.createOscillator();
       const noteGain = ctx.createGain();
-      
+
       osc.type = 'triangle'; // 使用三角波，音色更柔和
       osc.frequency.value = freq;
-      
+
       // 音量包络（淡入淡出）
       noteGain.gain.setValueAtTime(0, time);
       noteGain.gain.linearRampToValueAtTime(volume * 0.3, time + 0.05);
       noteGain.gain.linearRampToValueAtTime(volume * 0.2, time + duration * 0.3);
       noteGain.gain.linearRampToValueAtTime(0, time + duration);
-      
+
       osc.connect(noteGain);
       noteGain.connect(masterGain);
-      
+
       osc.start(time);
       osc.stop(time + duration);
     };
@@ -219,29 +222,29 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     // 创建循环的旋律
     const melodyPattern = [0, 2, 4, 5, 4, 2, 0, 2, 4, 7, 5, 4, 2, 0, 4, 5];
     const bassPattern = [0, 0, 2, 2, 4, 4, 0, 0];
-    
+
     let noteTime = now;
     const barDuration = 8; // 每个小节的时长（秒）
     const noteDuration = 0.5;
-    const loopCount = 200; // 循环次数
+    const loopCount = 200; // 循环次数（约26分钟）
 
     for (let loop = 0; loop < loopCount; loop++) {
       const barStart = now + loop * barDuration;
-      
+
       // 旋律线
       for (let i = 0; i < melodyPattern.length; i++) {
         const freq = pentatonicScale[melodyPattern[i]];
         const noteStartTime = barStart + i * noteDuration * 1.5;
         createNote(noteStartTime, freq, noteDuration, 1);
       }
-      
+
       // 低音线（更慢）
       for (let i = 0; i < bassPattern.length; i++) {
         const freq = pentatonicScale[bassPattern[i]];
         const bassStartTime = barStart + i * noteDuration * 2;
         createNote(bassStartTime, freq * 0.5, noteDuration * 1.5, 0.6); // 低八度
       }
-      
+
       // 和弦伴奏
       const chordFreqs = [pentatonicScale[0], pentatonicScale[2], pentatonicScale[4]];
       chordFreqs.forEach((freq, i) => {
@@ -250,27 +253,31 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       });
     }
 
-    bgMusicOscillatorRef.current = ctx.createOscillator();
-    bgMusicOscillatorRef.current.type = 'triangle';
-    bgMusicOscillatorRef.current.connect(masterGain);
-    bgMusicOscillatorRef.current.start(now);
-    bgMusicOscillatorRef.current.stop(now + loopCount * barDuration);
-    
     bgMusicGainRef.current = masterGain;
     setBgMusicPlaying(true);
+
+    console.log('[Background Music] Started playing');
   }, [soundEnabled, bgMusicPlaying]);
 
   // 停止背景音乐
   const stopBackgroundMusic = useCallback(() => {
-    if (bgMusicOscillatorRef.current) {
-      bgMusicOscillatorRef.current.stop();
-      bgMusicOscillatorRef.current = null;
-    }
     if (bgMusicGainRef.current) {
-      bgMusicGainRef.current.disconnect();
-      bgMusicGainRef.current = null;
+      // 平滑淡出
+      const now = audioContextRef.current?.currentTime || 0;
+      bgMusicGainRef.current.gain.cancelScheduledValues(now);
+      bgMusicGainRef.current.gain.setValueAtTime(bgMusicGainRef.current.gain.value || 0.015, now);
+      bgMusicGainRef.current.gain.linearRampToValueAtTime(0, now + 0.5);
+
+      setTimeout(() => {
+        if (bgMusicGainRef.current) {
+          bgMusicGainRef.current.disconnect();
+          bgMusicGainRef.current = null;
+        }
+      }, 500);
     }
+
     setBgMusicPlaying(false);
+    console.log('[Background Music] Stopped playing');
   }, []);
 
   // 播放音效
@@ -1264,9 +1271,39 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                         if (validPoints.length < 2) return null;
 
-                        const pathD = validPoints.map((point, index) => {
+                        // 验证所有点的坐标是否在有效范围内
+                        const gameBoard = gameBoardRef.current;
+                        if (!gameBoard) return null;
+
+                        const boardWidth = gameBoard.offsetWidth;
+                        const boardHeight = gameBoard.offsetHeight;
+
+                        // 过滤掉坐标超出边界的点
+                        const filteredPoints = validPoints.filter(
+                          point => point.x >= 0 && point.x <= boardWidth && point.y >= 0 && point.y <= boardHeight
+                        );
+
+                        if (filteredPoints.length < 2) {
+                          console.warn('[SVG] Filtered points result in < 2 points', {
+                            originalPoints: matchedPath,
+                            pathPoints,
+                            validPoints,
+                            filteredPoints,
+                            boardWidth,
+                            boardHeight
+                          });
+                          return null;
+                        }
+
+                        const pathD = filteredPoints.map((point, index) => {
                           return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
                         }).join(' ');
+
+                        console.log('[SVG] Rendering path', {
+                          pathD,
+                          pointCount: filteredPoints.length,
+                          points: filteredPoints
+                        });
 
                         return (
                           <>
@@ -1296,7 +1333,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                               animate={{ opacity: 1 }}
                               transition={{ duration: 0.1 }}
                             />
-                            {validPoints.map((point, index) => (
+                            {filteredPoints.map((point, index) => (
                               <motion.circle
                                 key={`point-${index}`}
                                 cx={point.x}
