@@ -1310,6 +1310,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const lastScoreUpdateTimeRef = useRef(0);  // 上次更新分数的时间
   const lastStatsUpdateTimeRef = useRef(0);  // 上次更新玩家状态的时间
   const meleeBossSpawnTimerRef = useRef<number>(0);  // 近战Boss刷新计时器
+  const meleeBossFirstSpawnedRef = useRef<boolean>(false);  // 第一个Boss是否已刷新
+  const meleeBossDeadRef = useRef<boolean>(false);  // Boss是否已死亡（等待刷新）
+  const meleeBossSpawnCountRef = useRef<number>(0);  // 已刷新的Boss总数（用于属性成长）
 
   // 摄像机位置（左上角的世界坐标）
   const cameraRef = useRef({ x: 0, y: 0 });
@@ -3265,28 +3268,43 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monsterSpawnTimerRef.current = 0;
           }
 
-            // 近战Boss刷新逻辑：游戏开始后立即刷新第一个，之后每75秒刷新一个（但场上只能有一个，属性递增100%）
+            // 近战Boss刷新逻辑：第一个Boss游戏开始后立即刷新，之后Boss死亡后75秒再刷新
             if (player.gameTime >= 0) { // 游戏开始后就可以刷新
               meleeBossSpawnTimerRef.current += deltaTime;
 
               // 检查场上是否已有近战Boss
               const existingMeleeBoss = monstersRef.current.find(m => m.type === 'melee_boss');
 
-              // 刷新条件：第一次（游戏开始后立即）或每75秒刷新一个（且场上没有近战Boss）
-              const isFirstSpawn = !existingMeleeBoss && meleeBossSpawnTimerRef.current < 0.1;
-              const shouldSpawn = (isFirstSpawn || meleeBossSpawnTimerRef.current >= 75) && !existingMeleeBoss;
-
-              if (shouldSpawn) {
-                meleeBossSpawnTimerRef.current = 0;
-                console.log('[MeleeBoss] Spawning melee boss', {
-                  gameTime: player.gameTime,
-                  existingCount: monstersRef.current.filter(m => m.type === 'melee_boss').length
+              // 第一个Boss刷新：未刷新过且场上没有Boss时立即刷新
+              if (!meleeBossFirstSpawnedRef.current && !existingMeleeBoss) {
+                console.log('[MeleeBoss] Spawning first melee boss', {
+                  gameTime: player.gameTime
                 });
+                meleeBossFirstSpawnedRef.current = true;
+                meleeBossSpawnTimerRef.current = 0;
+                createNotification('⚠️ 近战Boss来袭！', '#FF4757');
+              }
+              // Boss刷新：Boss已死亡且计时满75秒，且场上没有Boss
+              else if (meleeBossDeadRef.current && meleeBossSpawnTimerRef.current >= 75 && !existingMeleeBoss) {
+                console.log('[MeleeBoss] Spawning next melee boss after death', {
+                  gameTime: player.gameTime,
+                  timeSinceDeath: meleeBossSpawnTimerRef.current
+                });
+                meleeBossDeadRef.current = false;
+                meleeBossSpawnTimerRef.current = 0;
+                createNotification('⚠️ 新的近战Boss来袭！', '#FF4757');
+              }
+              // Boss死亡检测：场上不再有近战Boss，且已经刷新过第一个Boss
+              else if (!existingMeleeBoss && meleeBossFirstSpawnedRef.current && !meleeBossDeadRef.current) {
+                // Boss死亡，开始计时75秒
+                console.log('[MeleeBoss] Melee boss died, starting 75s countdown');
+                meleeBossDeadRef.current = true;
+                meleeBossSpawnTimerRef.current = 0;
+              }
 
-                // 仅第一次刷新时播报提醒
-                if (isFirstSpawn) {
-                  createNotification('⚠️ 近战Boss来袭！', '#FF4757');
-                }
+              // 执行Boss刷新
+              const shouldSpawn = (!existingMeleeBoss && (!meleeBossFirstSpawnedRef.current || (meleeBossDeadRef.current && meleeBossSpawnTimerRef.current >= 75)));
+              if (shouldSpawn) {
 
               // 手动生成近战Boss（覆盖默认类型）
               const side = Math.floor(Math.random() * 4);
@@ -3301,7 +3319,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 default: bossX = WORLD_WIDTH / 2; bossY = -margin;
               }
 
-              const existingMeleeBossCount = monstersRef.current.filter(m => m.type === 'melee_boss').length;
               const meleeBossStats = {
                 baseHp: 50000,
                 baseDamage: 300,
@@ -3312,7 +3329,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               };
 
               // 属性递增：每次刷新增加100%（每次翻倍，不包括移速、CD、攻击距离）
-              const growthMultiplier = Math.pow(2.0, existingMeleeBossCount);
+              const growthMultiplier = Math.pow(2.0, meleeBossSpawnCountRef.current);
               const difficulty = getDifficultyMultiplier(player.gameTime);
 
               const meleeBoss: Monster = {
@@ -3350,13 +3367,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 chargeTrail: [],
                 chargeStartPos: { x: 0, y: 0 },
                 chargeEndPos: { x: 0, y: 0 },
-                meleeBossSpawnIndex: existingMeleeBossCount,
+                meleeBossSpawnIndex: meleeBossSpawnCountRef.current,
                 chargeStartEffectTriggered: false,
                 isAttacking: false,
                 attackStartTime: 0,
                 attackScale: 1
               };
 
+              meleeBossSpawnCountRef.current++; // 增加Boss刷新计数
               monstersRef.current.push(meleeBoss);
               createParticles(bossX, bossY, '#E74C3C', 30, 'explosion');
               triggerScreenShake(4, 0.12);
@@ -4989,6 +5007,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     autoAttackTimerRef.current = 0;
     autoLockUltimateTimerRef.current = 0;
     meleeBossSpawnTimerRef.current = 0;
+    meleeBossFirstSpawnedRef.current = false;
+    meleeBossDeadRef.current = false;
+    meleeBossSpawnCountRef.current = 0;
     gameTimeRef.current = 0;
     lastRegenTimeRef.current = 0;
     shieldTimerRef.current = 0;
