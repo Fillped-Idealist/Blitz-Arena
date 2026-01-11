@@ -827,16 +827,22 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     const tileElement = tileRefs.current.get(tileKey);
     const gameBoard = gameBoardRef.current;
 
-    if (!tileElement || !gameBoard) return null;
+    if (!tileElement || !gameBoard) {
+      console.log('Missing element:', { tileKey, hasTile: !!tileElement, hasBoard: !!gameBoard });
+      return null;
+    }
 
     // 获取 div 的位置（div 包裹 button，它们应该有相同的位置和尺寸）
     const tileRect = tileElement.getBoundingClientRect();
     const boardRect = gameBoard.getBoundingClientRect();
 
-    return {
+    const result = {
       x: tileRect.left - boardRect.left + tileRect.width / 2,
       y: tileRect.top - boardRect.top + tileRect.height / 2
     };
+
+    console.log(`Tile center for [${x},${y}]:`, result);
+    return result;
   }
 
   // SVG图标组件（第九艺术风格）
@@ -1122,35 +1128,35 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 状态显示栏（固定在顶部，不影响游戏区域） */}
-                <div className={`grid ${isFullscreen ? 'grid-cols-4' : 'grid-cols-4'} gap-1.5 sm:gap-2 md:gap-3 shrink-0`}>
-                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl text-center backdrop-blur-sm border border-violet-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
+                <div className={`grid grid-cols-4 gap-3 sm:gap-4 shrink-0`}>
+                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl text-center backdrop-blur-sm border border-violet-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
                       {formatTime(timeLeft)}
                     </div>
-                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.timeLeft}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.timeLeft}</div>
                   </div>
-                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl text-center backdrop-blur-sm border border-fuchsia-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
+                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl text-center backdrop-blur-sm border border-fuchsia-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
                       {score}
                     </div>
-                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.score}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.score}</div>
                   </div>
-                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl text-center backdrop-blur-sm border border-pink-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
+                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl text-center backdrop-blur-sm border border-pink-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
                       {level}
                     </div>
-                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.level}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.level}</div>
                   </div>
-                  <div className={`${isFullscreen ? 'p-1.5' : 'p-2 sm:p-4'} bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl text-center backdrop-blur-sm border border-cyan-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent ${isFullscreen ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`}>
+                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl text-center backdrop-blur-sm border border-cyan-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
                       {tilesLeft}
                     </div>
-                    <div className={`text-gray-400 mt-0.5 ${isFullscreen ? 'text-[10px]' : 'text-xs'}`}>{t.ui.tilesLeft}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.tilesLeft}</div>
                   </div>
                 </div>
 
                 {/* 游戏区域 */}
-                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-2' : 'p-3'}`}>
+                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-3 sm:p-4' : 'p-4 sm:p-5 md:p-6'}`}>
                   {/* 游戏板容器：使用宽高比确保方块比例一致 */}
                   <div ref={gameBoardRef} className={`relative w-full ${isFullscreen ? 'h-full' : ''}`} style={{ aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}` }}>
                     {/* 连击显示（在游戏区域内） */}
@@ -1204,93 +1210,104 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   </div>
 
                   {/* 连接线层 */}
-                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 40 }}>
-                    {matchedPath.length > 1 && (
-                      <>
-                        <defs>
-                          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
-                            <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
-                            <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
-                          </linearGradient>
-                          <linearGradient id="lineGlowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9" />
-                            <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.9" />
-                            <stop offset="100%" stopColor="#d97706" stopOpacity="0.9" />
-                          </linearGradient>
-                          <filter id="glow">
-                            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                            <feMerge>
-                              <feMergeNode in="coloredBlur"/>
-                              <feMergeNode in="SourceGraphic"/>
-                            </feMerge>
-                          </filter>
-                        </defs>
-                        {/* 连线发光效果（更宽，更明显） */}
-                        <motion.path
-                          d={matchedPath.map((point, index) => {
-                            const center = getTileCenterPixel(point.x, point.y);
-                            if (!center) return '';
-                            return `${index === 0 ? 'M' : 'L'} ${center.x.toFixed(2)} ${center.y.toFixed(2)}`;
-                          }).join(' ')}
-                          stroke="url(#lineGlowGradient)"
-                          strokeWidth="18"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          filter="url(#glow)"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.15 }}
-                        />
-                        {/* 主连线 */}
-                        <motion.path
-                          d={matchedPath.map((point, index) => {
-                            const center = getTileCenterPixel(point.x, point.y);
-                            if (!center) return '';
-                            return `${index === 0 ? 'M' : 'L'} ${center.x.toFixed(2)} ${center.y.toFixed(2)}`;
-                          }).join(' ')}
-                          stroke="url(#lineGradient)"
-                          strokeWidth="8"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.15 }}
-                        />
-                        {/* 连接点高亮 */}
-                        {matchedPath.map((point, index) => {
-                          const center = getTileCenterPixel(point.x, point.y);
-                          if (!center) return null;
-                          return (
+                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
+                    {matchedPath.length > 1 && (() => {
+                      // 预计算所有路径点
+                      const pathPoints = matchedPath.map((point, index) => {
+                        const center = getTileCenterPixel(point.x, point.y);
+                        return center;
+                      });
+
+                      // 过滤掉 null 点
+                      const validPoints = pathPoints.filter(p => p !== null) as Array<{ x: number; y: number }>;
+
+                      // 如果有无效点，不渲染连线
+                      if (validPoints.length < 2) return null;
+
+                      // 生成 SVG 路径字符串
+                      const pathD = validPoints.map((point, index) => {
+                        return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+                      }).join(' ');
+
+                      console.log('Path string:', pathD);
+
+                      return (
+                        <>
+                          <defs>
+                            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
+                              <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
+                              <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
+                            </linearGradient>
+                            <linearGradient id="lineGlowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9" />
+                              <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.9" />
+                              <stop offset="100%" stopColor="#d97706" stopOpacity="0.9" />
+                            </linearGradient>
+                            <filter id="glow">
+                              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                              <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                              </feMerge>
+                            </filter>
+                          </defs>
+                          {/* 连线发光效果（更宽，更明显） */}
+                          <motion.path
+                            d={pathD}
+                            stroke="url(#lineGlowGradient)"
+                            strokeWidth="18"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            filter="url(#glow)"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.15 }}
+                          />
+                          {/* 主连线 */}
+                          <motion.path
+                            d={pathD}
+                            stroke="url(#lineGradient)"
+                            strokeWidth="8"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.15 }}
+                          />
+                          {/* 连接点高亮 */}
+                          {validPoints.map((point, index) => (
                             <motion.circle
                               key={`point-${index}`}
-                              cx={center.x}
-                              cy={center.y}
+                              cx={point.x}
+                              cy={point.y}
                               r="3.5"
                               fill="#fcd34d"
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
                               transition={{ duration: 0.15, delay: index * 0.03 }}
                             />
-                          );
-                        })}
-                      </>
-                    )}
+                          ))}
+                        </>
+                      );
+                    })()}
                   </svg>
 
                   <div
-                    className={`grid gap-1 relative z-10 ${isFullscreen ? 'h-full w-full' : 'w-full'}`}
+                    className={`grid gap-1 relative ${isFullscreen ? 'h-full w-full' : 'w-full'}`}
                     style={{
-                      gridTemplateColumns: `repeat(${BOARD_COLS + 2}, minmax(0, 1fr))`,
-                      gridTemplateRows: `repeat(${BOARD_ROWS + 2}, minmax(0, 1fr))`
+                      gridTemplateColumns: `repeat(${BOARD_COLS + 2}, 1fr)`,
+                      gridTemplateRows: `repeat(${BOARD_ROWS + 2}, 1fr)`
                     }}
                   >
                     {board.map((row, y) =>
                       row.map((tile, x) => (
                         <div
                           key={`${x}-${y}`}
+                          className="relative"
+                          style={{ aspectRatio: '1/1' }}
                           ref={(el) => {
                             if (el) {
                               tileRefs.current.set(`${x}-${y}`, el);
