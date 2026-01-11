@@ -832,7 +832,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    // 获取 div 的位置（div 包裹 button，它们应该有相同的位置和尺寸）
+    // 使用 getBoundingClientRect 获取准确的相对位置
     const tileRect = tileElement.getBoundingClientRect();
     const boardRect = gameBoard.getBoundingClientRect();
 
@@ -1127,28 +1127,28 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   )}
                 </div>
 
-                {/* 状态显示栏（固定在顶部，不影响游戏区域） */}
-                <div className={`grid grid-cols-4 gap-3 sm:gap-4 shrink-0`}>
-                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl text-center backdrop-blur-sm border border-violet-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
+                {/* 状态显示栏（固定在顶部，增加间距） */}
+                <div className={`grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 shrink-0`}>
+                  <div className={`p-2 sm:p-3 md:p-4 bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl text-center backdrop-blur-sm border border-violet-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent text-lg sm:text-xl lg:text-2xl`}>
                       {formatTime(timeLeft)}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.timeLeft}</div>
                   </div>
-                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl text-center backdrop-blur-sm border border-fuchsia-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
+                  <div className={`p-2 sm:p-3 md:p-4 bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl text-center backdrop-blur-sm border border-fuchsia-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent text-lg sm:text-xl lg:text-2xl`}>
                       {score}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.score}</div>
                   </div>
-                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl text-center backdrop-blur-sm border border-pink-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
+                  <div className={`p-2 sm:p-3 md:p-4 bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl text-center backdrop-blur-sm border border-pink-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent text-lg sm:text-xl lg:text-2xl`}>
                       {level}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.level}</div>
                   </div>
-                  <div className={`p-3 sm:p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl text-center backdrop-blur-sm border border-cyan-500/20`}>
-                    <div className={`font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent text-xl sm:text-2xl lg:text-3xl`}>
+                  <div className={`p-2 sm:p-3 md:p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl text-center backdrop-blur-sm border border-cyan-500/20`}>
+                    <div className={`font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent text-lg sm:text-xl lg:text-2xl`}>
                       {tilesLeft}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-400 mt-1">{t.ui.tilesLeft}</div>
@@ -1156,9 +1156,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 游戏区域 */}
-                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-3 sm:p-4' : 'p-4 sm:p-5 md:p-6'}`}>
-                  {/* 游戏板容器：使用宽高比确保方块比例一致 */}
-                  <div ref={gameBoardRef} className={`relative w-full ${isFullscreen ? 'h-full' : ''}`} style={{ aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}` }}>
+                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-2 sm:p-3 flex flex-col items-center justify-center' : 'p-2 sm:p-3 md:p-4 flex flex-col items-center justify-center'}`} style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                  {/* 游戏板容器：使用 aspectRatio 确保方块正方形 */}
+                  <div ref={gameBoardRef} className="relative w-full" style={{ aspectRatio: `${BOARD_COLS + 2} / ${BOARD_ROWS + 2}` }}>
                     {/* 连击显示（在游戏区域内） */}
                   {comboCount > 1 && (
                     <motion.div
@@ -1167,12 +1167,12 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                       exit={{ scale: 0.8, opacity: 0 }}
                       className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30"
                     >
-                      <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 via-yellow-600 to-orange-600 rounded-full shadow-lg shadow-orange-500/30">
-                        <Flame className="w-6 h-6 text-white" />
-                        <span className="text-2xl font-bold text-white">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 via-yellow-600 to-orange-600 rounded-full shadow-lg shadow-orange-500/30">
+                        <Flame className="w-4 h-4 text-white" />
+                        <span className="text-xl font-bold text-white">
                           {comboCount} {t.ui.combo}!
                         </span>
-                        <Zap className="w-6 h-6 text-white" />
+                        <Zap className="w-4 h-4 text-white" />
                       </div>
                     </motion.div>
                   )}
@@ -1198,7 +1198,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             opacity: 0
                           }}
                           transition={{ duration: 0.5, ease: 'easeOut' }}
-                          className="absolute w-2.5 h-2.5 rounded-full"
+                          className="absolute w-2 h-2 rounded-full"
                           style={{
                             backgroundColor: particle.color,
                             filter: 'blur(0.5px)',
@@ -1210,7 +1210,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   </div>
 
                   {/* 连接线层 */}
-                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
+                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 40 }}>
                     {matchedPath.length > 1 && (() => {
                       // 预计算所有路径点
                       const pathPoints = matchedPath.map((point, index) => {
@@ -1256,7 +1256,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           <motion.path
                             d={pathD}
                             stroke="url(#lineGlowGradient)"
-                            strokeWidth="18"
+                            strokeWidth="16"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -1269,7 +1269,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           <motion.path
                             d={pathD}
                             stroke="url(#lineGradient)"
-                            strokeWidth="8"
+                            strokeWidth="6"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -1283,7 +1283,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                               key={`point-${index}`}
                               cx={point.x}
                               cy={point.y}
-                              r="3.5"
+                              r="3"
                               fill="#fcd34d"
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
@@ -1296,7 +1296,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   </svg>
 
                   <div
-                    className={`grid gap-1 relative ${isFullscreen ? 'h-full w-full' : 'w-full'}`}
+                    className="grid gap-0.75 relative w-full h-full"
                     style={{
                       gridTemplateColumns: `repeat(${BOARD_COLS + 2}, 1fr)`,
                       gridTemplateRows: `repeat(${BOARD_ROWS + 2}, 1fr)`
