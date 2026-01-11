@@ -3484,26 +3484,41 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
         ctx.restore();
 
-        // 角落装饰（使用独立绘制，确保效果清晰）
-        ctx.save();
-        ctx.fillStyle = isMythic ? '#FF4757' : (isLegendary ? '#D4AF37' : '#FF7F50');
-        const cornerSize = 15;
-        const cornerThickness = 3;
-        const cornerOffset = 8;
+        // 光晕效果（替代角落装饰）
+        const glowIntensity = isSelected ? 0.15 : 0.08;
+        const glowColor = isMythic
+          ? `rgba(255, 71, 87, ${glowIntensity})`
+          : isLegendary
+          ? `rgba(212, 175, 55, ${glowIntensity})`
+          : `rgba(255, 127, 80, ${glowIntensity})`;
 
-        // 左上角
-        ctx.fillRect(x + cornerOffset, startY + cornerOffset, cornerSize, cornerThickness);
-        ctx.fillRect(x + cornerOffset, startY + cornerOffset, cornerThickness, cornerSize);
-        // 右上角
-        ctx.fillRect(x + panelWidth - cornerSize - cornerOffset, startY + cornerOffset, cornerSize, cornerThickness);
-        ctx.fillRect(x + panelWidth - cornerThickness - cornerOffset, startY + cornerOffset, cornerThickness, cornerSize);
-        // 左下角
-        ctx.fillRect(x + cornerOffset, startY + panelHeight - cornerSize - cornerOffset, cornerSize, cornerThickness);
-        ctx.fillRect(x + cornerOffset, startY + panelHeight - cornerThickness - cornerOffset, cornerThickness, cornerSize);
-        // 右下角
-        ctx.fillRect(x + panelWidth - cornerSize - cornerOffset, startY + panelHeight - cornerSize - cornerOffset, cornerSize, cornerThickness);
-        ctx.fillRect(x + panelWidth - cornerThickness - cornerOffset, startY + panelHeight - cornerSize - cornerOffset, cornerThickness, cornerSize);
-        ctx.restore();
+        // 上边缘光晕
+        const topGlowGradient = ctx.createLinearGradient(x, startY, x, startY + 30);
+        topGlowGradient.addColorStop(0, glowColor);
+        topGlowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = topGlowGradient;
+        ctx.fillRect(x, startY, panelWidth, 30);
+
+        // 下边缘光晕
+        const bottomGlowGradient = ctx.createLinearGradient(x, startY + panelHeight - 30, x, startY + panelHeight);
+        bottomGlowGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        bottomGlowGradient.addColorStop(1, glowColor);
+        ctx.fillStyle = bottomGlowGradient;
+        ctx.fillRect(x, startY + panelHeight - 30, panelWidth, 30);
+
+        // 左边缘光晕
+        const leftGlowGradient = ctx.createLinearGradient(x, startY, x + 30, startY);
+        leftGlowGradient.addColorStop(0, glowColor);
+        leftGlowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = leftGlowGradient;
+        ctx.fillRect(x, startY, 30, panelHeight);
+
+        // 右边缘光晕
+        const rightGlowGradient = ctx.createLinearGradient(x + panelWidth - 30, startY, x + panelWidth, startY);
+        rightGlowGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        rightGlowGradient.addColorStop(1, glowColor);
+        ctx.fillStyle = rightGlowGradient;
+        ctx.fillRect(x + panelWidth - 30, startY, 30, panelHeight);
       }
 
       // 选中时的外发光效果（使用独立的半透明层）
@@ -4407,7 +4422,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (monster.isStunned) {
               const pulseAlpha = 0.3 + Math.sin(gameTimeRef.current * 5) * 0.15;
               ctx.save();
-              ctx.translate(monsterScreenX, monster.y + animOffset);
+              // 使用屏幕坐标，确保冰霜光环在怪物脚下正确显示
+              ctx.translate(monsterScreenX, monsterScreenY + animOffset);
 
               // 外圈冰霜光环（浅蓝色）
               ctx.fillStyle = `rgba(135, 206, 250, ${pulseAlpha * 0.4})`;
