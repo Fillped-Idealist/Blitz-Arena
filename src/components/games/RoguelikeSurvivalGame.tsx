@@ -1187,7 +1187,7 @@ const SKILL_POOL: Skill[] = [
     color: COLORS.legendary,
     icon: SKILL_ICONS.skull
   },
-  // 神话技能
+  // 神话技能（25级后可解锁）
   {
     id: 'champion',
     name: '冠军之心',
@@ -1205,6 +1205,159 @@ const SKILL_POOL: Skill[] = [
     rarity: 'mythic',
     color: COLORS.mythic,
     icon: SKILL_ICONS.star
+  },
+  // 武器切换（主动）
+  {
+    id: 'change_bow',
+    name: '弓箭手',
+    description: '攻击范围永久+50%，攻击速度-15%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, attackRange: p.attackRange * 1.5, attackSpeed: p.attackSpeed * 0.85 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'magic_power',
+    name: '魔法强化',
+    description: '远程伤害永久+40%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.4 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  {
+    id: 'blade_mastery',
+    name: '剑术精通',
+    description: '近战伤害+30%，攻击范围+15%',
+    type: 'active',
+    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.3, attackRange: p.attackRange * 1.15 }),
+    rarity: 'rare',
+    color: COLORS.rare
+  },
+  // 自动锁敌被动技能（多等级可升级）
+  {
+    id: 'auto_tracking',
+    name: '天命法阵',
+    description: '每6秒在画面内生命值最高的怪物脚下召唤法阵，1秒后造成约1000伤害（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, autoLockLevel: 1 }),
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.magic
+  },
+  // 追踪精通系列（增加伤害）
+  {
+    id: 'tracking_mastery_1',
+    name: '法阵精通 I',
+    description: '天命法阵伤害 +200（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
+    rarity: 'rare',
+    color: COLORS.rare,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_mastery_2',
+    name: '法阵精通 II',
+    description: '天命法阵伤害 +200（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_mastery_3',
+    name: '法阵精通 III',
+    description: '天命法阵伤害 +200（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_mastery_4',
+    name: '法阵精通 IV',
+    description: '天命法阵伤害 +200（被动）',
+    type: 'passive',
+    apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.magic
+  },
+  // 追踪频率系列（缩短冷却）
+  {
+    id: 'tracking_speed_1',
+    name: '法阵加速 I',
+    description: '天命法阵冷却时间 -1秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'rare',
+    color: COLORS.rare,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_speed_2',
+    name: '法阵加速 II',
+    description: '天命法阵冷却时间 -1秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_speed_3',
+    name: '法阵加速 III',
+    description: '天命法阵冷却时间 -1秒（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.magic
+  },
+  // 追踪多重（增加数量）
+  {
+    id: 'tracking_multishot_1',
+    name: '法阵多重 I',
+    description: '天命法阵同时锁定 +1个敌人（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'legendary',
+    color: COLORS.legendary,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_multishot_2',
+    name: '法阵多重 II',
+    description: '天命法阵同时锁定 +1个敌人（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.magic
+  },
+  // 追踪穿透系列（法阵范围）
+  {
+    id: 'tracking_pierce_1',
+    name: '法阵扩张 I',
+    description: '天命法阵范围扩大30%（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.magic
+  },
+  {
+    id: 'tracking_pierce_2',
+    name: '法阵扩张 II',
+    description: '天命法阵范围扩大30%（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'mythic',
+    color: COLORS.mythic,
+    icon: SKILL_ICONS.magic
   },
   // 武器切换（主动）
   {

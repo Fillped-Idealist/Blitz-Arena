@@ -108,6 +108,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [bgMusicPlaying, setBgMusicPlaying] = useState(false);
   
   // 游戏状态
   const [gameStarted, setGameStarted] = useState(false);
@@ -132,6 +133,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const bgMusicOscillatorRef = useRef<OscillatorNode | null>(null);
+  const bgMusicGainRef = useRef<GainNode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
   const tileElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -150,6 +153,71 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     if (typeof window !== 'undefined' && !audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+  }, []);
+
+  // 播放背景音乐
+  const playBackgroundMusic = useCallback(() => {
+    if (!soundEnabled || !audioContextRef.current || bgMusicPlaying) return;
+
+    const ctx = audioContextRef.current;
+    
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    // 创建简单的背景音乐（使用多个振荡器产生和弦）
+    const now = ctx.currentTime;
+    const frequencies = [261.63, 329.63, 392.00]; // C4, E4, G4 (C大调和弦)
+    
+    const oscillators: OscillatorNode[] = [];
+    const gainNode = ctx.createGain();
+    gainNode.connect(ctx.destination);
+    gainNode.gain.value = 0.03; // 背景音乐音量较低
+
+    frequencies.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gainNode);
+      osc.start(now + i * 0.5);
+      oscillators.push(osc);
+    });
+
+    // 使用GainNode控制音量包络，产生淡入淡出效果
+    const createLoop = (time: number, duration: number) => {
+      const loopOsc = ctx.createOscillator();
+      const loopGain = ctx.createGain();
+      loopOsc.connect(loopGain);
+      loopGain.connect(ctx.destination);
+      loopGain.gain.value = 0.02;
+      loopOsc.frequency.value = frequencies[0];
+      loopOsc.start(time);
+      loopOsc.stop(time + duration);
+    };
+
+    // 创建循环播放的背景音乐
+    let loopTime = now;
+    const loopDuration = 4;
+    for (let i = 0; i < 100; i++) {
+      createLoop(loopTime + i * loopDuration, loopDuration);
+    }
+
+    bgMusicOscillatorRef.current = oscillators[0];
+    bgMusicGainRef.current = gainNode;
+    setBgMusicPlaying(true);
+  }, [soundEnabled, bgMusicPlaying]);
+
+  // 停止背景音乐
+  const stopBackgroundMusic = useCallback(() => {
+    if (bgMusicOscillatorRef.current) {
+      bgMusicOscillatorRef.current.stop();
+      bgMusicOscillatorRef.current = null;
+    }
+    if (bgMusicGainRef.current) {
+      bgMusicGainRef.current.disconnect();
+      bgMusicGainRef.current = null;
+    }
+    setBgMusicPlaying(false);
   }, []);
 
   // 播放音效
@@ -567,6 +635,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   // 结束游戏
   const endGame = () => {
     playSound('gameover');
+    stopBackgroundMusic();
     
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -582,6 +651,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   // 初始化游戏
   const startGame = useCallback(() => {
     initAudio();
+    playBackgroundMusic();
     
     setGameStarted(true);
     setGameOver(false);
@@ -605,9 +675,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
         return prev - 1;
       });
     }, 1000);
-  }, [initAudio, generateLevel]);
+  }, [initAudio, generateLevel, playBackgroundMusic]);
 
-  // 清理定时器
+  // 清理定时器和音频资源
   useEffect(() => {
     return () => {
       if (timerRef.current) {
@@ -616,8 +686,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       if (comboTimerRef.current) {
         clearTimeout(comboTimerRef.current);
       }
+      stopBackgroundMusic();
     };
-  }, []);
+  }, [stopBackgroundMusic]);
 
   // 切换全屏
   const toggleFullscreen = useCallback(() => {
@@ -632,8 +703,14 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
   // 切换音效
   const toggleSound = useCallback(() => {
-    setSoundEnabled(prev => !prev);
-  }, []);
+    setSoundEnabled(prev => {
+      const newValue = !prev;
+      if (!newValue) {
+        stopBackgroundMusic();
+      }
+      return newValue;
+    });
+  }, [stopBackgroundMusic]);
 
   // 切换语言
   const toggleLanguage = useCallback(() => {
@@ -703,15 +780,25 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     const gameBoard = gameBoardRef.current;
 
     if (!tileElement || !gameBoard) {
+      console.warn(`Tile element or game board not found for position (${x}, ${y})`);
       return null;
     }
 
     const tileRect = tileElement.getBoundingClientRect();
     const boardRect = gameBoard.getBoundingClientRect();
 
+    // 计算相对于游戏板的坐标
+    const x1 = tileRect.left - boardRect.left + tileRect.width / 2;
+    const y1 = tileRect.top - boardRect.top + tileRect.height / 2;
+
+    // 确保坐标在合理范围内
+    if (x1 < 0 || y1 < 0 || x1 > boardRect.width || y1 > boardRect.height) {
+      console.warn(`Calculated point out of bounds: (${x1}, ${y1})`);
+    }
+
     return {
-      x: tileRect.left - boardRect.left + tileRect.width / 2,
-      y: tileRect.top - boardRect.top + tileRect.height / 2
+      x: x1,
+      y: y1
     };
   };
 
@@ -1004,8 +1091,12 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                 {/* 游戏区域 */}
                 <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 flex items-center justify-center ${isFullscreen ? 'flex-1 min-h-0 p-4' : 'p-4'}`}>
-                  {/* 游戏板容器 */}
-                  <div ref={gameBoardRef} className="relative w-full max-w-4xl" style={{ aspectRatio: `${BOARD_COLS + 2} / ${BOARD_ROWS + 2}` }}>
+                  {/* 游戏板容器 - 全屏时使用h-full而非aspectRatio */}
+                  <div 
+                    ref={gameBoardRef} 
+                    className={`relative ${isFullscreen ? 'h-full w-full' : 'w-full max-w-4xl'}`} 
+                    style={!isFullscreen ? { aspectRatio: `${BOARD_COLS + 2} / ${BOARD_ROWS + 2}` } : {}}
+                  >
                     {/* 连击显示 */}
                     {comboCount > 1 && (
                       <motion.div
@@ -1025,7 +1116,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                     )}
 
                     {/* 连接线层 */}
-                    <svg className="absolute inset-0 pointer-events-none z-50">
+                    <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full">
                       {matchedPath.length > 1 && (() => {
                         const pathPoints = matchedPath.map((point) => getTileCenterPixel(point.x, point.y));
                         const validPoints = pathPoints.filter(p => p !== null) as Array<{ x: number; y: number }>;
@@ -1044,14 +1135,22 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                                 <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
                                 <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
                               </linearGradient>
+                              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                <feMerge>
+                                  <feMergeNode in="coloredBlur"/>
+                                  <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                              </filter>
                             </defs>
                             <motion.path
                               d={pathD}
                               stroke="url(#lineGradient)"
-                              strokeWidth="8"
+                              strokeWidth={isFullscreen ? "12" : "8"}
                               fill="none"
                               strokeLinecap="round"
                               strokeLinejoin="round"
+                              filter="url(#glow)"
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               transition={{ duration: 0.1 }}
@@ -1061,8 +1160,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                                 key={`point-${index}`}
                                 cx={point.x}
                                 cy={point.y}
-                                r="4"
+                                r={isFullscreen ? "6" : "4"}
                                 fill="#fcd34d"
+                                filter="url(#glow)"
                                 initial={{ scale: 0, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ duration: 0.1 }}
@@ -1075,7 +1175,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                     {/* 游戏网格 */}
                     <div
-                      className="grid gap-1 w-full h-full"
+                      className={`grid ${isFullscreen ? 'gap-2' : 'gap-1'} w-full h-full`}
                       style={{
                         gridTemplateColumns: `repeat(${BOARD_COLS + 2}, 1fr)`,
                         gridTemplateRows: `repeat(${BOARD_ROWS + 2}, 1fr)`
