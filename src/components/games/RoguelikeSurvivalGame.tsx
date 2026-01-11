@@ -146,6 +146,9 @@ interface Monster {
   chargeEndPos: { x: number; y: number }; // 冲刺终点位置
   meleeBossSpawnIndex?: number; // 近战Boss生成序号（用于计算属性成长）
   chargeStartEffectTriggered?: boolean; // 冲刺开始效果是否已触发（仅近战Boss使用）
+  isAttacking?: boolean; // 是否正在执行普通攻击动作
+  attackStartTime?: number; // 攻击开始时间
+  attackScale?: number; // 攻击时的缩放倍数（用于攻击动画）
 }
 
 interface Projectile {
@@ -1422,6 +1425,31 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     return false;
   }, []);
 
+  // 检查玩家是否在冲刺路径的长方形区域内
+  const checkChargeCollision = useCallback((
+    playerX: number, playerY: number, playerRadius: number,
+    bossX: number, bossY: number,
+    direction: { x: number, y: number },
+    pathLength: number, pathWidth: number
+  ): boolean => {
+    // 将玩家坐标转换到Boss的局部坐标系（Boss为原点）
+    const relativeX = playerX - bossX;
+    const relativeY = playerY - bossY;
+
+    // 将相对坐标投影到冲刺方向和垂直方向
+    const forwardDist = relativeX * direction.x + relativeY * direction.y;
+    const sideDist = Math.abs(relativeX * -direction.y + relativeY * direction.x);
+
+    // 检查是否在长方形区域内
+    // 前向距离：从0到pathLength
+    // 侧向距离：从0到pathWidth/2（加上玩家半径）
+    const collisionRadius = playerRadius;
+    return forwardDist >= -collisionRadius && forwardDist <= pathLength + collisionRadius &&
+           sideDist <= pathWidth / 2 + collisionRadius;
+  }, []);
+
+
+
   // ==================== 难度计算（非线性） ====================
   const getDifficultyMultiplier = useCallback((time: number): number => {
     // 使用指数增长，每分钟难度显著提升
@@ -1796,7 +1824,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 实际冲刺阶段（0.5秒）- 沿着锁定的直线移动
           const sprintProgress = (chargeElapsed - 1000) / 500; // 0到1
           const accelerationCurve = Math.pow(sprintProgress, 0.7); // 非线性加速曲线
-          const currentSpeed = 40 + accelerationCurve * 40; // 从40加速到80（更猛烈）
+          const currentSpeed = 80 + accelerationCurve * 100; // 从80加速到180（更猛烈，大幅提升）
 
           // 冲刺开始的爆发效果（只在冲刺刚开始时触发一次）
           if (sprintProgress < 0.05 && !monster.chargeStartEffectTriggered) {
@@ -1833,7 +1861,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           }
 
           // 碰撞检测：冲刺造成双倍伤害并击退
-          if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
+          // 计算冲刺路径参数
+          const sizeMultiplier = monster.size / 140;
+          const chargePathLength = 400 * sizeMultiplier; // 与显示区域一致
+          const chargePathWidth = 100 * sizeMultiplier; // 与显示区域一致
+
+          // 检查玩家是否在冲刺路径上
+          if (checkChargeCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y,
+              monster.chargeDirection, chargePathLength, chargePathWidth)) {
             if (!player.invincible) {
               let damage = Math.floor(monster.damage * 2); // 冲刺伤害为普通攻击的2倍
 
@@ -1860,19 +1895,25 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (damage > 0) {
                 player.hp = Math.max(0, Math.floor(player.hp - damage));
 
-                // 击退效果
-                const knockbackDistance = 150;
-                const knockbackX = (player.x - monster.x) / Math.sqrt(Math.pow(player.x - monster.x, 2) + Math.pow(player.y - monster.y, 2)) * knockbackDistance;
-                const knockbackY = (player.y - monster.y) / Math.sqrt(Math.pow(player.x - monster.x, 2) + Math.pow(player.y - monster.y, 2)) * knockbackDistance;
+                // 击退效果（沿着冲刺方向击退）
+                const knockbackDistance = 200; // 增大击退距离
+                const knockbackX = monster.chargeDirection.x * knockbackDistance;
+                const knockbackY = monster.chargeDirection.y * knockbackDistance;
                 player.x += knockbackX;
                 player.y += knockbackY;
 
                 player.invincible = true;
                 player.invincibleTime = 500;
                 createDamageNumber(player.x, player.y, damage, false);
-                triggerScreenShake(3, 0.1);
+                triggerScreenShake(5, 0.15); // 增大震动强度
                 playSound('damage');
-                createParticles(player.x, player.y, COLORS.player, 12, 'blood');
+                createParticles(player.x, player.y, COLORS.player, 20, 'blood'); // 增加粒子数量
+
+                console.log('[MeleeBoss] Charge hit player', {
+                  damage: damage,
+                  chargePathLength: chargePathLength,
+                  chargePathWidth: chargePathWidth
+                });
               }
             }
           }
@@ -1887,19 +1928,23 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const distance = Math.sqrt(dx * dx + dy * dy);
             monster.chargeDirection = { x: dx / distance, y: dy / distance };
             monster.chargeStartPos = { x: monster.x, y: monster.y }; // 记录起点
-            // 计算终点（冲刺距离按体型比例增加，但调整得更合理）
+            // 计算终点（冲刺距离大幅增加，参考优秀游戏案例）
             const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
-            const chargeDistance = 120 * sizeMultiplier; // 基础冲刺距离120像素
+            const chargeDistance = 400 * sizeMultiplier; // 基础冲刺距离400像素（约3倍屏幕宽度）
             monster.chargeEndPos = {
               x: monster.x + monster.chargeDirection.x * chargeDistance,
               y: monster.y + monster.chargeDirection.y * chargeDistance
             };
+            console.log('[MeleeBoss] Charge calculated', {
+              chargeDistance: chargeDistance,
+              sizeMultiplier: sizeMultiplier
+            });
           }
 
           // 前摇阶段的后退动作（模拟蓄力，不改变实际冲刺路线）
           const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
-          const retreatDistance = retreatProgress * 50; // 最多后退50像素
-          const retreatSpeed = 2 + retreatProgress * 2; // 从2加速到4的平滑速度
+          const retreatDistance = retreatProgress * 120; // 最多后退120像素（大幅增加）
+          const retreatSpeed = 3 + retreatProgress * 5; // 从3加速到8的平滑速度（更明显）
 
           monster.vx = -monster.chargeDirection.x * retreatSpeed;
           monster.vy = -monster.chargeDirection.y * retreatSpeed;
@@ -2905,7 +2950,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 chargeStartPos: { x: 0, y: 0 },
                 chargeEndPos: { x: 0, y: 0 },
                 meleeBossSpawnIndex: existingMeleeBossCount,
-                chargeStartEffectTriggered: false
+                chargeStartEffectTriggered: false,
+                isAttacking: false,
+                attackStartTime: 0,
+                attackScale: 1
               };
 
               monstersRef.current.push(meleeBoss);
@@ -3064,6 +3112,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 玩家与怪物碰撞（仅在PLAYING状态下）
           if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
             if (performance.now() - monster.lastAttack > 700) {
+              // Boss普通攻击视觉反馈（攻击动作）
+              if (monster.type === 'melee_boss') {
+                monster.isAttacking = true;
+                monster.attackStartTime = performance.now();
+                monster.attackScale = 1.3; // 攻击时放大30%
+                triggerScreenShake(3, 0.1); // 攻击时震动屏幕
+                playSound('damage');
+              }
+
               // 护盾优先吸收伤害
               let damage = Math.floor(monster.damage);
 
@@ -3093,9 +3150,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   player.hp = Math.max(0, Math.floor(player.hp - damage));
                   monster.lastAttack = performance.now();
                   createDamageNumber(player.x, player.y, damage, false);
-                  triggerScreenShake(2, 0.08);
                   playSound('damage');
-                  createParticles(player.x, player.y, COLORS.player, 10, 'blood');
+                  createParticles(player.x, player.y, COLORS.player, 15, 'blood'); // 增加粒子数量
 
                   player.invincible = true;
                   player.invincibleTime = 500;
@@ -3140,9 +3196,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             // 怪物动画
             // 近战Boss浮动更明显（8像素），普通怪物浮动较小（2像素）
             // 冲刺时Boss不浮动，前摇时浮动加重（12像素）
+            // 攻击时放大并震动
             let floatAmplitude = monster.type === 'melee_boss' ? 8 : 2;
             let floatSpeed = 5;
             let animOffset = 0;
+            let attackScale = 1;
 
             if (monster.type === 'melee_boss') {
               if (monster.isCharging) {
@@ -3156,6 +3214,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   floatAmplitude = 12;
                   floatSpeed = 10; // 更快的浮动频率
                   animOffset = Math.sin(gameTimeRef.current * floatSpeed + monster.animationOffset) * floatAmplitude;
+                }
+              } else if (monster.isAttacking && monster.attackStartTime) {
+                // 攻击动画：放大并震动
+                const attackElapsed = performance.now() - monster.attackStartTime;
+                if (attackElapsed < 200) { // 攻击动画持续200毫秒
+                  const attackProgress = attackElapsed / 200;
+                  // 先放大到1.3倍，然后恢复到1倍
+                  attackScale = attackProgress < 0.5 ? 1 + attackProgress * 0.6 : 1.6 - (attackProgress - 0.5) * 1.2;
+                  animOffset = (Math.random() - 0.5) * 3; // 攻击时震动
+                  floatAmplitude = 0; // 攻击时不浮动
+                } else {
+                  monster.isAttacking = false;
+                  attackScale = 1;
                 }
               } else {
                 // 普通状态：正常浮动
@@ -3174,7 +3245,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 近战Boss使用更大的缩放比例，使其显示大小与碰撞大小匹配
               // melee_boss像素艺术中心到边缘约12像素，目标140像素需要约5.8倍缩放
               const scaleMultiplier = monster.type === 'melee_boss' ? 5.8 : 1.2;
-              ctx.scale(monster.scale * scaleMultiplier, monster.scale * scaleMultiplier);
+              // 应用攻击动画缩放
+              const finalScale = monster.scale * scaleMultiplier * attackScale;
+              ctx.scale(finalScale, finalScale);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
               ctx.restore();
             }
@@ -3234,10 +3307,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (monster.isCharging) {
                 const chargeElapsed = performance.now() - monster.chargeStartTime;
                 if (chargeElapsed <= 1000) { // 前摇阶段
-                  // 根据Boss体型调整冲刺距离和宽度
+                  // 根据Boss体型调整冲刺距离和宽度（大幅增加）
                   const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
-                  const pathLength = 120 * sizeMultiplier; // 冲刺距离按体型比例调整
-                  const pathWidth = 40 * sizeMultiplier; // 冲刺宽度按体型比例调整
+                  const pathLength = 400 * sizeMultiplier; // 冲刺距离按体型比例调整（与实际冲刺距离一致）
+                  const pathWidth = 100 * sizeMultiplier; // 冲刺宽度按体型比例调整（大幅增加至Boss体型的70%）
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
                   const progress = chargeElapsed / 1000;
