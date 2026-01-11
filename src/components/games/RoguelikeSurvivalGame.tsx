@@ -108,6 +108,9 @@ interface Player {
   damageReduction: number;  // 减伤百分比（0-0.8，上限80%）
   shieldHp: number;  // 当前护盾值
   shieldMaxHp: number;  // 最大护盾值
+  auraRadius: number;  // 立场范围
+  auraDamage: number;  // 立场灼烧伤害
+  auraLastDamageTime: number;  // 上次立场伤害时间
 }
 
 interface Monster {
@@ -141,7 +144,7 @@ interface Monster {
   isCharging: boolean;
   chargeStartTime: number;
   chargeDirection: { x: number; y: number };
-  chargeTrail: { x: number; y: number; life: number }[];
+  chargeTrail: { x: number; y: number; life: number; radius: number }[];
   chargeStartPos: { x: number; y: number }; // 冲刺起始位置
   chargeEndPos: { x: number; y: number }; // 冲刺终点位置
   meleeBossSpawnIndex?: number; // 近战Boss生成序号（用于计算属性成长）
@@ -149,6 +152,11 @@ interface Monster {
   isAttacking?: boolean; // 是否正在执行普通攻击动作
   attackStartTime?: number; // 攻击开始时间
   attackScale?: number; // 攻击时的缩放倍数（用于攻击动画）
+  lastDamageTime?: number; // 上次受到伤害的时间（用于防止穿透攻击多次伤害）
+  // 近战Boss新技能：立场灼烧
+  hasAura?: boolean; // 是否激活立场灼烧
+  auraStartTime?: number; // 立场开始时间
+  auraDamageCooldown?: number; // 立场伤害冷却（毫秒）
 }
 
 interface Projectile {
@@ -594,6 +602,13 @@ const SKILL_ICONS = {
     { x: -1, y: -1, color: '#FFD93D' }, { x: 1, y: -1, color: '#FFD93D' },
     { x: 0, y: 0, color: '#FF4757' }
   ],
+  circle: [
+    { x: 0, y: -2, color: '#FF6B6B' },
+    { x: -2, y: -1, color: '#E74C3C' }, { x: 2, y: -1, color: '#E74C3C' },
+    { x: -3, y: 0, color: '#C0392B' }, { x: 3, y: 0, color: '#C0392B' },
+    { x: -2, y: 1, color: '#E74C3C' }, { x: 2, y: 1, color: '#E74C3C' },
+    { x: 0, y: 2, color: '#FF6B6B' }
+  ],
   speed: [
     { x: -2, y: -1, color: '#2ECC71' }, { x: -1, y: -1, color: '#2ECC71' }, { x: 0, y: -1, color: '#2ECC71' },
     { x: -1, y: 0, color: '#2ECC71' }, { x: 0, y: 0, color: '#2ECC71' }, { x: 1, y: 0, color: '#2ECC71' },
@@ -732,6 +747,26 @@ const SKILL_POOL: Skill[] = [
     description: '攻击范围永久+60%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, attackRange: p.attackRange * 1.6 }),
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.sword
+  },
+  {
+    id: 'aura_burn',
+    name: '烈焰立场',
+    description: '立场范围扩大50%，灼烧伤害+30%（被动）',
+    type: 'passive',
+    apply: (p) => p,
+    rarity: 'epic',
+    color: COLORS.epic,
+    icon: SKILL_ICONS.circle
+  },
+  {
+    id: 'melee_mastery',
+    name: '近战大师',
+    description: '近战伤害永久+100%，攻击范围+40%（可累加）',
+    type: 'active',
+    apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 2, attackRange: p.attackRange * 1.4 }),
     rarity: 'epic',
     color: COLORS.epic,
     icon: SKILL_ICONS.sword
@@ -1782,6 +1817,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       hasShield: type === 'elite' || type === 'boss',
       shieldHp: type === 'boss' ? Math.floor(200 * finalDifficulty) : 50,
       shieldMaxHp: type === 'boss' ? Math.floor(200 * finalDifficulty) : 50,
+      lastDamageTime: 0, // 上次受到伤害的时间
       currentPhase: 0,
       phaseTimer: 0,
       abilityCooldown: type === 'boss' ? 5 : 0,
@@ -1854,10 +1890,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monster.vy = monster.chargeDirection.y * currentSpeed;
           }
 
-          // 记录冲刺轨迹（降低频率到每3帧记录一次，优化性能）
-          if (!monster.chargeTrail || monster.chargeTrail.length === 0 ||
-              Math.floor(sprintProgress * 30) % 3 === 0) {
-            monster.chargeTrail.push({ x: monster.x, y: monster.y, life: 2.0 });
+          // 记录冲刺轨迹（每帧都记录，形成连续轨迹）
+          monster.chargeTrail.push({ 
+            x: monster.x, 
+            y: monster.y, 
+            life: 1.5, 
+            radius: 15 + Math.random() * 10 // 变化半径
+          });
+          // 限制轨迹数量，避免性能问题
+          if (monster.chargeTrail.length > 80) {
+            monster.chargeTrail.shift();
           }
 
           // 碰撞检测：冲刺造成双倍伤害并击退
@@ -1895,24 +1937,36 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (damage > 0) {
                 player.hp = Math.max(0, Math.floor(player.hp - damage));
 
-                // 击退效果（沿着冲刺方向击退）
-                const knockbackDistance = 200; // 增大击退距离
-                const knockbackX = monster.chargeDirection.x * knockbackDistance;
-                const knockbackY = monster.chargeDirection.y * knockbackDistance;
+                // 非线性击飞效果（增强击飞感）
+                const knockbackBaseDistance = 250;
+                const knockbackVariation = 100;
+                const knockbackTotal = knockbackBaseDistance + Math.random() * knockbackVariation;
+                
+                // 使用缓动函数让击飞有爆发力
+                const knockbackX = monster.chargeDirection.x * knockbackTotal;
+                const knockbackY = monster.chargeDirection.y * knockbackTotal;
+                
+                // 先直接移动到击飞终点
                 player.x += knockbackX;
                 player.y += knockbackY;
-
+                
+                // 增加击飞的视觉反馈
+                createParticles(player.x, player.y, COLORS.player, 25, 'blood');
+                createParticles(player.x - knockbackX * 0.5, player.y - knockbackY * 0.5, '#FF6B6B', 10, 'explosion');
+                
+                // 更强的屏幕震动
+                triggerScreenShake(8, 0.2);
+                
                 player.invincible = true;
-                player.invincibleTime = 500;
+                player.invincibleTime = 600;
                 createDamageNumber(player.x, player.y, damage, false);
-                triggerScreenShake(5, 0.15); // 增大震动强度
                 playSound('damage');
-                createParticles(player.x, player.y, COLORS.player, 20, 'blood'); // 增加粒子数量
 
                 console.log('[MeleeBoss] Charge hit player', {
                   damage: damage,
-                  chargePathLength: chargePathLength,
-                  chargePathWidth: chargePathWidth
+                  knockbackDistance: knockbackTotal,
+                  knockbackX: knockbackX,
+                  knockbackY: knockbackY
                 });
               }
             }
@@ -1921,30 +1975,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 冲刺前摇阶段（1秒），显示冲刺路径
           const windupProgress = chargeElapsed / 1000; // 0到1
 
-          // 在前摇开始时固定冲刺方向和位置（不会追踪玩家）
-          if (chargeElapsed < 50) { // 前50毫秒计算并锁定方向和起点
-            const dx = player.x - monster.x;
-            const dy = player.y - monster.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            monster.chargeDirection = { x: dx / distance, y: dy / distance };
-            monster.chargeStartPos = { x: monster.x, y: monster.y }; // 记录起点
-            // 计算终点（冲刺距离大幅增加，参考优秀游戏案例）
-            const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
-            const chargeDistance = 400 * sizeMultiplier; // 基础冲刺距离400像素（约3倍屏幕宽度）
-            monster.chargeEndPos = {
-              x: monster.x + monster.chargeDirection.x * chargeDistance,
-              y: monster.y + monster.chargeDirection.y * chargeDistance
-            };
-            console.log('[MeleeBoss] Charge calculated', {
-              chargeDistance: chargeDistance,
-              sizeMultiplier: sizeMultiplier
-            });
-          }
-
-          // 前摇阶段的后退动作（模拟蓄力，不改变实际冲刺路线）
+          // 前摇阶段的后退动作（模拟蓄力）
           const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
-          const retreatDistance = retreatProgress * 120; // 最多后退120像素（大幅增加）
-          const retreatSpeed = 3 + retreatProgress * 5; // 从3加速到8的平滑速度（更明显）
+          const retreatDistance = retreatProgress * 120; // 最多后退120像素
+          const retreatSpeed = 3 + retreatProgress * 5; // 从3加速到8的平滑速度
 
           monster.vx = -monster.chargeDirection.x * retreatSpeed;
           monster.vy = -monster.chargeDirection.y * retreatSpeed;
@@ -1956,14 +1990,40 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           const dy = player.y - monster.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // 攻击范围内开始冲刺（范围250）
-          if (distance < 250) {
+          // 攻击范围内开始冲刺（范围300，更大范围）
+          if (distance < 300) {
             console.log('[MeleeBoss] Starting charge', {
               distance: distance,
               abilityCooldown: monster.abilityCooldown
             });
             monster.isCharging = true;
             monster.chargeStartTime = now;
+            
+            // 立即锁定冲刺方向和位置（不会追踪玩家）
+            const directionX = dx / distance;
+            const directionY = dy / distance;
+            monster.chargeDirection = { x: directionX, y: directionY };
+            monster.chargeStartPos = { x: monster.x, y: monster.y };
+            
+            // 计算终点（冲刺距离400像素）
+            const sizeMultiplier = monster.size / 140;
+            const chargeDistance = 400 * sizeMultiplier;
+            monster.chargeEndPos = {
+              x: monster.x + directionX * chargeDistance,
+              y: monster.y + directionY * chargeDistance
+            };
+            
+            // 清空之前的冲刺轨迹
+            monster.chargeTrail = [];
+            
+            console.log('[MeleeBoss] Charge locked', {
+              startX: monster.x,
+              startY: monster.y,
+              endX: monster.chargeEndPos.x,
+              endY: monster.chargeEndPos.y,
+              direction: monster.chargeDirection,
+              distance: chargeDistance
+            });
           }
         }
       }
@@ -2938,6 +2998,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 hasShield: true,
                 shieldHp: Math.floor(25000 * growthMultiplier * difficulty),
                 shieldMaxHp: Math.floor(25000 * growthMultiplier * difficulty),
+                lastDamageTime: 0, // 上次受到伤害的时间
                 currentPhase: 0,
                 phaseTimer: 0,
                 abilityCooldown: 5, // 近战Boss冲刺CD（缩短到5秒）
@@ -3054,9 +3115,19 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const mdy = player.y - monster.y;
             const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
 
-            // 近战Boss在冲刺状态下跳过普通移动逻辑（由Boss AI控制）
+            // 近战Boss冲刺状态：应用Boss AI设置的vx/vy进行位置更新
             if (monster.type === 'melee_boss' && monster.isCharging) {
-              // 跳过普通移动，直接应用Boss AI设置的vx/vy
+              // 应用Boss AI设置的vx/vy更新位置（冲刺移动）
+              const newX = monster.x + monster.vx;
+              const newY = monster.y + monster.vy;
+              
+              // 冲刺时也要检查障碍物碰撞，防止穿墙
+              if (!checkObstacleCollision(newX, monster.y, monster.size)) {
+                monster.x = newX;
+              }
+              if (!checkObstacleCollision(monster.x, newY, monster.size)) {
+                monster.y = newY;
+              }
             } else if (mDistance > 1) {
             const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
 
@@ -3108,6 +3179,55 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           // Boss AI
           updateBossAI(monster, player, deltaTime);
+
+          // 立场灼烧效果（被动技能：对靠近的怪物造成持续伤害）
+          const hasAuraBurn = player.skills.some(s => s.id === 'aura_burn');
+          if (hasAuraBurn) {
+            const dx = monster.x - player.x;
+            const dy = monster.y - player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // 计算立场范围（受aura_burn技能影响，每个技能+50%范围和+30%伤害）
+            const auraBurnLevel = player.skills.filter(s => s.id === 'aura_burn').length;
+            const currentAuraRadius = player.auraRadius * Math.pow(1.5, auraBurnLevel);
+            const currentAuraDamage = player.auraDamage * Math.pow(1.3, auraBurnLevel);
+            
+            // 检查怪物是否在立场范围内
+            if (distance < currentAuraRadius) {
+              const now = performance.now();
+              const auraDamageCooldown = 200; // 立场伤害冷却200毫秒
+              
+              if (now - player.auraLastDamageTime > auraDamageCooldown) {
+                // 立场灼烧伤害
+                let auraDamage = Math.floor(currentAuraDamage);
+                
+                // 狂战士被动：生命值越低伤害越高
+                const hasBerserker = player.skills.some(s => s.id === 'berserker');
+                if (hasBerserker && player.hp < player.maxHp * 0.5) {
+                  const hpPercent = player.hp / player.maxHp;
+                  auraDamage *= 1 + (1 - hpPercent) * 1.25;
+                }
+                
+                // 巨人杀手被动
+                const hasGiantSlayer = player.skills.some(s => s.id === 'giant_slayer');
+                if (hasGiantSlayer && (monster.type === 'boss' || monster.type === 'elite' || monster.type === 'melee_boss')) {
+                  auraDamage *= 1.5;
+                }
+                
+                monster.hp = Math.max(0, Math.floor(monster.hp - auraDamage));
+                player.auraLastDamageTime = now;
+                
+                // 立场伤害视觉反馈（火焰粒子）
+                createParticles(monster.x, monster.y, '#FF6B6B', 3, 'fire');
+                createParticles(monster.x, monster.y, '#FFD93D', 2, 'spark');
+                
+                // 立场伤害数字（每秒只显示一次，避免数字过多）
+                if (Math.random() < 0.1) {
+                  createDamageNumber(monster.x, monster.y - monster.size * 0.5, Math.floor(auraDamage), false);
+                }
+              }
+            }
+          }
 
           // 玩家与怪物碰撞（仅在PLAYING状态下）
           if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
@@ -3371,48 +3491,49 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 冲刺残留痕迹（粒子特效）
               if (monster.chargeTrail.length > 0) {
                 monster.chargeTrail = monster.chargeTrail.filter(point => {
-                  point.life -= deltaTime;
+                  point.life -= deltaTime * 2; // 轨迹衰减更快
 
                   if (point.life > 0) {
                     const pointScreenX = worldToScreenX(point.x);
                     const pointScreenY = worldToScreenY(point.y);
 
                     // 粒子特效：多层渐变效果
-                    const baseAlpha = point.life * 0.6;
+                    const baseAlpha = point.life * 0.8;
+                    const radius = point.radius || 12;
 
-                    // 外层光晕
-                    ctx.fillStyle = `rgba(231, 76, 60, ${baseAlpha * 0.3})`;
+                    // 外层光晕（红色）
+                    ctx.fillStyle = `rgba(231, 76, 60, ${baseAlpha * 0.4})`;
                     ctx.beginPath();
-                    ctx.arc(pointScreenX, pointScreenY, 24, 0, Math.PI * 2);
+                    ctx.arc(pointScreenX, pointScreenY, radius * 2, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // 中层光晕
-                    ctx.fillStyle = `rgba(231, 76, 60, ${baseAlpha * 0.5})`;
+                    // 中层光晕（橙红色）
+                    ctx.fillStyle = `rgba(231, 76, 60, ${baseAlpha * 0.6})`;
                     ctx.beginPath();
-                    ctx.arc(pointScreenX, pointScreenY, 16, 0, Math.PI * 2);
+                    ctx.arc(pointScreenX, pointScreenY, radius * 1.5, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // 内层核心
-                    ctx.fillStyle = `rgba(255, 100, 100, ${baseAlpha * 0.8})`;
+                    // 内层核心（亮红色）
+                    ctx.fillStyle = `rgba(255, 100, 100, ${baseAlpha * 0.85})`;
                     ctx.beginPath();
-                    ctx.arc(pointScreenX, pointScreenY, 8, 0, Math.PI * 2);
+                    ctx.arc(pointScreenX, pointScreenY, radius, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // 中心高亮
-                    ctx.fillStyle = `rgba(255, 200, 200, ${baseAlpha})`;
+                    // 中心高亮（白色）
+                    ctx.fillStyle = `rgba(255, 220, 220, ${baseAlpha})`;
                     ctx.beginPath();
-                    ctx.arc(pointScreenX, pointScreenY, 4, 0, Math.PI * 2);
+                    ctx.arc(pointScreenX, pointScreenY, radius * 0.4, 0, Math.PI * 2);
                     ctx.fill();
 
                     // 火花粒子（随机生成）
-                    if (Math.random() < 0.3) {
+                    if (Math.random() < 0.5) {
                       const sparkAngle = Math.random() * Math.PI * 2;
-                      const sparkDistance = Math.random() * 15;
+                      const sparkDistance = radius * (0.8 + Math.random() * 0.4);
                       const sparkX = pointScreenX + Math.cos(sparkAngle) * sparkDistance;
                       const sparkY = pointScreenY + Math.sin(sparkAngle) * sparkDistance;
-                      const sparkSize = 2 + Math.random() * 3;
+                      const sparkSize = 3 + Math.random() * 4;
 
-                      ctx.fillStyle = `rgba(255, 200, 100, ${baseAlpha * 0.6})`;
+                      ctx.fillStyle = `rgba(255, 200, 100, ${baseAlpha * 0.7})`;
                       ctx.beginPath();
                       ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
                       ctx.fill();
@@ -3424,10 +3545,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 });
               }
 
-              // 近战Boss护盾（淡紫色，更不明显）
+              // 近战Boss护盾（淡紫色，更明显）
               if (monster.hasShield && monster.shieldHp > 0) {
-                const shieldAlpha = 0.2 + Math.sin(gameTimeRef.current * 3) * 0.08;
-                const shieldScale = monster.size / 45 * 2.8; // 根据Boss体型动态调整护盾大小
+                const shieldAlpha = 0.35 + Math.sin(gameTimeRef.current * 2) * 0.1;
+                const shieldScale = monster.size / 140 * 8.5; // 大幅增大护盾显示，使其与体型匹配
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
                 ctx.scale(shieldScale, shieldScale); // 整体缩放护盾
@@ -3442,7 +3563,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 // 绘制内圈护盾（淡紫色高亮）
                 const innerShield = PIXEL_ART.bossShield.innerShield;
                 innerShield.forEach(pixel => {
-                  ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.1).toFixed(2)).replace('93, 173, 226', '167, 107, 199');
+                  ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.15).toFixed(2)).replace('93, 173, 226', '167, 107, 199');
                   ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
                 });
 
@@ -3562,6 +3683,22 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                               (projectile.type === 'ice' ? 10 :
                               (projectile.type === 'lightning' ? 11 : 8));
               if (checkCollision(projectile.x, projectile.y, hitRadius, monster.x, monster.y, monster.size)) {
+                // 伤害冷却：防止穿透攻击对大型怪物造成多次伤害
+                const now = performance.now();
+                const damageCooldown = monster.type === 'melee_boss' ? 300 : 150; // 近战Boss有更长的伤害冷却
+                if (monster.lastDamageTime && now - monster.lastDamageTime < damageCooldown) {
+                  // 伤害冷却中，不造成伤害，但仍可穿透
+                  if (projectile.pierceCount > 0) {
+                    projectile.pierceCount--;
+                    return true;
+                  }
+                  if (projectile.bounceCount <= 0) {
+                    return false;
+                  }
+                  hit = true;
+                  break;
+                }
+                
                 let isCrit = Math.random() < player.critRate;
                 let damage = isCrit ? projectile.damage * player.critMultiplier : projectile.damage;
 
@@ -3597,6 +3734,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
                 if (damage > 0) {
                   monster.hp = Math.max(0, Math.floor(monster.hp - damage));
+                  monster.lastDamageTime = performance.now(); // 记录伤害时间
                   createParticles(projectile.x, projectile.y, COLORS.spark, 8, 'spark');
                   createDamageNumber(monster.x, monster.y, damage, isCrit);
                   playSound(isCrit ? 'crit' : 'hit');
@@ -4187,6 +4325,39 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         ctx.arc(0, 0, PLAYER_SIZE * 2.8, 0, Math.PI * 2);
         ctx.fill();
 
+        // 立场灼烧效果（如果拥有aura_burn技能）
+        const hasAuraBurn = player.skills.some(s => s.id === 'aura_burn');
+        if (hasAuraBurn) {
+          const auraBurnLevel = player.skills.filter(s => s.id === 'aura_burn').length;
+          const currentAuraRadius = player.auraRadius * Math.pow(1.5, auraBurnLevel);
+          const auraAlpha = 0.2 + Math.sin(gameTimeRef.current * 3) * 0.1;
+          
+          // 绘制立场光晕
+          const auraGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, currentAuraRadius);
+          auraGlow.addColorStop(0, `rgba(255, 107, 107, ${auraAlpha * 0.8})`);
+          auraGlow.addColorStop(0.5, `rgba(255, 150, 50, ${auraAlpha * 0.5})`);
+          auraGlow.addColorStop(1, 'rgba(255, 107, 107, 0)');
+          
+          ctx.fillStyle = auraGlow;
+          ctx.beginPath();
+          ctx.arc(0, 0, currentAuraRadius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // 绘制立场圆环
+          ctx.strokeStyle = `rgba(255, 100, 100, ${auraAlpha})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, currentAuraRadius * 0.7, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // 绘制内层圆环
+          ctx.strokeStyle = `rgba(255, 200, 100, ${auraAlpha * 0.7})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, currentAuraRadius * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
         // 无敌闪烁
         if (player.invincible) {
           ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 50) * 0.5;
@@ -4441,7 +4612,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       invincibleTime: 0,
       damageReduction: 0,  // 初始减伤为0
       shieldHp: 0,  // 初始护盾为0
-      shieldMaxHp: 0  // 初始最大护盾为0
+      shieldMaxHp: 0,  // 初始最大护盾为0
+      auraRadius: 80,  // 初始立场范围80像素
+      auraDamage: 10,  // 初始立场灼烧伤害10
+      auraLastDamageTime: 0  // 上次立场伤害时间
     };
 
     monstersRef.current = [];
