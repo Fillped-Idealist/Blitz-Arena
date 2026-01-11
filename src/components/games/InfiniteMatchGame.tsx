@@ -26,7 +26,7 @@ export interface GameResult {
 }
 
 // 游戏配置
-const INITIAL_TIME = 480; // 初始时间（秒）= 8分钟
+const INITIAL_TIME = 360; // 初始时间（秒）= 6分钟
 const TIME_REDUCTION = 45; // 第4关起每关减少45秒
 const MIN_TIME = 60; // 最短关卡时间（秒）
 const EASY_MODE_LEVELS = 3; // 简单模式（前3关）不减少时间
@@ -34,6 +34,11 @@ const BOARD_ROWS = 10;
 const BOARD_COLS = 12;
 const ICON_TYPES = 18; // 图标种类数量
 const COMBO_TIMEOUT = 2000; // 连击超时时间（毫秒）
+
+// 每过三关增加的方块圈数
+const LEVEL_GAP_FOR_EXPANSION = 3;
+const ROWS_PER_EXPANSION = 2;
+const COLS_PER_EXPANSION = 2;
 
 // 连线路径点
 interface PathPoint {
@@ -119,6 +124,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   const [tilesLeft, setTilesLeft] = useState(0);
   const [comboCount, setComboCount] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
+  const [currentRows, setCurrentRows] = useState(BOARD_ROWS);
+  const [currentCols, setCurrentCols] = useState(BOARD_COLS);
 
   // 游戏板状态
   const [board, setBoard] = useState<number[][]>([]);
@@ -338,16 +345,27 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
   }, [soundEnabled]);
 
+  // 计算当前关卡的行列数（每过三关增加两圈）
+  const getCurrentBoardSize = useCallback((currentLevel: number) => {
+    const expansionCount = Math.floor((currentLevel - 1) / LEVEL_GAP_FOR_EXPANSION);
+    const currentRows = BOARD_ROWS + expansionCount * ROWS_PER_EXPANSION;
+    const currentCols = BOARD_COLS + expansionCount * COLS_PER_EXPANSION;
+    return { rows: currentRows, cols: currentCols };
+  }, []);
+
   // 生成关卡（完全重写：成对生成）
   const generateLevel = useCallback((currentLevel: number) => {
+    // 计算当前关卡的行列数
+    const { rows: currentRows, cols: currentCols } = getCurrentBoardSize(currentLevel);
+
     // 计算当前关卡的图标种类
     const iconCount = Math.min(6 + currentLevel, ICON_TYPES);
     const activeIcons = Array.from({ length: iconCount }, (_, i) => i + 1);
 
-    // 收集所有可用位置（1-BOARD_ROWS 行，1-BOARD_COLS 列）
+    // 收集所有可用位置（1-currentRows 行，1-currentCols 列）
     const positions: { x: number; y: number }[] = [];
-    for (let y = 1; y <= BOARD_ROWS; y++) {
-      for (let x = 1; x <= BOARD_COLS; x++) {
+    for (let y = 1; y <= currentRows; y++) {
+      for (let x = 1; x <= currentCols; x++) {
         positions.push({ x, y });
       }
     }
@@ -380,9 +398,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
     // 创建游戏板（外围一圈为0）
     const newBoard: number[][] = [];
-    for (let y = 0; y < BOARD_ROWS + 2; y++) {
+    for (let y = 0; y < currentRows + 2; y++) {
       newBoard[y] = [];
-      for (let x = 0; x < BOARD_COLS + 2; x++) {
+      for (let x = 0; x < currentCols + 2; x++) {
         newBoard[y][x] = 0;
       }
     }
@@ -394,8 +412,12 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
 
     // 确保关卡有解
-    const solvableBoard = ensureSolvable(newBoard);
-    
+    const solvableBoard = ensureSolvable(newBoard, currentRows, currentCols);
+
+    // 更新当前的行列数
+    setCurrentRows(currentRows);
+    setCurrentCols(currentCols);
+
     setBoard(solvableBoard);
     setTilesLeft(positions.length);
     setSelectedTile(null);
@@ -403,16 +425,16 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   }, []);
 
   // 确保关卡有解的算法
-  const ensureSolvable = (board: number[][]): number[][] => {
+  const ensureSolvable = (board: number[][], rows: number, cols: number): number[][] => {
     const newBoard = board.map(row => [...row]);
     let attempts = 0;
     const maxAttempts = 200;
 
-    while (!hasSolvableMatch(newBoard) && attempts < maxAttempts) {
+    while (!hasSolvableMatch(newBoard, rows, cols) && attempts < maxAttempts) {
       // 收集所有非空方块的位置
       const tiles: { x: number; y: number; value: number }[] = [];
-      for (let y = 1; y <= BOARD_ROWS; y++) {
-        for (let x = 1; x <= BOARD_COLS; x++) {
+      for (let y = 1; y <= rows; y++) {
+        for (let x = 1; x <= cols; x++) {
           if (newBoard[y][x] !== 0) {
             tiles.push({ x, y, value: newBoard[y][x] });
           }
@@ -439,18 +461,18 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   };
 
   // 检查是否有可消除的对
-  const hasSolvableMatch = (currentBoard: number[][]): boolean => {
-    for (let y1 = 1; y1 <= BOARD_ROWS; y1++) {
-      for (let x1 = 1; x1 <= BOARD_COLS; x1++) {
+  const hasSolvableMatch = (currentBoard: number[][], rows: number, cols: number): boolean => {
+    for (let y1 = 1; y1 <= rows; y1++) {
+      for (let x1 = 1; x1 <= cols; x1++) {
         const tile1 = currentBoard[y1][x1];
         if (tile1 === 0) continue;
 
-        for (let y2 = y1; y2 <= BOARD_ROWS; y2++) {
-          for (let x2 = (y2 === y1 ? x1 + 1 : 1); x2 <= BOARD_COLS; x2++) {
+        for (let y2 = y1; y2 <= rows; y2++) {
+          for (let x2 = (y2 === y1 ? x1 + 1 : 1); x2 <= cols; x2++) {
             const tile2 = currentBoard[y2][x2];
             if (tile2 !== tile1) continue;
 
-            if (findPath(currentBoard, x1, y1, x2, y2).length > 0) {
+            if (findPath(currentBoard, x1, y1, x2, y2, rows, cols).length > 0) {
               return true;
             }
           }
@@ -461,7 +483,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   };
 
   // 寻找连接路径
-  const findPath = (currentBoard: number[][], x1: number, y1: number, x2: number, y2: number): PathPoint[] => {
+  const findPath = (currentBoard: number[][], x1: number, y1: number, x2: number, y2: number, rows: number, cols: number): PathPoint[] => {
     // 0转弯：直线连接
     if (x1 === x2 || y1 === y2) {
       if (isLineClear(currentBoard, x1, y1, x2, y2)) {
@@ -485,7 +507,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
     // 2转弯：两个拐角
     // 水平方向扫描
-    for (let x = 0; x <= BOARD_COLS + 1; x++) {
+    for (let x = 0; x <= cols + 1; x++) {
       if (x !== x1 && x !== x2 &&
           currentBoard[y1][x] === 0 &&
           currentBoard[y2][x] === 0 &&
@@ -497,7 +519,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
 
     // 垂直方向扫描
-    for (let y = 0; y <= BOARD_ROWS + 1; y++) {
+    for (let y = 0; y <= rows + 1; y++) {
       if (y !== y1 && y !== y2 &&
           currentBoard[y][x1] === 0 &&
           currentBoard[y][x2] === 0 &&
@@ -550,7 +572,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
 
     if (board[selectedTile.y][selectedTile.x] === tileValue) {
-      const path = findPath(board, selectedTile.x, selectedTile.y, x, y);
+      const path = findPath(board, selectedTile.x, selectedTile.y, x, y, currentRows, currentCols);
       if (path.length > 0) {
         eliminateTiles(selectedTile, { x, y }, path);
         setSelectedTile(null);
@@ -615,7 +637,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
       if (newTilesLeft === 0) {
         nextLevel();
-      } else if (!hasSolvableMatch(newBoard)) {
+      } else if (!hasSolvableMatch(newBoard, currentRows, currentCols)) {
         smartReshuffle(newBoard);
       }
     }, 400);
@@ -626,8 +648,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     const tiles: number[] = [];
     const positions: { x: number; y: number }[] = [];
 
-    for (let y = 1; y <= BOARD_ROWS; y++) {
-      for (let x = 1; x <= BOARD_COLS; x++) {
+    for (let y = 1; y <= currentRows; y++) {
+      for (let x = 1; x <= currentCols; x++) {
         if (currentBoard[y][x] !== 0) {
           tiles.push(currentBoard[y][x]);
           positions.push({ x, y });
@@ -647,8 +669,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
 
     // 如果还是无解，使用 ensureSolvable
-    if (!hasSolvableMatch(newBoard)) {
-      const solvableBoard = ensureSolvable(newBoard);
+    if (!hasSolvableMatch(newBoard, currentRows, currentCols)) {
+      const solvableBoard = ensureSolvable(newBoard, currentRows, currentCols);
       setBoard(solvableBoard);
       toast.success(I18N[lang].ui.reshuffle);
     } else {
@@ -810,8 +832,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
         const availableWidth = rect.width;
         const availableHeight = isFullscreen ? rect.height : Math.min(rect.height, 600);
 
-        // 根据较小边计算最大尺寸
-        const boardAspectRatio = (BOARD_COLS + 2) / (BOARD_ROWS + 2);
+        // 根据较小边计算最大尺寸（使用当前行列数）
+        const boardAspectRatio = (currentCols + 2) / (currentRows + 2);
         const containerAspectRatio = availableWidth / availableHeight;
 
         let maxBoardWidth, maxBoardHeight;
@@ -836,7 +858,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
-  }, [isFullscreen]);
+  }, [isFullscreen, currentRows, currentCols]);
 
   // 计算哈希
   const computeHash = (gameType: number, score: number, timestamp: number, metadata: number[]): string => {
@@ -861,7 +883,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return 'C';
   };
 
-  // 获取方块中心点坐标（支持任意网格坐标，包括拐角点）
+  // 获取方块中心点坐标（更智能、更可靠的方法）
   const getTileCenterPixel = (x: number, y: number): { x: number; y: number } | null => {
     const gameBoard = gameBoardRef.current;
 
@@ -870,7 +892,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    // 获取参考方块 (1,1)
+    // 方法：直接使用 DOM 的 offsetLeft/offsetTop 来计算，避免 getBoundingClientRect 的复杂性和浏览器渲染影响
+    // 参考 (1,1) 方块
     const referenceTileKey = '1-1';
     const referenceTile = tileElementsRef.current.get(referenceTileKey);
 
@@ -878,6 +901,12 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       console.warn('Reference tile not found');
       return null;
     }
+
+    // 获取方块相对于游戏板的偏移
+    const tileLeft = referenceTile.offsetLeft;
+    const tileTop = referenceTile.offsetTop;
+    const tileWidth = referenceTile.offsetWidth;
+    const tileHeight = referenceTile.offsetHeight;
 
     // 获取相邻方块来计算实际间距
     const nextXTile = tileElementsRef.current.get('2-1');
@@ -888,28 +917,18 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    // 计算相对于游戏板的偏移和尺寸
-    const boardRect = gameBoard.getBoundingClientRect();
-    const refTileRect = referenceTile.getBoundingClientRect();
-    const nextXRect = nextXTile.getBoundingClientRect();
-    const nextYRect = nextYTile.getBoundingClientRect();
+    // 计算间距（使用 offset 差值）
+    const tileGapX = nextXTile.offsetLeft - (tileLeft + tileWidth);
+    const tileGapY = nextYTile.offsetTop - (tileTop + tileHeight);
 
-    // 方块尺寸
-    const tileWidth = referenceTile.offsetWidth;
-    const tileHeight = referenceTile.offsetHeight;
+    // 计算任意网格坐标的中心点
+    // 坐标 (0,0) 是游戏板的左上角，坐标 (1,1) 是第一个方块
+    // 需要计算相对于第一个方块 (1,1) 的偏移
+    const deltaX = (x - 1) * (tileWidth + tileGapX);
+    const deltaY = (y - 1) * (tileHeight + tileGapY);
 
-    // 计算实际间距
-    const tileGapX = nextXRect.left - refTileRect.right;
-    const tileGapY = nextYRect.top - refTileRect.bottom;
-
-    // 计算起始偏移（相对于 gameBoard 的左上角）
-    const offsetX = refTileRect.left - boardRect.left;
-    const offsetY = refTileRect.top - boardRect.top;
-
-    // 计算任意网格坐标的中心点（相对于 gameBoardRef 的左上角）
-    // 网格坐标从 0 到 BOARD_COLS + 1（列），0 到 BOARD_ROWS + 1（行）
-    const targetX = offsetX + x * (tileWidth + tileGapX) + tileWidth / 2;
-    const targetY = offsetY + y * (tileHeight + tileGapY) + tileHeight / 2;
+    const targetX = tileLeft + deltaX + tileWidth / 2;
+    const targetY = tileTop + deltaY + tileHeight / 2;
 
     return {
       x: targetX,
@@ -1214,7 +1233,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                     ref={gameBoardRef}
                     className={`relative mx-auto`}
                     style={{
-                      aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}`,
+                      aspectRatio: `${currentCols + 2}/${currentRows + 2}`,
                       maxWidth: '100%',
                       maxHeight: '100%'
                     }}
@@ -1299,8 +1318,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                     <div
                       className={`grid w-full h-full`}
                       style={{
-                        gridTemplateColumns: `repeat(${BOARD_COLS + 2}, 1fr)`,
-                        gridTemplateRows: `repeat(${BOARD_ROWS + 2}, 1fr)`,
+                        gridTemplateColumns: `repeat(${currentCols + 2}, 1fr)`,
+                        gridTemplateRows: `repeat(${currentRows + 2}, 1fr)`,
                         gap: isFullscreen ? '0.5%' : '0.4%'
                       }}
                     >
