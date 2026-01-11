@@ -2016,13 +2016,21 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const bossMultiplier = type === 'boss' ? 1.3 : 1;
     const finalDifficulty = difficulty * bossMultiplier;
 
-    // 后期怪物增强机制（10分钟后开始增强，每15秒新刷新的小怪属性提升）
+    // 后期怪物增强机制
+    // 第一阶段（10分钟后）：每15秒新刷新的小怪属性提升
     let lateGameHpMultiplier = 1;
     let lateGameDamageMultiplier = 1;
-    if (player.gameTime > 600) { // 10分钟后（600秒）
+    if (player.gameTime > 600 && player.gameTime <= 900) { // 10-15分钟（600-900秒）
       const fifteenSecondBlocks = Math.floor((player.gameTime - 600) / 15); // 每15秒一个周期
       lateGameHpMultiplier = 1 + (fifteenSecondBlocks * 0.2); // 每个周期血量+20%
       lateGameDamageMultiplier = 1 + (fifteenSecondBlocks * 0.1); // 每个周期伤害+10%
+    }
+
+    // 第二阶段（15分钟后）：每1分钟新刷新的小怪属性大幅提升，刷新速度翻倍
+    if (player.gameTime > 900) { // 15分钟后（900秒）
+      const minuteBlocks = Math.floor((player.gameTime - 900) / 60); // 每1分钟一个周期
+      lateGameHpMultiplier = Math.pow(1.8, minuteBlocks); // 每分钟血量+80%（指数增长）
+      lateGameDamageMultiplier = Math.pow(1.8, minuteBlocks); // 每分钟伤害+80%（指数增长）
     }
 
     // 应用后期增强系数（仅对小怪生效，不包含Boss）
@@ -3261,9 +3269,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           monsterSpawnTimerRef.current += deltaTime;
 
           // 根据难度动态调整生成间隔
-          // 2分钟后开始线性增加刷怪速度
-          const timeBonus = Math.max(0, (player.gameTime - 120) / 60 * 0.2); // 每分钟增加0.2
-          const spawnInterval = Math.max(0.15, 1.2 - Math.pow(difficultyRef.current, 0.5) * 0.3 - timeBonus);
+          // 第一阶段（2分钟后）：每分钟线性增加刷怪速度
+          let timeBonus = 0;
+          if (player.gameTime > 120 && player.gameTime <= 900) { // 2分钟-15分钟
+            timeBonus = (player.gameTime - 120) / 60 * 0.2; // 每分钟增加0.2
+          }
+          
+          // 第二阶段（15分钟后）：每分钟额外翻倍刷新速度
+          if (player.gameTime > 900) { // 15分钟后（900秒）
+            const minuteBlocks = Math.floor((player.gameTime - 900) / 60); // 每1分钟一个周期
+            // 基础timeBonus为 (900-120)/60*0.2 = 2.6（15分钟时）
+            timeBonus = 2.6 + minuteBlocks * 2; // 每分钟额外增加2（相当于间隔减半）
+          }
+
+          const spawnInterval = Math.max(0.05, 1.2 - Math.pow(difficultyRef.current, 0.5) * 0.3 - timeBonus);
 
           if (monsterSpawnTimerRef.current >= spawnInterval) {
             spawnMonster(player);
