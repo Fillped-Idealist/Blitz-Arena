@@ -138,6 +138,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   const containerRef = useRef<HTMLDivElement>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
   const tileElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const gameBoardContainerRef = useRef<HTMLDivElement>(null);
 
   // 监听全屏变化
   useEffect(() => {
@@ -795,6 +796,48 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
   };
 
+  // 监听父容器尺寸变化，自适应游戏板大小
+  useEffect(() => {
+    const container = gameBoardContainerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      // 触发重渲染以更新样式
+      // 使用 forceUpdate 或设置一个状态
+      if (gameBoardRef.current) {
+        // 强制重新计算尺寸
+        const rect = container.getBoundingClientRect();
+        const availableWidth = rect.width;
+        const availableHeight = isFullscreen ? rect.height : Math.min(rect.height, 600);
+
+        // 根据较小边计算最大尺寸
+        const boardAspectRatio = (BOARD_COLS + 2) / (BOARD_ROWS + 2);
+        const containerAspectRatio = availableWidth / availableHeight;
+
+        let maxBoardWidth, maxBoardHeight;
+
+        if (containerAspectRatio > boardAspectRatio) {
+          // 容器比游戏板宽，以高度为基准
+          maxBoardHeight = availableHeight - 32; // 减去 padding
+          maxBoardWidth = maxBoardHeight * boardAspectRatio;
+        } else {
+          // 容器比游戏板窄，以宽度为基准
+          maxBoardWidth = availableWidth - 32; // 减去 padding
+          maxBoardHeight = maxBoardWidth / boardAspectRatio;
+        }
+
+        // 应用尺寸到游戏板
+        if (gameBoardRef.current) {
+          gameBoardRef.current.style.maxWidth = `${maxBoardWidth}px`;
+          gameBoardRef.current.style.maxHeight = `${maxBoardHeight}px`;
+        }
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [isFullscreen]);
+
   // 计算哈希
   const computeHash = (gameType: number, score: number, timestamp: number, metadata: number[]): string => {
     const data = `${gameType}-${score}-${timestamp}-${metadata.join(',')}`;
@@ -827,41 +870,50 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    const boardRect = gameBoard.getBoundingClientRect();
-
-    // 尝试获取实际方块的元素来计算尺寸和间距
-    let tileWidth = 0;
-    let tileHeight = 0;
-    let tileGap = 8; // 默认间距
-    let offsetX = 0;
-    let offsetY = 0;
-
-    // 尝试从 (1,1) 位置获取方块信息
+    // 获取参考方块 (1,1)
     const referenceTileKey = '1-1';
     const referenceTile = tileElementsRef.current.get(referenceTileKey);
-    if (referenceTile) {
-      const tileRect = referenceTile.getBoundingClientRect();
-      tileWidth = tileRect.width;
-      tileHeight = tileRect.height;
 
-      // 计算相对于游戏板的偏移
-      offsetX = tileRect.left - boardRect.left;
-      offsetY = tileRect.top - boardRect.top;
-    } else {
-      // 如果找不到参考方块，使用游戏板尺寸计算
-      // 网格是 BOARD_ROWS + 2 行（包含外围），BOARD_COLS + 2 列
-      tileWidth = boardRect.width / (BOARD_COLS + 2);
-      tileHeight = boardRect.height / (BOARD_ROWS + 2);
+    if (!referenceTile) {
+      console.warn('Reference tile not found');
+      return null;
     }
 
-    // 计算任意网格坐标的中心点
+    // 获取相邻方块来计算实际间距
+    const nextXTile = tileElementsRef.current.get('2-1');
+    const nextYTile = tileElementsRef.current.get('1-2');
+
+    if (!nextXTile || !nextYTile) {
+      console.warn('Adjacent tiles not found');
+      return null;
+    }
+
+    // 计算相对于游戏板的偏移和尺寸
+    const boardRect = gameBoard.getBoundingClientRect();
+    const refTileRect = referenceTile.getBoundingClientRect();
+    const nextXRect = nextXTile.getBoundingClientRect();
+    const nextYRect = nextYTile.getBoundingClientRect();
+
+    // 方块尺寸
+    const tileWidth = referenceTile.offsetWidth;
+    const tileHeight = referenceTile.offsetHeight;
+
+    // 计算实际间距
+    const tileGapX = nextXRect.left - refTileRect.right;
+    const tileGapY = nextYRect.top - refTileRect.bottom;
+
+    // 计算起始偏移（相对于 gameBoard 的左上角）
+    const offsetX = refTileRect.left - boardRect.left;
+    const offsetY = refTileRect.top - boardRect.top;
+
+    // 计算任意网格坐标的中心点（相对于 gameBoardRef 的左上角）
     // 网格坐标从 0 到 BOARD_COLS + 1（列），0 到 BOARD_ROWS + 1（行）
-    const x1 = offsetX + x * (tileWidth + tileGap) + tileWidth / 2;
-    const y1 = offsetY + y * (tileHeight + tileGap) + tileHeight / 2;
+    const targetX = offsetX + x * (tileWidth + tileGapX) + tileWidth / 2;
+    const targetY = offsetY + y * (tileHeight + tileGapY) + tileHeight / 2;
 
     return {
-      x: x1,
-      y: y1
+      x: targetX,
+      y: targetY
     };
   };
 
@@ -1153,19 +1205,18 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 游戏区域 */}
-                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 flex items-center justify-center ${isFullscreen ? 'flex-1 min-h-0 p-4' : 'p-4'}`}>
-                  {/* 游戏板容器 - 根据窗口大小自适应，选择较小边来调整边长 */}
+                <div
+                  ref={gameBoardContainerRef}
+                  className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 flex items-center justify-center ${isFullscreen ? 'flex-1 min-h-0 p-4' : 'p-4'}`}
+                >
+                  {/* 游戏板容器 - 根据父容器尺寸自适应 */}
                   <div
                     ref={gameBoardRef}
-                    className={`relative ${isFullscreen ? 'h-full w-full' : 'w-full'} max-w-full`}
-                    style={!isFullscreen ? {
-                      // 计算可用的最大尺寸，选择较小边来确保方块完全显示
-                      maxHeight: 'calc(100vh - 300px)',
+                    className={`relative mx-auto`}
+                    style={{
                       aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}`,
-                      maxWidth: 'min(100%, calc((100vh - 300px) * ${(BOARD_COLS + 2) / (BOARD_ROWS + 2)}))',
-                      margin: '0 auto'
-                    } : {
-                      aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}`
+                      maxWidth: '100%',
+                      maxHeight: '100%'
                     }}
                   >
                     {/* 连击显示 */}
