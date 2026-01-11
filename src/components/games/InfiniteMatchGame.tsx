@@ -878,7 +878,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className={`w-full max-w-6xl mx-auto ${isFullscreen ? 'fixed inset-0 z-[9999] p-4 bg-black/95 backdrop-blur-md' : ''}`}
+      className={`w-full max-w-6xl mx-auto ${isFullscreen ? 'fixed inset-0 z-[9999] p-4 flex items-center justify-center' : ''}`}
     >
       <Card className={`p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative transition-all duration-300 ${isFullscreen ? 'h-full' : ''}`}>
         {/* 动态背景光晕 */}
@@ -1087,26 +1087,25 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   </div>
                 </div>
 
-                {/* 连击显示（固定在顶部） */}
-                {comboCount > 1 && (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.8, opacity: 0 }}
-                    className="text-center"
-                  >
-                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 via-yellow-600 to-orange-600 rounded-full shadow-lg shadow-orange-500/30">
-                      <Flame className="w-6 h-6 text-white" />
-                      <span className="text-2xl font-bold text-white">
-                        {comboCount} {t.ui.combo}!
-                      </span>
-                      <Zap className="w-6 h-6 text-white" />
-                    </div>
-                  </motion.div>
-                )}
-
                 {/* 游戏区域 */}
                 <div className="relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl p-4 overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50">
+                  {/* 连击显示（在游戏区域内） */}
+                  {comboCount > 1 && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30"
+                    >
+                      <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 via-yellow-600 to-orange-600 rounded-full shadow-lg shadow-orange-500/30">
+                        <Flame className="w-6 h-6 text-white" />
+                        <span className="text-2xl font-bold text-white">
+                          {comboCount} {t.ui.combo}!
+                        </span>
+                        <Zap className="w-6 h-6 text-white" />
+                      </div>
+                    </motion.div>
+                  )}
                   {/* 连接线层 */}
                   <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
                     {matchedPath.length > 1 && (
