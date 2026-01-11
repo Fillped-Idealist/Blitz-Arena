@@ -731,10 +731,12 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   };
 
   // 初始化游戏
-  const startGame = useCallback(() => {
-    initAudio();
-    playBackgroundMusic();
-    
+  const startGame = useCallback(async () => {
+    // 先初始化音频系统，等待完成
+    await initAudio();
+    // 等待音频初始化后再播放背景音乐
+    await playBackgroundMusic();
+
     setGameStarted(true);
     setGameOver(false);
     setTimeLeft(INITIAL_TIME);
@@ -897,7 +899,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return 'C';
   };
 
-  // 获取方块中心点坐标（重写：支持任意网格坐标，包括边界和拐点）
+  // 获取方块中心点坐标（简化版：直接基于游戏板尺寸计算）
   const getTileCenterPixel = (x: number, y: number): { x: number; y: number } | null => {
     const gameBoard = gameBoardRef.current;
 
@@ -906,26 +908,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    // 获取游戏板的尺寸和第一个方块（1,1）的信息
-    const referenceTileKey = '1-1';
-    const referenceTile = tileElementsRef.current.get(referenceTileKey);
-
-    if (!referenceTile) {
-      console.warn('Reference tile not found');
-      return null;
-    }
-
-    // 获取参考方块的尺寸和位置
-    const tileLeft = referenceTile.offsetLeft;
-    const tileTop = referenceTile.offsetTop;
-    const tileWidth = referenceTile.offsetWidth;
-    const tileHeight = referenceTile.offsetHeight;
-
-    // 计算每个网格单元的尺寸（包括间距）
-    const cellWidth = tileWidth + (referenceTile.parentElement?.offsetLeft || 0) - tileLeft;
-    const cellHeight = tileHeight + (referenceTile.parentElement?.offsetTop || 0) - tileTop;
-
-    // 获取游戏板的实际尺寸（考虑 padding）
+    // 获取游戏板的实际尺寸
     const boardWidth = gameBoard.offsetWidth;
     const boardHeight = gameBoard.offsetHeight;
 
@@ -933,20 +916,24 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     const gridCols = currentCols + 2;
     const gridRows = currentRows + 2;
 
-    // 计算每个网格单元的平均尺寸
-    const avgCellWidth = boardWidth / gridCols;
-    const avgCellHeight = boardHeight / gridRows;
+    // 计算每个网格单元的尺寸
+    const cellWidth = boardWidth / gridCols;
+    const cellHeight = boardHeight / gridRows;
 
     // 计算目标坐标的中心点
-    const targetX = x * avgCellWidth + avgCellWidth / 2;
-    const targetY = y * avgCellHeight + avgCellHeight / 2;
+    const targetX = x * cellWidth + cellWidth / 2;
+    const targetY = y * cellHeight + cellHeight / 2;
 
     console.log('[getTileCenterPixel] Calculated position', {
       x, y,
-      targetX, targetY,
-      boardWidth, boardHeight,
-      gridCols, gridRows,
-      avgCellWidth, avgCellHeight
+      targetX: targetX.toFixed(2),
+      targetY: targetY.toFixed(2),
+      boardWidth,
+      boardHeight,
+      gridCols,
+      gridRows,
+      cellWidth: cellWidth.toFixed(2),
+      cellHeight: cellHeight.toFixed(2)
     });
 
     return {
