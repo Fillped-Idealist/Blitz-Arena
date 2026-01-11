@@ -75,21 +75,24 @@ export default function TournamentDetailPage() {
     '1': 'Number Guess',
     '2': 'Rock Paper Scissors',
     '3': 'Quick Click',
-    '4': 'Cycle Rift (轮回裂隙)'
+    '4': 'Cycle Rift (轮回裂隙)',
+    '5': 'Infinite Match'
   };
 
   const gameTypeIcons: Record<string, string> = {
     '1': '🔢',
     '2': '✊✋✌️',
     '3': '🎯',
-    '4': '🌀'
+    '4': '🌀',
+    '5': '🧩'
   };
 
   const gameTypeEnum: Record<string, GameType> = {
     '1': GameType.NumberGuess,
     '2': GameType.RockPaperScissors,
     '3': GameType.QuickClick,
-    '4': GameType.RoguelikeSurvival
+    '4': GameType.RoguelikeSurvival,
+    '5': GameType.InfiniteMatch
   };
 
   // 处理游戏结果提交
@@ -439,6 +442,21 @@ export default function TournamentDetailPage() {
                             <li><strong>Bosses:</strong> Boss enemies spawn periodically with special abilities</li>
                             <li><strong>Score:</strong> Based on survival time, enemies killed, and achievements</li>
                             <li><strong>Strategy:</strong> Balance offense, defense, and mobility to survive longer</li>
+                          </ul>
+                        </div>
+                      )}
+                      {tournament.gameType === '5' && (
+                        <div className="space-y-2">
+                          <p className="font-semibold text-white">🎮 Infinite Match - 连连看无限消除</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li><strong>Objective:</strong> 消除所有匹配的方块，进入下一关卡</li>
+                            <li><strong>Matching:</strong> 点击两个相同的方块，如果它们可以通过不超过2个转弯的路径连接，则消除</li>
+                            <li><strong>Time Limit:</strong> 初始8分钟，每关减少10秒（最低60秒）</li>
+                            <li><strong>Levels:</strong> 无限关卡，难度递增，直到时间耗尽</li>
+                            <li><strong>Combo System:</strong> 连续消除获得连击加成，得分递增（最高100%加成）</li>
+                            <li><strong>Score:</strong> 基础分10分 + 连击加成（1-3连击+10%，4-7连击+30%，8-15连击+60%，16+连击+100%）</li>
+                            <li><strong>Strategy:</strong> 保持高连击数，快速消除，合理规划路径</li>
+                            <li><strong>Solubility:</strong> 每个关卡保证有解</li>
                           </ul>
                         </div>
                       )}
