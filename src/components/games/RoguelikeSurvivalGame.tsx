@@ -1557,12 +1557,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   }, []);
 
   // ==================== 伤害数字 ====================
-  const createDamageNumber = useCallback((x: number, y: number, damage: number, isCrit: boolean, isHeal: boolean = false) => {
+  const createDamageNumber = useCallback((x: number, y: number, damage: number, isCrit: boolean, isHeal: boolean = false, customColor?: string) => {
     if (damageNumbersRef.current.length >= MAX_DAMAGE_NUMBERS) {
       damageNumbersRef.current.shift();
     }
 
     let color = isHeal ? '#00FF00' : (isCrit ? '#FF4757' : '#FFFFFF');
+    if (customColor) {
+      color = customColor; // 使用自定义颜色（如灼烧立场橙色）
+    }
     damageNumbersRef.current.push({
       x: x + (Math.random() - 0.5) * 15,
       y,
@@ -3558,10 +3561,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 createParticles(monster.x, monster.y, '#FF6B6B', 3, 'fire');
                 createParticles(monster.x, monster.y, '#FFD93D', 2, 'spark');
                 
-                // 立场伤害数字（每秒只显示一次，避免数字过多）
-                if (Math.random() < 0.1) {
-                  createDamageNumber(monster.x, monster.y - monster.size * 0.5, Math.floor(auraDamage), false);
-                }
+                // 立场伤害数字（每次都显示，使用橙色区别于其他伤害）
+                createDamageNumber(monster.x, monster.y - monster.size * 0.5, Math.floor(auraDamage), false, false, '#FF8C00');
               }
             }
           }
@@ -3885,7 +3886,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 近战Boss护盾（淡紫色，更明显）
               if (monster.hasShield && monster.shieldHp > 0) {
                 const shieldAlpha = 0.35 + Math.sin(gameTimeRef.current * 2) * 0.1;
-                const shieldScale = monster.size / 140 * 25.2; // 进一步增大护盾显示，从18倍提升至25.2倍（1.4倍）
+                const shieldScale = monster.size / 140 * 27.72; // 进一步增大护盾显示，从18倍提升至27.72倍（1.54倍，比之前再大10%）
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
                 ctx.scale(shieldScale, shieldScale); // 整体缩放护盾
