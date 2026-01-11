@@ -5,6 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { 
+  Maximize, Minimize, Volume2, VolumeX, 
+  Languages, Play, RefreshCw, Trophy, 
+  Clock, Flame, Zap, Sparkles, Home
+} from 'lucide-react';
 
 interface InfiniteMatchGameProps {
   onComplete: (result: GameResult) => void;
@@ -22,16 +27,13 @@ export interface GameResult {
 
 // 游戏配置
 const INITIAL_TIME = 480; // 初始时间（秒）= 8分钟
-const TIME_REDUCTION = 10; // 每关减少的时间（秒）
+const TIME_REDUCTION = 45; // 第4关起每关减少45秒
 const MIN_TIME = 60; // 最短关卡时间（秒）
 const EASY_MODE_LEVELS = 3; // 简单模式（前3关）不减少时间
 const BOARD_ROWS = 10;
 const BOARD_COLS = 12;
 const ICON_TYPES = 18; // 图标种类数量
 const COMBO_TIMEOUT = 2000; // 连击超时时间（毫秒）
-
-// 方案一：使用精美的SVG图标替代emoji
-const TILE_ICONS = ['star', 'moon', 'sun', 'spark', 'rainbow', 'fire', 'diamond', 'clover', 'flower', 'butterfly', 'wave', 'bolt', 'mask', 'palette', 'target', 'circus', 'dice', 'guitar'];
 
 // 方向枚举
 enum Direction {
@@ -48,7 +50,74 @@ interface PathPoint {
   y: number;
 }
 
+// 多语言配置
+const I18N = {
+  zh: {
+    title: '无限消除',
+    subtitle: '连接相同的方块，挑战无限关卡',
+    rules: {
+      title: '游戏规则',
+      rule1: '连连看规则：点击两个相同的方块，如果它们可以通过两个以内的转弯连接，即可消除',
+      rule2: '时间限制：每关需要在限定时间内消除所有方块，前3关保持8分钟，之后每关减少45秒',
+      rule3: '难度递增：完成当前关卡后进入下一关，关卡越高方块种类越多，挑战越大',
+      rule4: '连击系统：连续消除可以累积连击，获得非线性分数加成（最高100%加成）',
+      rule5: '无限挑战：挑战你能到达的极限关卡，获取高分排名！'
+    },
+    ui: {
+      startGame: '开始游戏',
+      playAgain: '再玩一次',
+      submitScore: '提交成绩',
+      timeLeft: '剩余时间',
+      score: '得分',
+      level: '关卡',
+      tilesLeft: '剩余方块',
+      maxCombo: '最大连击',
+      finalScore: '最终得分',
+      reachedLevel: '到达关卡',
+      rating: '评价',
+      combo: '连击',
+      gameOver: '游戏结束',
+      reshuffle: '已重新洗牌',
+      nextLevel: '进入第 X 关！'
+    }
+  },
+  en: {
+    title: 'Infinite Match',
+    subtitle: 'Connect matching tiles, challenge infinite levels',
+    rules: {
+      title: 'Game Rules',
+      rule1: 'Link Rule: Click two identical tiles. If they can be connected with two or fewer turns, they will be eliminated',
+      rule2: 'Time Limit: Eliminate all tiles within the time limit. First 3 levels: 8 minutes, then -45s per level',
+      rule3: 'Difficulty Progression: Complete current level to advance. Higher levels have more tile types and greater challenges',
+      rule4: 'Combo System: Chain eliminations to build combos and get non-linear score bonuses (up to 100%)',
+      rule5: 'Infinite Challenge: Push your limits to reach the highest levels and top the leaderboards!'
+    },
+    ui: {
+      startGame: 'Start Game',
+      playAgain: 'Play Again',
+      submitScore: 'Submit Score',
+      timeLeft: 'Time Left',
+      score: 'Score',
+      level: 'Level',
+      tilesLeft: 'Tiles Left',
+      maxCombo: 'Max Combo',
+      finalScore: 'Final Score',
+      reachedLevel: 'Level Reached',
+      rating: 'Rating',
+      combo: 'COMBO',
+      gameOver: 'Game Over',
+      reshuffle: 'Reshuffled',
+      nextLevel: 'Level X!'
+    }
+  }
+};
+
 export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatchGameProps) {
+  // 语言和UI状态
+  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
   // 游戏状态
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
@@ -71,9 +140,108 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+
+  // 初始化音效系统
+  const initAudio = useCallback(() => {
+    if (typeof window !== 'undefined' && !audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+  }, []);
+
+  // 播放音效
+  const playSound = useCallback((type: 'match' | 'combo' | 'levelup' | 'gameover' | 'select') => {
+    if (!soundEnabled || !audioContextRef.current) return;
+
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    switch (type) {
+      case 'match':
+        oscillator.frequency.setValueAtTime(523.25, now); // C5
+        oscillator.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        oscillator.start(now);
+        oscillator.stop(now + 0.2);
+        break;
+      case 'combo':
+        const comboFreqs = [523.25, 659.25, 783.99, 1046.50];
+        comboFreqs.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.15, now + i * 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.15);
+          osc.start(now + i * 0.05);
+          osc.stop(now + i * 0.05 + 0.15);
+        });
+        break;
+      case 'levelup':
+        oscillator.frequency.setValueAtTime(392, now); // G4
+        oscillator.frequency.exponentialRampToValueAtTime(783.99, now + 0.3); // G5
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        oscillator.start(now);
+        oscillator.stop(now + 0.4);
+        break;
+      case 'gameover':
+        oscillator.frequency.setValueAtTime(392, now);
+        oscillator.frequency.exponentialRampToValueAtTime(130.81, now + 0.5); // C3
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+        oscillator.start(now);
+        oscillator.stop(now + 0.6);
+        break;
+      case 'select':
+        oscillator.frequency.setValueAtTime(880, now); // A5
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        oscillator.start(now);
+        oscillator.stop(now + 0.1);
+        break;
+    }
+  }, [soundEnabled]);
+
+  // 播放背景音乐（使用振荡器生成简单的背景旋律）
+  const playBackgroundMusic = useCallback(() => {
+    if (!soundEnabled || !audioContextRef.current) return;
+
+    // 简单的背景音效循环
+    const playNote = (freq: number, startTime: number) => {
+      if (!audioContextRef.current || !soundEnabled) return;
+      const osc = audioContextRef.current.createOscillator();
+      const gain = audioContextRef.current.createGain();
+      osc.connect(gain);
+      gain.connect(audioContextRef.current.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.02, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+      osc.start(startTime);
+      osc.stop(startTime + 0.5);
+    };
+
+    const melody = [261.63, 293.66, 329.63, 349.23, 392, 349.23, 329.63, 293.66]; // C D E F G F E D
+    const now = audioContextRef.current.currentTime;
+    melody.forEach((freq, i) => {
+      playNote(freq, now + i * 1);
+    });
+  }, [soundEnabled]);
 
   // 初始化游戏
   const startGame = useCallback(() => {
+    initAudio();
+    playBackgroundMusic();
+    
     setGameStarted(true);
     setGameOver(false);
     setTimeLeft(INITIAL_TIME);
@@ -97,13 +265,13 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
         return prev - 1;
       });
     }, 1000);
-  }, []);
+  }, [initAudio, playBackgroundMusic]);
 
   // 生成关卡
   const generateLevel = useCallback((currentLevel: number) => {
     // 计算当前关卡的图标种类
     const iconCount = Math.min(6 + currentLevel, ICON_TYPES);
-    const activeIcons = TILE_ICONS.slice(0, iconCount);
+    const activeIcons = Array.from({ length: iconCount }, (_, i) => i + 1);
 
     // 初始化空板（外围一圈空路径）
     const newBoard: number[][] = [];
@@ -114,7 +282,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
         if (y === 0 || y === BOARD_ROWS + 1 || x === 0 || x === BOARD_COLS + 1) {
           newBoard[y][x] = 0;
         } else {
-          newBoard[y][x] = Math.floor(Math.random() * iconCount) + 1;
+          newBoard[y][x] = activeIcons[Math.floor(Math.random() * iconCount)];
         }
       }
     }
@@ -178,17 +346,73 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       }
     }
 
-    // 确保关卡有解
-    if (!hasSolvableMatch(newBoard)) {
-      generateLevel(currentLevel);
-      return;
-    }
-
-    setBoard(newBoard);
+    // 确保关卡有解，使用改进的算法
+    const solvableBoard = ensureSolvable(newBoard);
+    
+    setBoard(solvableBoard);
     setTilesLeft(totalTiles);
     setSelectedTile(null);
     setMatchedPath([]);
   }, []);
+
+  // 确保关卡有解的改进算法
+  const ensureSolvable = (board: number[][]): number[][] => {
+    const newBoard = board.map(row => [...row]);
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    while (!hasSolvableMatch(newBoard) && attempts < maxAttempts) {
+      // 收集所有非空方块的位置和值
+      const tiles: { x: number; y: number; value: number }[] = [];
+      for (let y = 1; y <= BOARD_ROWS; y++) {
+        for (let x = 1; x <= BOARD_COLS; x++) {
+          if (newBoard[y][x] !== 0) {
+            tiles.push({ x, y, value: newBoard[y][x] });
+          }
+        }
+      }
+
+      if (tiles.length < 2) break;
+
+      // 智能交换：尝试交换两个相同值的方块
+      const swapped = false;
+      for (let i = 0; i < tiles.length && !swapped; i++) {
+        for (let j = i + 1; j < tiles.length && !swapped; j++) {
+          if (tiles[i].value === tiles[j].value) {
+            // 暂时交换
+            newBoard[tiles[i].y][tiles[i].x] = tiles[j].value;
+            newBoard[tiles[j].y][tiles[j].x] = tiles[i].value;
+            
+            if (hasSolvableMatch(newBoard)) {
+              // 交换有效，保持
+              break;
+            } else {
+              // 交换无效，换回来
+              newBoard[tiles[i].y][tiles[i].x] = tiles[i].value;
+              newBoard[tiles[j].y][tiles[j].x] = tiles[j].value;
+            }
+          }
+        }
+      }
+
+      // 如果交换无效，随机交换两个不同的方块
+      if (!hasSolvableMatch(newBoard)) {
+        const idx1 = Math.floor(Math.random() * tiles.length);
+        let idx2 = Math.floor(Math.random() * tiles.length);
+        while (idx2 === idx1) {
+          idx2 = Math.floor(Math.random() * tiles.length);
+        }
+
+        const temp = newBoard[tiles[idx1].y][tiles[idx1].x];
+        newBoard[tiles[idx1].y][tiles[idx1].x] = newBoard[tiles[idx2].y][tiles[idx2].x];
+        newBoard[tiles[idx2].y][tiles[idx2].x] = temp;
+      }
+
+      attempts++;
+    }
+
+    return newBoard;
+  };
 
   // 检查是否有可消除的对
   const hasSolvableMatch = (currentBoard: number[][]): boolean => {
@@ -297,6 +521,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
     // 如果没有选中的方块
     if (!selectedTile) {
+      playSound('select');
       setSelectedTile({ x, y });
       return;
     }
@@ -320,6 +545,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
 
     // 不能消除，切换选中
+    playSound('select');
     setSelectedTile({ x, y });
   }
 
@@ -341,14 +567,21 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     setEliminationTiles([tile1, tile2]);
     setMatchedPath(path);
 
+    // 播放消除音效
+    const newCombo = comboCount + 1;
+    if (newCombo >= 8) {
+      playSound('combo');
+    } else {
+      playSound('match');
+    }
+
     // 计算分数（非线性连击加成）
     const baseScore = 10;
-    const comboMultiplier = getComboMultiplier(comboCount);
+    const comboMultiplier = getComboMultiplier(newCombo);
     const earnedScore = Math.floor(baseScore * comboMultiplier);
 
     setScore(prev => prev + earnedScore);
     setComboCount(prev => {
-      const newCombo = prev + 1;
       if (newCombo > maxCombo) {
         setMaxCombo(newCombo);
       }
@@ -377,14 +610,14 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       if (newTilesLeft === 0) {
         nextLevel();
       } else if (!hasSolvableMatch(newBoard)) {
-        // 如果无解，重新洗牌
-        reshuffleBoard(newBoard);
+        // 如果无解，智能重新排列
+        smartReshuffle(newBoard);
       }
     }, 300);
   }
 
-  // 重新洗牌
-  const reshuffleBoard = (currentBoard: number[][]) => {
+  // 智能重新洗牌
+  const smartReshuffle = (currentBoard: number[][]) => {
     const tiles: number[] = [];
     const positions: { x: number; y: number }[] = [];
 
@@ -398,7 +631,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       }
     }
 
-    // 随机打乱
+    // 随机打列
     for (let i = tiles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
@@ -410,21 +643,25 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       newBoard[positions[i].y][positions[i].x] = tiles[i];
     }
 
-    // 如果还是无解，重新生成整个关卡
+    // 如果还是无解，使用智能交换
     if (!hasSolvableMatch(newBoard)) {
-      generateLevel(level);
+      const solvableBoard = ensureSolvable(newBoard);
+      setBoard(solvableBoard);
+      toast.success(I18N[lang].ui.reshuffle);
     } else {
       setBoard(newBoard);
-      toast.success('已重新洗牌');
+      toast.success(I18N[lang].ui.reshuffle);
     }
   }
 
   // 进入下一关
   const nextLevel = () => {
+    playSound('levelup');
+    
     const newLevel = level + 1;
     setLevel(newLevel);
 
-    // 计算新关卡的时间（前3关不减少时间，从第4关开始减少）
+    // 计算新关卡的时间（前3关不减少时间，从第4关开始减少45s）
     let newTime: number;
     if (newLevel <= EASY_MODE_LEVELS) {
       newTime = INITIAL_TIME;
@@ -439,11 +676,13 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     // 生成新关卡
     generateLevel(newLevel);
 
-    toast.success(`进入第 ${newLevel} 关！`);
+    toast.success(I18N[lang].ui.nextLevel.replace('X', newLevel.toString()));
   }
 
   // 结束游戏
   const endGame = () => {
+    playSound('gameover');
+    
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
@@ -453,7 +692,6 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
     setGameOver(true);
     setGameStarted(false);
-    toast.success(`游戏结束！最终得分：${score}，到达第 ${level} 关`);
   }
 
   // 清理定时器
@@ -468,23 +706,44 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     };
   }, []);
 
+  // 切换全屏
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // 切换音效
+  const toggleSound = useCallback(() => {
+    setSoundEnabled(prev => !prev);
+  }, []);
+
+  // 切换语言
+  const toggleLanguage = useCallback(() => {
+    setLang(prev => prev === 'zh' ? 'en' : 'zh');
+  }, []);
+
   // 提交结果
   const handleSubmit = async () => {
     try {
       const timestamp = Math.floor(Date.now() / 1000);
       const metadata = [score, level, maxCombo];
-      const gameHash = computeHash(4, score, timestamp, metadata);
+      const gameHash = computeHash(5, score, timestamp, metadata);
 
       // 获取当前连接的钱包地址
       if (typeof window !== 'undefined' && window.ethereum) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (!accounts || accounts.length === 0) {
-          toast.error('请先连接钱包');
+          toast.error('Please connect your wallet first');
           return;
         }
 
         const result: GameResult = {
-          gameType: 4, // InfiniteMatch
+          gameType: 5, // InfiniteMatch
           score,
           timestamp,
           gameHash,
@@ -494,11 +753,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
         onComplete(result);
       } else {
-        toast.error('未检测到Web3钱包');
+        toast.error('No Web3 wallet detected');
       }
     } catch (error) {
       console.error('Error submitting result:', error);
-      toast.error('提交结果失败');
+      toast.error('Failed to submit result');
     }
   }
 
@@ -517,24 +776,197 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
+  // 获取评价等级
+  const getRating = (score: number): string => {
+    if (score > 1000) return 'S';
+    if (score > 500) return 'A';
+    if (score > 300) return 'B';
+    return 'C';
+  }
+
+  // SVG图标组件（第九艺术风格）
+  const TileIcon = ({ type }: { type: number }) => {
+    const icons = [
+      // 星星
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="star">
+        <path fill="currentColor" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>,
+      // 月亮
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="moon">
+        <path fill="currentColor" d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+      </svg>,
+      // 太阳
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="sun">
+        <circle cx="12" cy="12" r="5" fill="currentColor"/>
+        <path fill="currentColor" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>,
+      // 闪电
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="bolt">
+        <path fill="currentColor" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>,
+      // 彩虹
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="rainbow">
+        <path fill="none" stroke="currentColor" strokeWidth="2" d="M4.93 19.07a10 10 0 010-14.14M19.07 4.93a10 10 0 010 14.14"/>
+      </svg>,
+      // 火焰
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="fire">
+        <path fill="currentColor" d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/>
+      </svg>,
+      // 钻石
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="diamond">
+        <path fill="currentColor" d="M12 2L2 9l10 13 10-13-10-7z"/>
+      </svg>,
+      // 三叶草
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="clover">
+        <path fill="currentColor" d="M12 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM12 14c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+      </svg>,
+      // 花朵
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="flower">
+        <circle cx="12" cy="8" r="3" fill="currentColor"/>
+        <circle cx="8" cy="12" r="3" fill="currentColor"/>
+        <circle cx="12" cy="16" r="3" fill="currentColor"/>
+        <circle cx="16" cy="12" r="3" fill="currentColor"/>
+        <circle cx="12" cy="12" r="2" fill="white"/>
+      </svg>,
+      // 蝴蝶
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="butterfly">
+        <path fill="currentColor" d="M12 12c-1.5-2-5-2-6.5 0s-2 4.5 0 6.5c2 2 6.5 1.5 6.5-2.5 0 4 4.5 4.5 6.5 2.5s2-4.5 0-6.5c-1.5-2-5-2-6.5 0z"/>
+      </svg>,
+      // 波浪
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="wave">
+        <path fill="none" stroke="currentColor" strokeWidth="2" d="M2 12c2-3 5-3 7 0s5 3 7 0 5-3 7 0"/>
+      </svg>,
+      // 靶子
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="target">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+        <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" strokeWidth="2"/>
+        <circle cx="12" cy="12" r="2" fill="currentColor"/>
+      </svg>,
+      // 面具
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="mask">
+        <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-3c.55 0 1-.45 1-1s-.45-1-1-1-1 .45-1 1 .45 1 1 1zm4 0c.55 0 1-.45 1-1s-.45-1-1-1-1 .45-1 1 .45 1 1 1z"/>
+      </svg>,
+      // 调色板
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="palette">
+        <path fill="currentColor" d="M12 3a9 9 0 00-9 9c0 4.97 4.03 9 9 9 4.17 0 7.68-2.84 8.73-6.68a1 1 0 00-.5-1.14c-.56-.3-1.07-.75-1.46-1.28-.25-.34-.56-.5-.92-.5-.73 0-1.85.5-2.35 1.5-.5 1 .5 2 1.5 2 1 0 1.5-.5 2-1.5.5-1 1-1.5 2-1.5 1.5 0 2.5 2 2.5 4 0 3-2.5 5.5-5.5 5.5S5 15.5 5 12.5 7.5 7 12 7c3.5 0 6 2.5 6 6 0 1.5-.5 2.5-1 3.5s-1.5 1.5-2.5 1.5c-1 0-1.5-.5-2-1.5s-1-1.5-2-1.5-1.5.5-2 1.5-.5 1.5-1.5 1.5c-1 0-1.5-.5-2-1.5S6.5 15 7.5 15s1.5.5 2 1.5 1 1.5 2 1.5 1.5-.5 2-1.5.5-1.5 1.5-1.5c1 0 1.5.5 2 1.5s1 1.5 2 1.5 1.5-.5 2-1.5.5-1.5 1.5-1.5c1.5 0 2.5-2 2.5-4 0-3-2.5-5.5-5.5-5.5S12 9.5 12 12.5c0 1.5.5 2.5 1 3.5s1.5 1.5 2.5 1.5c1 0 1.5-.5 2-1.5s.5-1.5 1.5-1.5c1 0 1.5.5 2 1.5s1 1.5 2 1.5c1 0 1.5-.5 2-1.5s.5-1.5 1.5-1.5c1.5 0 2.5-2 2.5-4 0-3-2.5-5.5-5.5-5.5H12z"/>
+      </svg>,
+      // 音乐
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="music">
+        <path fill="currentColor" d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+      </svg>,
+      // 星球
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="planet">
+        <circle cx="12" cy="12" r="8" fill="currentColor" opacity="0.8"/>
+        <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.3"/>
+      </svg>,
+      // 爱心
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="heart">
+        <path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>,
+      // 雪花
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="snowflake">
+        <path fill="currentColor" d="M22 11h-2.17l1.58-1.59L20 8l-4 4 4 4 1.41-1.41L19.83 13H22v-2zm-8.66 0L9.41 6.76l-1.41 1.41L12.41 12H7.17l1.58-1.59L7.34 8 3.34 12l4 4 1.41-1.41L7.17 13h5.24l-4.41 3.83 1.41 1.41 3.93-4.24V20h2v-6l3.93 4.24 1.41-1.41L12.41 13h5.24l-1.58 1.59L17.66 16l4-4-4-4-1.41 1.41L17.66 11h-5.24L17.83 7.59 16.41 6.18l-4.07 4.82z"/>
+      </svg>,
+      // 钥匙
+      <svg viewBox="0 0 24 24" className="w-full h-full" key="key">
+        <path fill="currentColor" d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+      </svg>
+    ];
+
+    return icons[(type - 1) % icons.length] || icons[0];
+  };
+
+  const t = I18N[lang];
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-4xl mx-auto"
+      className={`w-full max-w-6xl mx-auto ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-black' : ''}`}
     >
-      <Card className="p-8 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
-        <div className="space-y-6">
-          {/* 游戏标题 */}
-          <div className="text-center">
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              无限消除
-            </h2>
-            <p className="text-sm text-gray-400 mt-2">
-              连接相同的方块，挑战无限关卡
-            </p>
+      <Card className="p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative">
+        {/* 动态背景光晕 */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <motion.div
+            className="absolute w-96 h-96 rounded-full blur-3xl opacity-20"
+            style={{
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+              top: '-20%',
+              left: '-10%'
+            }}
+            animate={{
+              x: [0, 100, 0],
+              y: [0, -50, 0]
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+          />
+          <motion.div
+            className="absolute w-96 h-96 rounded-full blur-3xl opacity-20"
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
+              bottom: '-20%',
+              right: '-10%'
+            }}
+            animate={{
+              x: [0, -100, 0],
+              y: [0, 50, 0]
+            }}
+            transition={{
+              duration: 15,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+          />
+        </div>
+
+        <div className="relative z-10 space-y-4">
+          {/* 顶部工具栏 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                {t.title}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleFullscreen}
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              >
+                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleSound}
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              >
+                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleLanguage}
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              >
+                <Languages className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onCancel}
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+              >
+                <Home className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
           <AnimatePresence mode="wait">
@@ -542,55 +974,63 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
               // 游戏开始前/教程
               <motion.div
                 key="start"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-6"
               >
-                {showTutorial ? (
-                  <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-lg p-8 text-center backdrop-blur-sm border border-indigo-500/20">
-                    <p className="text-gray-300 mb-6 font-bold text-xl bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                      🎮 游戏规则
-                    </p>
-                    <ul className="text-left text-sm text-gray-300 space-y-4">
-                      <li className="flex items-start group">
-                        <span className="text-indigo-400 mr-3 text-lg group-hover:scale-110 transition-transform">🔗</span>
-                        <span className="flex-1">
-                          <span className="font-semibold text-white">连连看规则：</span>点击两个相同的方块，如果它们可以通过两个以内的转弯连接，即可消除
-                        </span>
+                {showTutorial && (
+                  <div className="bg-gradient-to-br from-purple-500/10 via-fuchsia-500/10 to-pink-500/10 rounded-2xl p-8 backdrop-blur-sm border border-purple-500/20 shadow-2xl">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                        {t.rules.title}
+                      </h3>
+                    </div>
+                    <ul className="space-y-4 text-gray-300">
+                      <li className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div className="p-2 bg-violet-500/20 rounded-lg mt-0.5">
+                          <Zap className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <span className="flex-1">{t.rules.rule1}</span>
                       </li>
-                      <li className="flex items-start group">
-                        <span className="text-purple-400 mr-3 text-lg group-hover:scale-110 transition-transform">⏱️</span>
-                        <span className="flex-1">
-                          <span className="font-semibold text-white">时间限制：</span>每关需要在限定时间内消除所有方块，前3关保持8分钟，之后每关减少10秒
-                        </span>
+                      <li className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div className="p-2 bg-pink-500/20 rounded-lg mt-0.5">
+                          <Clock className="w-5 h-5 text-pink-400" />
+                        </div>
+                        <span className="flex-1">{t.rules.rule2}</span>
                       </li>
-                      <li className="flex items-start group">
-                        <span className="text-pink-400 mr-3 text-lg group-hover:scale-110 transition-transform">⬆️</span>
-                        <span className="flex-1">
-                          <span className="font-semibold text-white">难度递增：</span>完成当前关卡后进入下一关，关卡越高方块种类越多，挑战越大
-                        </span>
+                      <li className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div className="p-2 bg-fuchsia-500/20 rounded-lg mt-0.5">
+                          <Trophy className="w-5 h-5 text-fuchsia-400" />
+                        </div>
+                        <span className="flex-1">{t.rules.rule3}</span>
                       </li>
-                      <li className="flex items-start group">
-                        <span className="text-orange-400 mr-3 text-lg group-hover:scale-110 transition-transform">💫</span>
-                        <span className="flex-1">
-                          <span className="font-semibold text-white">连击系统：</span>连续消除可以累积连击，获得非线性分数加成（最高100%加成）
-                        </span>
+                      <li className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div className="p-2 bg-orange-500/20 rounded-lg mt-0.5">
+                          <Flame className="w-5 h-5 text-orange-400" />
+                        </div>
+                        <span className="flex-1">{t.rules.rule4}</span>
                       </li>
-                      <li className="flex items-start group">
-                        <span className="text-yellow-400 mr-3 text-lg group-hover:scale-110 transition-transform">🏆</span>
-                        <span className="flex-1">
-                          <span className="font-semibold text-white">无限挑战：</span>挑战你能到达的极限关卡，获取高分排名！
-                        </span>
+                      <li className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div className="p-2 bg-cyan-500/20 rounded-lg mt-0.5">
+                          <Sparkles className="w-5 h-5 text-cyan-400" />
+                        </div>
+                        <span className="flex-1">{t.rules.rule5}</span>
                       </li>
                     </ul>
                   </div>
-                ) : null}
+                )}
                 <Button
                   onClick={startGame}
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
+                  size="lg"
+                  className="w-full h-16 text-xl font-bold bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 hover:from-violet-700 hover:via-fuchsia-700 hover:to-pink-700 shadow-lg shadow-purple-500/25"
                 >
-                  开始游戏
+                  <Play className="w-6 h-6 mr-2" />
+                  {t.ui.startGame}
                 </Button>
               </motion.div>
             ) : gameStarted ? (
@@ -603,77 +1043,106 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 className="space-y-4"
               >
                 {/* 时间进度条 */}
-                <div className="relative">
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <motion.div
-                      className={`h-full transition-all duration-1000 ${
-                        timeLeft < 30 ? 'bg-gradient-to-r from-red-500 to-orange-500' :
-                        timeLeft < 60 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                        'bg-gradient-to-r from-indigo-500 to-purple-500'
-                      }`}
-                      initial={{ width: '100%' }}
-                      animate={{ width: `${(timeLeft / INITIAL_TIME) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
+                <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full transition-all duration-1000 ${
+                      timeLeft < 30 
+                        ? 'bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600' 
+                        : timeLeft < 60 
+                        ? 'bg-gradient-to-r from-yellow-600 to-orange-600' 
+                        : 'bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600'
+                    }`}
+                    initial={{ width: '100%' }}
+                    animate={{ width: `${(timeLeft / INITIAL_TIME) * 100}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
                   {timeLeft < 30 && (
                     <motion.div
-                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      animate={{ opacity: [0.3, 0.6, 0.3] }}
                       transition={{ duration: 0.5, repeat: Infinity }}
-                      className="absolute -top-1 left-0 right-0 h-4 bg-red-500/20 blur-sm rounded-full"
+                      className="absolute inset-0 bg-red-500/20 blur-sm"
                     />
                   )}
                 </div>
 
-                {/* 状态显示 */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="bg-indigo-500/10 rounded-lg p-4 text-center backdrop-blur-sm">
-                    <div className="text-2xl font-bold text-indigo-400">{formatTime(timeLeft)}</div>
-                    <div className="text-xs text-gray-400 mt-1">剩余时间</div>
+                {/* 状态显示栏（固定在顶部，不影响游戏区域） */}
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-violet-500/20">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                      {formatTime(timeLeft)}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{t.ui.timeLeft}</div>
                   </div>
-                  <div className="bg-purple-500/10 rounded-lg p-4 text-center backdrop-blur-sm">
-                    <div className="text-2xl font-bold text-purple-400">{score}</div>
-                    <div className="text-xs text-gray-400 mt-1">得分</div>
+                  <div className="bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-fuchsia-500/20">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                      {score}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{t.ui.score}</div>
                   </div>
-                  <div className="bg-pink-500/10 rounded-lg p-4 text-center backdrop-blur-sm">
-                    <div className="text-2xl font-bold text-pink-400">{level}</div>
-                    <div className="text-xs text-gray-400 mt-1">关卡</div>
+                  <div className="bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-pink-500/20">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">
+                      {level}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{t.ui.level}</div>
                   </div>
-                  <div className="bg-orange-500/10 rounded-lg p-4 text-center backdrop-blur-sm">
-                    <div className="text-2xl font-bold text-orange-400">{tilesLeft}</div>
-                    <div className="text-xs text-gray-400 mt-1">剩余方块</div>
+                  <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-cyan-500/20">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                      {tilesLeft}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{t.ui.tilesLeft}</div>
                   </div>
                 </div>
 
-                {/* 连击显示 */}
+                {/* 连击显示（固定在顶部） */}
                 {comboCount > 1 && (
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
                     className="text-center"
                   >
-                    <div className="inline-block bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full font-bold">
-                      {comboCount} 连击！
+                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 via-yellow-600 to-orange-600 rounded-full shadow-lg shadow-orange-500/30">
+                      <Flame className="w-6 h-6 text-white" />
+                      <span className="text-2xl font-bold text-white">
+                        {comboCount} {t.ui.combo}!
+                      </span>
+                      <Zap className="w-6 h-6 text-white" />
                     </div>
                   </motion.div>
                 )}
 
                 {/* 游戏区域 */}
-                <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 overflow-hidden shadow-2xl backdrop-blur-sm">
-                  {/* 动态背景效果 */}
-                  <div className="absolute inset-0 opacity-5 pointer-events-none">
-                    <div className="w-full h-full" style={{
-                      backgroundImage: `
-                        radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.3) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.3) 0%, transparent 50%)
-                      `,
-                      backgroundSize: '100% 100%',
-                      animation: 'pulse 8s ease-in-out infinite'
-                    }} />
-                  </div>
+                <div className="relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl p-4 overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50">
+                  {/* 连接线层 */}
+                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
+                    {matchedPath.length > 1 && (
+                      <motion.path
+                        d={matchedPath.map((point, index) => {
+                          const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
+                          const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
+                          return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                        }).join(' ')}
+                        stroke="url(#lineGradient)"
+                        strokeWidth="4"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                    <defs>
+                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.9" />
+                        <stop offset="50%" stopColor="#ec4899" stopOpacity="0.9" />
+                        <stop offset="100%" stopColor="#f97316" stopOpacity="0.9" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
 
                   <div
-                    className="grid gap-1.5 relative z-10"
+                    className="grid gap-2 relative z-10"
                     style={{
                       gridTemplateColumns: `repeat(${BOARD_COLS + 2}, minmax(0, 1fr))`,
                       gridTemplateRows: `repeat(${BOARD_ROWS + 2}, minmax(0, 1fr))`
@@ -687,11 +1156,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           onClick={() => handleTileClick(x, y)}
                           disabled={tile === 0}
                           className={`
-                            aspect-square rounded-lg flex items-center justify-center text-2xl font-bold
-                            transition-all duration-200 relative overflow-hidden
+                            aspect-square rounded-xl flex items-center justify-center relative overflow-hidden
+                            transition-all duration-200
                             ${tile === 0 ? 'invisible' : 'visible'}
                             ${selectedTile?.x === x && selectedTile?.y === y
-                              ? 'ring-4 ring-yellow-400 scale-110 z-10 shadow-lg shadow-yellow-400/20'
+                              ? 'ring-4 ring-yellow-400 scale-105 z-10 shadow-lg shadow-yellow-400/20'
                               : ''}
                             ${eliminationTiles.some(t => t.x === x && t.y === y)
                               ? 'scale-0 opacity-0'
@@ -700,44 +1169,28 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             ${tile > 0 ? 'cursor-pointer' : 'cursor-default'}
                           `}
                           style={{
-                            backgroundColor: tile > 0
-                              ? `linear-gradient(135deg, hsl(${(tile * 25) % 360}, 70%, 55%) 0%, hsl(${(tile * 25) % 360}, 70%, 45%) 100%)`
+                            background: tile > 0
+                              ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.6) 0%, rgba(236, 72, 153, 0.6) 50%, rgba(249, 115, 22, 0.6) 100%)'
                               : 'transparent',
                             boxShadow: tile > 0
-                              ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                              ? '0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
                               : 'none',
-                            border: tile > 0 ? '2px solid rgba(255, 255, 255, 0.1)' : 'none'
+                            border: tile > 0 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
                           }}
-                          whileHover={tile > 0 ? { scale: 1.08, boxShadow: '0 8px 16px -2px rgba(0, 0, 0, 0.4), 0 4px 8px -2px rgba(0, 0, 0, 0.3)' } : {}}
+                          whileHover={tile > 0 ? { scale: 1.08, boxShadow: '0 8px 16px -2px rgba(0, 0, 0, 0.5), 0 4px 8px -2px rgba(0, 0, 0, 0.4)' } : {}}
                           whileTap={tile > 0 ? { scale: 0.92 } : {}}
                         >
                           {tile > 0 && (
-                            <span className="relative z-10 text-2xl select-none">
-                              {TILE_ICONS[tile - 1] === 'star' ? '⭐' :
-                               TILE_ICONS[tile - 1] === 'moon' ? '🌙' :
-                               TILE_ICONS[tile - 1] === 'sun' ? '☀️' :
-                               TILE_ICONS[tile - 1] === 'spark' ? '✨' :
-                               TILE_ICONS[tile - 1] === 'rainbow' ? '🌈' :
-                               TILE_ICONS[tile - 1] === 'fire' ? '🔥' :
-                               TILE_ICONS[tile - 1] === 'diamond' ? '💎' :
-                               TILE_ICONS[tile - 1] === 'clover' ? '🍀' :
-                               TILE_ICONS[tile - 1] === 'flower' ? '🌺' :
-                               TILE_ICONS[tile - 1] === 'butterfly' ? '🦋' :
-                               TILE_ICONS[tile - 1] === 'wave' ? '🌊' :
-                               TILE_ICONS[tile - 1] === 'bolt' ? '⚡' :
-                               TILE_ICONS[tile - 1] === 'mask' ? '🎭' :
-                               TILE_ICONS[tile - 1] === 'palette' ? '🎨' :
-                               TILE_ICONS[tile - 1] === 'target' ? '🎯' :
-                               TILE_ICONS[tile - 1] === 'circus' ? '🎪' :
-                               TILE_ICONS[tile - 1] === 'dice' ? '🎲' : '🎸'}
-                            </span>
+                            <div className="relative z-10 w-4/5 h-4/5">
+                              <TileIcon type={tile} />
+                            </div>
                           )}
                           {/* 内发光效果 */}
                           {tile > 0 && (
                             <div
                               className="absolute inset-0 pointer-events-none"
                               style={{
-                                background: 'radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 70%)'
+                                background: 'radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 70%)'
                               }}
                             />
                           )}
@@ -745,33 +1198,6 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                       ))
                     )}
                   </div>
-
-                  {/* 连接线层 */}
-                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-                    {matchedPath.length > 1 && (
-                      <motion.path
-                        d={matchedPath.map((point, index) => {
-                          const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
-                          const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
-                          return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                        }).join(' ')}
-                        stroke="url(#lineGradient)"
-                        strokeWidth="3"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    )}
-                    <defs>
-                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#818cf8" />
-                        <stop offset="100%" stopColor="#c084fc" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
                 </div>
               </motion.div>
             ) : (
@@ -782,63 +1208,83 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4 }}
-                className="space-y-4"
+                className="space-y-6"
               >
-                <div className="bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 rounded-xl p-8 text-center backdrop-blur-sm border border-indigo-500/30 shadow-2xl">
-                  <motion.h3
+                <div className="bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-pink-500/20 rounded-2xl p-8 text-center backdrop-blur-sm border border-purple-500/30 shadow-2xl">
+                  <motion.div
                     initial={{ scale: 0.8 }}
                     animate={{ scale: 1 }}
-                    className="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-6"
+                    className="mb-6"
                   >
-                    🎮 游戏结束
-                  </motion.h3>
-                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="inline-block p-4 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-600 rounded-2xl shadow-lg shadow-purple-500/30">
+                      <Trophy className="w-12 h-12 text-white" />
+                    </div>
+                  </motion.div>
+                  <h3 className="text-4xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent mb-8">
+                    {t.ui.gameOver}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 mb-8">
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 }}
-                      className="bg-gray-900/50 rounded-lg p-5 backdrop-blur-sm border border-purple-500/20"
+                      className="bg-slate-900/50 rounded-xl p-6 backdrop-blur-sm border border-purple-500/20"
                     >
-                      <div className="text-3xl font-bold text-purple-400">{score}</div>
-                      <div className="text-sm text-gray-400 mt-2">最终得分</div>
+                      <div className="text-4xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                        {score}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-2">{t.ui.finalScore}</div>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="bg-gray-900/50 rounded-lg p-5 backdrop-blur-sm border border-pink-500/20"
+                      className="bg-slate-900/50 rounded-xl p-6 backdrop-blur-sm border border-pink-500/20"
                     >
-                      <div className="text-3xl font-bold text-pink-400">{level}</div>
-                      <div className="text-sm text-gray-400 mt-2">到达关卡</div>
+                      <div className="text-4xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">
+                        {level}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-2">{t.ui.reachedLevel}</div>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
-                      className="bg-gray-900/50 rounded-lg p-5 backdrop-blur-sm border border-orange-500/20"
+                      className="bg-slate-900/50 rounded-xl p-6 backdrop-blur-sm border border-orange-500/20"
                     >
-                      <div className="text-3xl font-bold text-orange-400">{maxCombo}</div>
-                      <div className="text-sm text-gray-400 mt-2">最大连击</div>
-                    </motion.div>
-                    <div className="bg-gray-800/50 rounded-lg p-4">
-                      <div className="text-3xl font-bold text-yellow-400">
-                        {score > 1000 ? 'S' : score > 500 ? 'A' : score > 300 ? 'B' : 'C'}
+                      <div className="text-4xl font-bold bg-gradient-to-r from-orange-400 to-yellow-400 bg-clip-text text-transparent">
+                        {maxCombo}
                       </div>
-                      <div className="text-sm text-gray-400 mt-1">评价</div>
-                    </div>
+                      <div className="text-sm text-gray-400 mt-2">{t.ui.maxCombo}</div>
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl p-6 backdrop-blur-sm border border-yellow-500/30"
+                    >
+                      <div className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                        {getRating(score)}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-2">{t.ui.rating}</div>
+                    </motion.div>
                   </div>
                   <div className="flex gap-4">
                     <Button
                       onClick={startGame}
-                      className="flex-1 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
+                      size="lg"
+                      className="flex-1 h-14 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 hover:from-violet-700 hover:via-fuchsia-700 hover:to-pink-700 shadow-lg shadow-purple-500/25"
                     >
-                      再玩一次
+                      <RefreshCw className="w-5 h-5 mr-2" />
+                      {t.ui.playAgain}
                     </Button>
                     <Button
                       onClick={handleSubmit}
-                      className="flex-1 h-12 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                      size="lg"
+                      className="flex-1 h-14 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 shadow-lg shadow-green-500/25"
                     >
-                      提交成绩
+                      <Trophy className="w-5 h-5 mr-2" />
+                      {t.ui.submitScore}
                     </Button>
                   </div>
                 </div>
