@@ -73,14 +73,14 @@ export default function TournamentDetailPage() {
     '1': 'Number Guess',
     '2': 'Rock Paper Scissors',
     '3': 'Quick Click',
-    '4': 'Roguelike Survival'
+    '4': 'Cycle Rift (轮回裂隙)'
   };
 
   const gameTypeIcons: Record<string, string> = {
     '1': '🔢',
     '2': '✊✋✌️',
     '3': '🎯',
-    '4': '⚔️'
+    '4': '🌀'
   };
 
   const gameTypeEnum: Record<string, GameType> = {
@@ -381,6 +381,67 @@ export default function TournamentDetailPage() {
                       </div>
                     </Card>
                   </div>
+
+                  {/* Game Rules */}
+                  <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
+                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                      <span className="text-2xl">📜</span>
+                      Game Rules
+                    </h3>
+                    <div className="space-y-4 text-gray-300">
+                      {tournament.gameType === '1' && (
+                        <div className="space-y-2">
+                          <p className="font-semibold text-white">🎮 Number Guessing Game</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li>Guess a number between 1 and 100</li>
+                            <li>You have 10 attempts to guess correctly</li>
+                            <li>Higher score = more accurate guesses with fewer attempts</li>
+                            <li>Submit your best score to compete in the tournament</li>
+                          </ul>
+                        </div>
+                      )}
+                      {tournament.gameType === '2' && (
+                        <div className="space-y-2">
+                          <p className="font-semibold text-white">🎮 Rock Paper Scissors</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li>Classic Rock Paper Scissors against AI</li>
+                            <li>Best of 10 rounds to determine your score</li>
+                            <li>Win a round = +1 point, Lose = 0 points, Tie = 0.5 points</li>
+                            <li>Submit your best score to compete in the tournament</li>
+                          </ul>
+                        </div>
+                      )}
+                      {tournament.gameType === '3' && (
+                        <div className="space-y-2">
+                          <p className="font-semibold text-white">🎮 Quick Click</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li>Click the target as fast as you can</li>
+                            <li>You have 30 seconds to click as many targets as possible</li>
+                            <li>Higher score = more clicks in the time limit</li>
+                            <li>Submit your best score to compete in the tournament</li>
+                          </ul>
+                        </div>
+                      )}
+                      {tournament.gameType === '4' && (
+                        <div className="space-y-2">
+                          <p className="font-semibold text-white">🎮 Cycle Rift (轮回裂隙) - Roguelike Survival</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li><strong>Objective:</strong> Survive as long as possible against waves of monsters</li>
+                            <li><strong>Movement:</strong> WASD or Arrow keys to move your character</li>
+                            <li><strong>Combat:</strong> Auto-attack nearby enemies when in range</li>
+                            <li><strong>Level Up:</strong> Choose from 3 random skill upgrades each time you level up</li>
+                            <li><strong>Skills:</strong> Various offensive and defensive abilities (fireballs, lightning, shields, etc.)</li>
+                            <li><strong>Legendary Skills:</strong> Unlocked at level 25, gold border with powerful effects</li>
+                            <li><strong>Mythic Skills:</strong> Unlocked at level 30, red border with ultimate power</li>
+                            <li><strong>Monster Scaling:</strong> Monsters get stronger over time (HP & damage increase)</li>
+                            <li><strong>Bosses:</strong> Boss enemies spawn periodically with special abilities</li>
+                            <li><strong>Score:</strong> Based on survival time, enemies killed, and achievements</li>
+                            <li><strong>Strategy:</strong> Balance offense, defense, and mobility to survive longer</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
 
                   {/* 玩家成绩显示 */}
                   {address && tournament.results.some(r => r.playerAddress === address) && (

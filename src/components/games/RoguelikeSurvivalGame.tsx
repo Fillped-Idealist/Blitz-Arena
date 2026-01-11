@@ -20,6 +20,360 @@ export interface GameResult {
   playerAddress: string;
 }
 
+// ==================== 语言配置 ====================
+const TRANSLATIONS = {
+  zh: {
+    gameTitle: '轮回裂隙',
+    gameDescription: '无限挑战，生存下去，击败无尽怪物',
+    gameRules: '游戏规则',
+    controls: '操作方式',
+    gameMechanics: '游戏机制',
+    movement: 'WASD / 方向键 - 移动',
+    mouseAim: '鼠标移动 - 瞄准',
+    autoAttack: '自动攻击 - 近战/远程自动切换',
+    spaceStart: '空格键 - 开始游戏',
+    unlimitedTime: '• 无时间限制，根据能力生存',
+    nonlinearDifficulty: '• 非线性难度曲线',
+    gameRulesSkills: '• 30+技能，包含主动/被动',
+    weapons: '• 3种武器可切换',
+    obstacles: '• 地形障碍物',
+    bossSkills: '• Boss有特殊技能和阶段',
+    gotItStart: '知道了，开始游戏',
+    fullscreen: '全屏',
+    soundOn: '音效: 开',
+    soundOff: '音效: 关',
+    returnHome: '返回主页',
+    playAgain: '再玩一次',
+    submitScore: '提交成绩',
+    connectWallet: '请先连接钱包',
+    noWallet: '未检测到Web3钱包',
+    submitFailed: '提交结果失败',
+    // 游戏内文本
+    levelUp: 'LEVEL UP',
+    selectSkill: '选择一个技能',
+    levelTransition: 'Lv.',
+    to: '→',
+    passive: '被动',
+    active: '主动',
+    pressToSelect: '按 {key} 或点击选择',
+    gameOver: '游戏结束',
+    finalScore: '最终得分',
+    level: '等级',
+    kills: '击杀',
+    survived: '存活',
+    seconds: '秒',
+    totalDamage: '总伤害',
+    restart: '按 R 重新开始',
+    quit: '按 Q 退出',
+    startScreenTitle: '轮回裂隙',
+    startScreenSubtitle: 'WASD移动 - 自动攻击 - 击杀升级',
+    mouseAimShort: '鼠标瞄准',
+    pressSpaceStart: '按空格键开始游戏',
+    common: '普通',
+    rare: '稀有',
+    epic: '史诗',
+    legendary: '传奇',
+    mythic: '神话',
+    bossIncoming: '⚠️ 近战Boss来袭！',
+    newBossIncoming: '⚠️ 新的近战Boss来袭！',
+    rarity: '稀有度',
+    skillType: '类型',
+    // 技能描述翻译
+    skills: {
+      health_boost: '生命值+200（可累加）',
+      damage_boost: '伤害+10%（可累加）',
+      speed_boost: '移动速度+5%（可累加）',
+      attack_speed: '攻击速度+10%（可累加）',
+      shield_bash: '护盾猛击：造成300%伤害并击退敌人',
+      multishot: '多重射击：额外发射2支箭矢',
+      crit_chance: '暴击几率+10%（可累加）',
+      armor: '护甲：减少15%受到的伤害（被动）',
+      arrow_bounce: '箭矢弹射次数永久+4（可累加）',
+      critical_mastery: '暴击伤害永久+75%（可累加）',
+      blade_dance: '剑舞：攻击范围永久+60%（可累加）',
+      aura_burn: '烈焰立场：立场范围扩大50%，灼烧伤害+30%（被动）',
+      melee_mastery: '近战大师：近战伤害永久+100%，攻击范围+40%（可累加）',
+      vampirism: '吸血鬼之触：所有生命恢复+8（可累加）',
+      fire_mastery: '火焰掌握：远程伤害永久+75%（可累加）',
+      giant_slayer: '巨人杀手：对Boss和精英伤害永久+50%（可累加）',
+      berserker: '狂战士：伤害永久+75%（可累加）',
+      champion: '冠军之心：所有属性+20%（生命值、伤害、速度）',
+      change_bow: '弓箭手：攻击范围永久+50%，攻击速度-15%（可累加）',
+      magic_power: '魔法强化：远程伤害永久+40%（可累加）',
+      blade_mastery: '剑术精通：近战伤害+30%，攻击范围+15%',
+      auto_tracking: '天命法阵：每6秒在画面内生命值最高的怪物脚下召唤法阵，1秒后造成约1000伤害（被动）',
+      tracking_mastery_1: '法阵精通 I：天命法阵伤害+200（被动）',
+      tracking_mastery_2: '法阵精通 II：天命法阵伤害+200（被动）',
+      tracking_mastery_3: '法阵精通 III：天命法阵伤害+200（被动）',
+      tracking_mastery_4: '法阵精通 IV：天命法阵伤害+200（被动）',
+      tracking_speed_1: '法阵加速 I：天命法阵冷却时间-1秒（被动）',
+      tracking_speed_2: '法阵加速 II：天命法阵冷却时间-1秒（被动）',
+      tracking_speed_3: '法阵加速 III：天命法阵冷却时间-1秒（被动）',
+      tracking_multishot_1: '法阵多重 I：天命法阵同时锁定+1个敌人（被动）',
+      tracking_multishot_2: '法阵多重 II：天命法阵同时锁定+1个敌人（被动）',
+      tracking_pierce_1: '法阵扩张 I：天命法阵范围扩大30%（被动）',
+      tracking_pierce_2: '法阵扩张 II：天命法阵范围扩大30%（被动）',
+      passive_armor: '坚韧：受到的伤害减少20%（可叠加，上限80%）',
+      passive_thorns: '荆棘护甲：受到伤害时反弹50%给攻击者（被动）',
+      passive_speed: '迅捷：生命值低于50%时移动速度+30%（被动）',
+      passive_lifesteal: '生命汲取：击杀怪物回复5点生命值（被动）',
+      passive_exp: '快速学习：获得的经验值+25%（被动）',
+      passive_crit: '弱点识别：暴击几率永久+10%（可累加）',
+      passive_damage: '力量：所有伤害永久+15%（可累加）',
+      passive_shield: '护盾：每15秒获得1500点临时护盾（被动）',
+      passive_freeze: '冰霜：攻击有10%几率冻结敌人1秒（被动）',
+      passive_chain: '连锁：攻击有15%几率连锁到附近敌人（被动）',
+      passive_revive: '不屈：死亡时有20%几率回复50%生命值并继续战斗（被动）',
+      passive_ultimate: '终极：所有被动技能效果+50%（被动）',
+      ultimate_blade: '剑圣：近战伤害永久+150%，攻击范围+80%（可累加）',
+      ultimate_magic: '法神：远程伤害永久+150%，弹射次数+6（可累加）',
+      ultimate_vitality: '生命之源：最大生命值+3000，每秒回复+50，击杀怪物+15生命值（可累加）',
+      ultimate_speed: '神速：移动速度+50%，攻击速度+40%（可累加）',
+      ultimate_crit: '致命节奏：暴击率+25%，暴击伤害+150%（可累加）',
+      ultimate_range: '远程主宰：攻击范围+100%，攻击速度+50%（可累加）',
+      mythic_titan: '泰坦之力：所有伤害+200%，最大生命+5000（可累加）',
+      mythic_ragnarok: '诸神黄昏：暴击率+50%，暴击伤害+200%，攻击时触发元素爆炸（可累加）',
+      mythic_immortal: '不朽之身：死亡时回复50%生命值，冷却300秒（被动）',
+      mythic_elements: '元素掌控：所有伤害+150%，攻击有20%几率触发连锁爆炸（被动）',
+      mythic_omnipotence: '全能：所有属性+30%（生命、伤害、速度、范围、暴击）（可累加）',
+    },
+    // 技能名称翻译
+    skillNames: {
+      health_boost: '生命强化',
+      damage_boost: '力量强化',
+      speed_boost: '速度强化',
+      attack_speed: '攻击速度',
+      shield_bash: '护盾猛击',
+      multishot: '多重射击',
+      crit_chance: '暴击几率',
+      armor: '护甲',
+      arrow_bounce: '弹射之箭',
+      critical_mastery: '暴击精通',
+      blade_dance: '剑舞',
+      aura_burn: '烈焰立场',
+      melee_mastery: '近战大师',
+      vampirism: '吸血鬼之触',
+      fire_mastery: '火焰掌握',
+      giant_slayer: '巨人杀手',
+      berserker: '狂战士',
+      champion: '冠军之心',
+      change_bow: '弓箭手',
+      magic_power: '魔法强化',
+      blade_mastery: '剑术精通',
+      auto_tracking: '天命法阵',
+      tracking_mastery_1: '法阵精通 I',
+      tracking_mastery_2: '法阵精通 II',
+      tracking_mastery_3: '法阵精通 III',
+      tracking_mastery_4: '法阵精通 IV',
+      tracking_speed_1: '法阵加速 I',
+      tracking_speed_2: '法阵加速 II',
+      tracking_speed_3: '法阵加速 III',
+      tracking_multishot_1: '法阵多重 I',
+      tracking_multishot_2: '法阵多重 II',
+      tracking_pierce_1: '法阵扩张 I',
+      tracking_pierce_2: '法阵扩张 II',
+      passive_armor: '坚韧',
+      passive_thorns: '荆棘护甲',
+      passive_speed: '迅捷',
+      passive_lifesteal: '生命汲取',
+      passive_exp: '快速学习',
+      passive_crit: '弱点识别',
+      passive_damage: '力量',
+      passive_shield: '护盾',
+      passive_freeze: '冰霜',
+      passive_chain: '连锁',
+      passive_revive: '不屈',
+      passive_ultimate: '终极',
+      ultimate_blade: '剑圣',
+      ultimate_magic: '法神',
+      ultimate_vitality: '生命之源',
+      ultimate_speed: '神速',
+      ultimate_crit: '致命节奏',
+      ultimate_range: '远程主宰',
+      mythic_titan: '泰坦之力',
+      mythic_ragnarok: '诸神黄昏',
+      mythic_immortal: '不朽之身',
+      mythic_elements: '元素掌控',
+      mythic_omnipotence: '全能',
+    },
+  },
+  en: {
+    gameTitle: 'Cycle Rift',
+    gameDescription: 'Infinite challenge. Survive. Defeat endless monsters.',
+    gameRules: 'Game Rules',
+    controls: 'Controls',
+    gameMechanics: 'Game Mechanics',
+    movement: 'WASD / Arrow Keys - Move',
+    mouseAim: 'Mouse Move - Aim',
+    autoAttack: 'Auto Attack - Melee/Range Auto Switch',
+    spaceStart: 'Spacebar - Start Game',
+    unlimitedTime: '• No time limit, survive based on ability',
+    nonlinearDifficulty: '• Non-linear difficulty curve',
+    gameRulesSkills: '• 30+ skills, active & passive',
+    weapons: '• 3 switchable weapons',
+    obstacles: '• Terrain obstacles',
+    bossSkills: '• Bosses have special abilities and phases',
+    gotItStart: 'Got it, Start Game',
+    fullscreen: 'Fullscreen',
+    soundOn: 'Sound: On',
+    soundOff: 'Sound: Off',
+    returnHome: 'Return Home',
+    playAgain: 'Play Again',
+    submitScore: 'Submit Score',
+    connectWallet: 'Please connect your wallet first',
+    noWallet: 'No Web3 wallet detected',
+    submitFailed: 'Failed to submit result',
+    // 游戏内文本
+    levelUp: 'LEVEL UP',
+    selectSkill: 'Choose a skill',
+    levelTransition: 'Lv.',
+    to: '→',
+    passive: 'Passive',
+    active: 'Active',
+    pressToSelect: 'Press {key} or click to select',
+    gameOver: 'GAME OVER',
+    finalScore: 'Final Score',
+    level: 'Level',
+    kills: 'Kills',
+    survived: 'Survived',
+    seconds: 'seconds',
+    totalDamage: 'Total Damage',
+    restart: 'Press R to restart',
+    quit: 'Press Q to quit',
+    startScreenTitle: 'Cycle Rift',
+    startScreenSubtitle: 'WASD Move - Auto Attack - Level Up',
+    mouseAimShort: 'Mouse Aim',
+    pressSpaceStart: 'Press SPACE to start',
+    common: 'Common',
+    rare: 'Rare',
+    epic: 'Epic',
+    legendary: 'Legendary',
+    mythic: 'Mythic',
+    bossIncoming: '⚠️ Melee Boss Incoming!',
+    newBossIncoming: '⚠️ New Melee Boss Incoming!',
+    rarity: 'Rarity',
+    skillType: 'Type',
+    // 技能描述翻译
+    skills: {
+      health_boost: 'Health +200 (stackable)',
+      damage_boost: 'Damage +10% (stackable)',
+      speed_boost: 'Move Speed +5% (stackable)',
+      attack_speed: 'Attack Speed +10% (stackable)',
+      shield_bash: 'Shield Bash: Deal 300% damage and knockback enemies',
+      multishot: 'Multishot: Fire 2 additional arrows',
+      crit_chance: 'Crit Chance +10% (stackable)',
+      armor: 'Armor: Reduce damage taken by 15% (passive)',
+      arrow_bounce: 'Bouncing Arrows: Arrow bounces +4 times permanently (stackable)',
+      critical_mastery: 'Crit Mastery: Crit damage +75% permanently (stackable)',
+      blade_dance: 'Blade Dance: Attack range +60% permanently (stackable)',
+      aura_burn: 'Blazing Aura: Aura range +50%, burn damage +30% (passive)',
+      melee_mastery: 'Melee Mastery: Melee damage +100%, attack range +40% (stackable)',
+      vampirism: 'Vampiric Touch: All healing +8 (stackable)',
+      fire_mastery: 'Fire Mastery: Ranged damage +75% permanently (stackable)',
+      giant_slayer: 'Giant Slayer: Damage to bosses and elites +50% (stackable)',
+      berserker: 'Berserker: All damage +75% (stackable)',
+      champion: "Champion's Heart: All stats +20% (health, damage, speed)",
+      change_bow: 'Archer: Attack range +50%, attack speed -15% (stackable)',
+      magic_power: 'Magic Power: Ranged damage +40% (stackable)',
+      blade_mastery: 'Blade Mastery: Melee damage +30%, attack range +15%',
+      auto_tracking: 'Destiny Circle: Summon a circle under the highest HP monster every 6s, dealing ~1000 damage after 1s (passive)',
+      tracking_mastery_1: 'Circle Mastery I: Destiny Circle damage +200 (passive)',
+      tracking_mastery_2: 'Circle Mastery II: Destiny Circle damage +200 (passive)',
+      tracking_mastery_3: 'Circle Mastery III: Destiny Circle damage +200 (passive)',
+      tracking_mastery_4: 'Circle Mastery IV: Destiny Circle damage +200 (passive)',
+      tracking_speed_1: 'Circle Haste I: Destiny Circle cooldown -1s (passive)',
+      tracking_speed_2: 'Circle Haste II: Destiny Circle cooldown -1s (passive)',
+      tracking_speed_3: 'Circle Haste III: Destiny Circle cooldown -1s (passive)',
+      tracking_multishot_1: 'Circle Multishot I: Destiny Circle targets +1 enemy (passive)',
+      tracking_multishot_2: 'Circle Multishot II: Destiny Circle targets +1 enemy (passive)',
+      tracking_pierce_1: 'Circle Expansion I: Destiny Circle range +30% (passive)',
+      tracking_pierce_2: 'Circle Expansion II: Destiny Circle range +30% (passive)',
+      passive_armor: 'Tenacity: Damage taken reduced by 20% (stackable, max 80%)',
+      passive_thorns: 'Thorn Armor: Reflect 50% damage to attacker (passive)',
+      passive_speed: 'Swift: Move speed +30% when HP below 50% (passive)',
+      passive_lifesteal: 'Life Leech: Heal 5 HP on kill (passive)',
+      passive_exp: 'Quick Learner: Experience gain +25% (passive)',
+      passive_crit: 'Weakness Detection: Crit chance +10% (stackable)',
+      passive_damage: 'Strength: All damage +15% (stackable)',
+      passive_shield: 'Shield: Gain 1500 temporary shield every 15s (passive)',
+      passive_freeze: 'Frost: 10% chance to freeze enemy for 1s on attack (passive)',
+      passive_chain: 'Chain: 15% chance to chain to nearby enemies (passive)',
+      passive_revive: 'Unyielding: 20% chance to revive with 50% HP on death (passive)',
+      passive_ultimate: 'Ultimate: All passive effects +50% (passive)',
+      ultimate_blade: 'Blade Saint: Melee damage +150%, attack range +80% (stackable)',
+      ultimate_magic: 'Archmage: Ranged damage +150%, arrow bounces +6 (stackable)',
+      ultimate_vitality: 'Vitality Source: Max HP +3000, regen +50/s, +15 HP on kill (stackable)',
+      ultimate_speed: 'Godspeed: Move speed +50%, attack speed +40% (stackable)',
+      ultimate_crit: 'Deadly Rhythm: Crit rate +25%, crit damage +150% (stackable)',
+      ultimate_range: 'Ranged Dominance: Attack range +100%, attack speed +50% (stackable)',
+      mythic_titan: "Titan's Might: All damage +200%, max HP +5000 (stackable)",
+      mythic_ragnarok: 'Ragnarok: Crit rate +50%, crit damage +200%, elemental explosion on attack (stackable)',
+      mythic_immortal: 'Immortal Body: Revive with 50% HP on death, 300s cooldown (passive)',
+      mythic_elements: 'Element Mastery: All damage +150%, 20% chance to trigger chain explosion (passive)',
+      mythic_omnipotence: 'Omnipotence: All stats +30% (health, damage, speed, range, crit) (stackable)',
+    },
+    // 技能名称翻译
+    skillNames: {
+      health_boost: 'Health Boost',
+      damage_boost: 'Power Boost',
+      speed_boost: 'Speed Boost',
+      attack_speed: 'Attack Speed',
+      shield_bash: 'Shield Bash',
+      multishot: 'Multishot',
+      crit_chance: 'Crit Chance',
+      armor: 'Armor',
+      arrow_bounce: 'Bouncing Arrows',
+      critical_mastery: 'Crit Mastery',
+      blade_dance: 'Blade Dance',
+      aura_burn: 'Blazing Aura',
+      melee_mastery: 'Melee Mastery',
+      vampirism: 'Vampiric Touch',
+      fire_mastery: 'Fire Mastery',
+      giant_slayer: 'Giant Slayer',
+      berserker: 'Berserker',
+      champion: "Champion's Heart",
+      change_bow: 'Archer',
+      magic_power: 'Magic Power',
+      blade_mastery: 'Blade Mastery',
+      auto_tracking: 'Destiny Circle',
+      tracking_mastery_1: 'Circle Mastery I',
+      tracking_mastery_2: 'Circle Mastery II',
+      tracking_mastery_3: 'Circle Mastery III',
+      tracking_mastery_4: 'Circle Mastery IV',
+      tracking_speed_1: 'Circle Haste I',
+      tracking_speed_2: 'Circle Haste II',
+      tracking_speed_3: 'Circle Haste III',
+      tracking_multishot_1: 'Circle Multishot I',
+      tracking_multishot_2: 'Circle Multishot II',
+      tracking_pierce_1: 'Circle Expansion I',
+      tracking_pierce_2: 'Circle Expansion II',
+      passive_armor: 'Tenacity',
+      passive_thorns: 'Thorn Armor',
+      passive_speed: 'Swift',
+      passive_lifesteal: 'Life Leech',
+      passive_exp: 'Quick Learner',
+      passive_crit: 'Weakness Detection',
+      passive_damage: 'Strength',
+      passive_shield: 'Shield',
+      passive_freeze: 'Frost',
+      passive_chain: 'Chain',
+      passive_revive: 'Unyielding',
+      passive_ultimate: 'Ultimate',
+      ultimate_blade: 'Blade Saint',
+      ultimate_magic: 'Archmage',
+      ultimate_vitality: 'Vitality Source',
+      ultimate_speed: 'Godspeed',
+      ultimate_crit: 'Deadly Rhythm',
+      ultimate_range: 'Ranged Dominance',
+      mythic_titan: "Titan's Might",
+      mythic_ragnarok: 'Ragnarok',
+      mythic_immortal: 'Immortal Body',
+      mythic_elements: 'Element Mastery',
+      mythic_omnipotence: 'Omnipotence',
+    },
+  }
+};
+
 // ==================== 游戏常量 ====================
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 900;
@@ -1261,6 +1615,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [gameInitialized, setGameInitialized] = useState(false);
+  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
 
   // gameInitialized引用（用于键盘事件）
   const gameInitializedRef = useRef(false);
@@ -1878,7 +2233,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       // 实现方法：每次升级时，每个技能位置有约2.7%的概率被替换为立场灼伤（1 - (1-0.027)^3 ≈ 0.079）
       let shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
       const selectedSkills = shuffled.slice(0, 3);
-      
+
+      // 前10级：立场灼伤技能有较高刷新概率
       if (player.level < 10) {
         const auraSkill = filteredSkills.find(s => s.id === 'aura_burn');
         if (auraSkill) {
@@ -1887,6 +2243,40 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             if (Math.random() < 0.027) {
               selectedSkills[index] = auraSkill;
             }
+          });
+        }
+      }
+
+      // 25级和30级：必定刷到2个传奇/神话技能点（确保有选择权）
+      const isLevel25Legendary = player.level === 25;
+      const isLevel30Mythic = player.level === 30;
+
+      if (isLevel25Legendary || isLevel30Mythic) {
+        const targetRarity = isLevel25Legendary ? 'legendary' : 'mythic';
+        const targetSkills = filteredSkills.filter(s => s.rarity === targetRarity);
+
+        console.log('[Level Up] High-tier skill unlock', {
+          level: player.level,
+          targetRarity: targetRarity,
+          targetSkillsCount: targetSkills.length
+        });
+
+        // 如果有足够的目标稀有度技能，随机选择2个替换前2个位置
+        if (targetSkills.length >= 2) {
+          const shuffledTargetSkills = targetSkills.sort(() => Math.random() - 0.5);
+          selectedSkills[0] = shuffledTargetSkills[0];
+          selectedSkills[1] = shuffledTargetSkills[1];
+
+          console.log('[Level Up] Guaranteed high-tier skills added', {
+            skill1: { id: selectedSkills[0].id, name: selectedSkills[0].name, rarity: selectedSkills[0].rarity },
+            skill2: { id: selectedSkills[1].id, name: selectedSkills[1].name, rarity: selectedSkills[1].rarity }
+          });
+        } else if (targetSkills.length === 1) {
+          // 如果只有1个目标稀有度技能，替换第1个位置
+          selectedSkills[0] = targetSkills[0];
+
+          console.log('[Level Up] Only one high-tier skill available', {
+            skill1: { id: selectedSkills[0].id, name: selectedSkills[0].name, rarity: selectedSkills[0].rarity }
           });
         }
       }
@@ -2771,6 +3161,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // 获取当前语言的翻译
+    const t = TRANSLATIONS[language];
+
     // 标题（带光晕）
     ctx.save();
     ctx.shadowColor = '#D4AF37';
@@ -2779,14 +3172,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.font = 'bold 48px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`LEVEL UP`, CANVAS_WIDTH / 2, 60);
+    ctx.fillText(t.levelUp, CANVAS_WIDTH / 2, 60);
     ctx.font = 'bold 32px Arial, sans-serif';
-    ctx.fillText(`Lv.${player.level} → Lv.${player.level + 1}`, CANVAS_WIDTH / 2, 110);
+    ctx.fillText(`${t.levelTransition}${player.level - 1} ${t.to} ${t.levelTransition}${player.level}`, CANVAS_WIDTH / 2, 110);
     ctx.restore();
 
     ctx.font = 'bold 24px Arial, sans-serif';
     ctx.fillStyle = '#BDC3C7';
-    ctx.fillText('选择一个技能', CANVAS_WIDTH / 2, 155);
+    ctx.fillText(t.selectSkill, CANVAS_WIDTH / 2, 155);
 
     const skills = availableSkillsRef.current;
 
@@ -2795,7 +3188,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       console.error('[Draw Level Up Panel] No skills available!');
       ctx.fillStyle = '#FF6B6B';
       ctx.font = 'bold 24px Arial, sans-serif';
-      ctx.fillText('错误：没有可选择的技能', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+      ctx.fillText(language === 'zh' ? '错误：没有可选择的技能' : 'Error: No skills available', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
       return;
     }
 
@@ -2816,6 +3209,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const isHighTierSkill = skill.rarity === 'legendary' || skill.rarity === 'mythic';
       const isLegendary = skill.rarity === 'legendary';
       const isMythic = skill.rarity === 'mythic';
+
+      // 获取翻译后的技能名称和描述
+      const skillName = (t.skillNames as any)[skill.id] || skill.name;
+      const skillDesc = (t.skills as any)[skill.id] || skill.description;
 
       // 背景面板（渐变）
       const panelGradient = ctx.createLinearGradient(x, startY, x, startY + panelHeight);
@@ -2972,7 +3369,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       // 技能名称
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 22px Arial, sans-serif';
-      ctx.fillText(skill.name, x + panelWidth / 2, startY + 180);
+      ctx.fillText(skillName, x + panelWidth / 2, startY + 180);
 
       // 技能描述
       ctx.fillStyle = '#D5D8DC';
@@ -2982,7 +3379,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 文字换行处理
       const maxWidth = panelWidth - 40;
-      const words = skill.description.split('');
+      const words = skillDesc.split('');
       let line = '';
       let lineY = startY + 220;
 
@@ -3011,14 +3408,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.roundRect(x + panelWidth / 2 - 50, startY + panelHeight - 82, 100, 24, 12);
       ctx.fill();
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(skill.type === 'passive' ? '被动' : '主动', x + panelWidth / 2, startY + panelHeight - 70);
+      ctx.fillText(skill.type === 'passive' ? t.passive : t.active, x + panelWidth / 2, startY + panelHeight - 70);
 
       // 键盘快捷键提示
       ctx.fillStyle = '#7F8C8D';
       ctx.font = 'bold 14px Arial, sans-serif';
-      ctx.fillText(`按 ${index + 1} 或点击选择`, x + panelWidth / 2, startY + panelHeight - 30);
+      ctx.fillText(t.pressToSelect.replace('{key}', String(index + 1)), x + panelWidth / 2, startY + panelHeight - 30);
     });
-  }, []);
+  }, [language]);
 
   // ==================== 绘制开始屏幕 ====================
   const drawStartScreen = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -3028,37 +3425,35 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     drawStaticBackground(ctx);
 
-    // 标题
+    // 标题 - 固定英文
     ctx.fillStyle = '#FF4757';
     ctx.font = 'bold 72px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('肉鸽割草', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 100);
+    ctx.fillText('Cycle Rift', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 100);
 
-    // 副标题
+    // 副标题 - 固定英文
     ctx.fillStyle = '#BDC3C7';
     ctx.font = '24px Arial, sans-serif';
-    ctx.fillText('生存 · 战斗 · 进化', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
+    ctx.fillText('WASD Move - Auto Attack - Level Up', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 30);
 
-    // 操作说明
+    // 操作说明 - 固定英文
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '18px Arial, sans-serif';
     ctx.textAlign = 'center';
     const instructions = [
-      'WASD 或 方向键 - 移动',
-      '鼠标移动 - 瞄准',
-      '自动攻击 - 近战/远程自动切换',
-      '按空格键开始游戏'
+      'Mouse Aim',
+      'Press SPACE to start'
     ];
     instructions.forEach((instruction, index) => {
       ctx.fillText(instruction, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30 + index * 35);
     });
 
-    // 闪烁的开始提示
+    // 闪烁的开始提示 - 固定英文
     const alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
     ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
     ctx.font = 'bold 28px Arial, sans-serif';
-    ctx.fillText('按空格键开始游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 220);
+    ctx.fillText('Press SPACE to start', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 100);
   }, [drawBackground]);
 
   // ==================== 绘制游戏结束屏幕 ====================
@@ -3071,12 +3466,15 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // 获取当前语言的翻译
+    const t = TRANSLATIONS[language];
+
     // 标题
     ctx.fillStyle = '#FF4757';
     ctx.font = 'bold 64px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('游戏结束', CANVAS_WIDTH / 2, 150);
+    ctx.fillText(t.gameOver, CANVAS_WIDTH / 2, 150);
 
     // 分数
     ctx.fillStyle = '#FFD700';
@@ -3085,16 +3483,16 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
     ctx.fillStyle = '#BDC3C7';
     ctx.font = '24px Arial, sans-serif';
-    ctx.fillText('最终得分', CANVAS_WIDTH / 2, 285);
+    ctx.fillText(t.finalScore, CANVAS_WIDTH / 2, 285);
 
     // 统计信息
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '20px Arial, sans-serif';
     const stats = [
-      `等级: ${player.level}`,
-      `击杀: ${player.totalKills}`,
-      `存活: ${Math.floor(player.gameTime)}秒`,
-      `总伤害: ${Math.floor(player.totalDamage)}`
+      `${t.level}: ${player.level}`,
+      `${t.kills}: ${player.totalKills}`,
+      `${t.survived}: ${Math.floor(player.gameTime)} ${t.seconds}`,
+      `${t.totalDamage}: ${Math.floor(player.totalDamage)}`
     ];
     stats.forEach((stat, index) => {
       ctx.fillText(stat, CANVAS_WIDTH / 2, 340 + index * 35);
@@ -3103,9 +3501,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     // 操作提示
     ctx.fillStyle = '#7F8C8D';
     ctx.font = '18px Arial, sans-serif';
-    ctx.fillText('按 R 重新开始', CANVAS_WIDTH / 2, 530);
-    ctx.fillText('按 Q 退出', CANVAS_WIDTH / 2, 565);
-  }, []);
+    ctx.fillText(t.restart, CANVAS_WIDTH / 2, 530);
+    ctx.fillText(t.quit, CANVAS_WIDTH / 2, 565);
+  }, [language]);
 
   // ==================== 更新摄像机位置 ====================
   const updateCamera = useCallback((player: Player) => {
@@ -3307,6 +3705,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 执行Boss刷新
               const shouldSpawn = (!existingMeleeBoss && ((!meleeBossFirstSpawnedRef.current && player.gameTime >= 360) || (meleeBossDeadRef.current && meleeBossSpawnTimerRef.current >= 75)));
               if (shouldSpawn) {
+                // 获取当前语言的翻译
+                const t = TRANSLATIONS[language];
+
                 // 第一个Boss刷新
                 if (!meleeBossFirstSpawnedRef.current) {
                   console.log('[MeleeBoss] Spawning first melee boss', {
@@ -3314,7 +3715,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   });
                   meleeBossFirstSpawnedRef.current = true;
                   meleeBossSpawnTimerRef.current = 0;
-                  createNotification('⚠️ 近战Boss来袭！', '#FF4757');
+                  createNotification(t.bossIncoming, '#FF4757');
                 }
                 // 后续Boss刷新（死亡后75秒）
                 else {
@@ -3324,7 +3725,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   });
                   meleeBossDeadRef.current = false;
                   meleeBossSpawnTimerRef.current = 0;
-                  createNotification('⚠️ 新的近战Boss来袭！', '#FF4757');
+                  createNotification(t.newBossIncoming, '#FF4757');
                 }
 
               // 手动生成近战Boss（覆盖默认类型）
@@ -5043,7 +5444,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     updateBossAI,
     handleLevelUp,
     playSound,
-    triggerScreenShake
+    triggerScreenShake,
+    language
   ]);
 
   // ==================== 游戏控制 ====================
@@ -5433,7 +5835,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       if (typeof window !== 'undefined' && window.ethereum) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (!accounts || accounts.length === 0) {
-          toast.error('请先连接钱包');
+          toast.error(TRANSLATIONS[language].connectWallet);
           return;
         }
 
@@ -5448,11 +5850,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
         onComplete(result);
       } else {
-        toast.error('未检测到Web3钱包');
+        toast.error(TRANSLATIONS[language].noWallet);
       }
     } catch (error) {
       console.error('Error submitting result:', error);
-      toast.error('提交结果失败');
+      toast.error(TRANSLATIONS[language].submitFailed);
     }
   };
 
@@ -5487,35 +5889,35 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         <div className="space-y-6">
           <div className="text-center">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              肉鸽割草
+              {TRANSLATIONS[language].gameTitle}
             </h2>
             <p className="text-sm text-gray-400 mt-2">
-              无限挑战，生存下去，击败无尽怪物
+              {TRANSLATIONS[language].gameDescription}
             </p>
           </div>
 
           {showTutorial && (
             <div className="bg-purple-500/10 rounded-lg p-6 backdrop-blur-sm border border-purple-500/20">
-              <h3 className="text-lg font-semibold text-purple-300 mb-4">游戏规则</h3>
+              <h3 className="text-lg font-semibold text-purple-300 mb-4">{TRANSLATIONS[language].gameRules}</h3>
               <div className="grid md:grid-cols-2 gap-6 text-sm">
                 <div>
-                  <p className="font-semibold mb-3 text-white">操作方式</p>
+                  <p className="font-semibold mb-3 text-white">{TRANSLATIONS[language].controls}</p>
                   <ul className="space-y-2 text-gray-300">
-                    <li>WASD / 方向键 - 移动</li>
-                    <li>鼠标移动 - 瞄准</li>
-                    <li>自动攻击 - 近战/远程自动切换</li>
-                    <li>空格键 - 开始游戏</li>
+                    <li>{TRANSLATIONS[language].movement}</li>
+                    <li>{TRANSLATIONS[language].mouseAim}</li>
+                    <li>{TRANSLATIONS[language].autoAttack}</li>
+                    <li>{TRANSLATIONS[language].spaceStart}</li>
                   </ul>
                 </div>
                 <div>
-                  <p className="font-semibold mb-3 text-white">游戏机制</p>
+                  <p className="font-semibold mb-3 text-white">{TRANSLATIONS[language].gameMechanics}</p>
                   <ul className="space-y-2 text-gray-300">
-                    <li>• 无时间限制，根据能力生存</li>
-                    <li>• 非线性难度曲线</li>
-                    <li>• 30+技能，包含主动/被动</li>
-                    <li>• 3种武器可切换</li>
-                    <li>• 地形障碍物</li>
-                    <li>• Boss有特殊技能和阶段</li>
+                    <li>{TRANSLATIONS[language].unlimitedTime}</li>
+                    <li>{TRANSLATIONS[language].nonlinearDifficulty}</li>
+                    <li>{TRANSLATIONS[language].gameRulesSkills}</li>
+                    <li>{TRANSLATIONS[language].weapons}</li>
+                    <li>{TRANSLATIONS[language].obstacles}</li>
+                    <li>{TRANSLATIONS[language].bossSkills}</li>
                   </ul>
                 </div>
               </div>
@@ -5528,7 +5930,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 }}
                 className="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-600"
               >
-                知道了，开始游戏
+                {TRANSLATIONS[language].gotItStart}
               </Button>
             </div>
           )}
@@ -5545,7 +5947,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                   </svg>
-                  全屏
+                  {TRANSLATIONS[language].fullscreen}
                 </Button>
                 <Button
                   variant="ghost"
@@ -5566,7 +5968,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                       <line x1="17" y1="9" x2="23" y2="15" />
                     </svg>
                   )}
-                  {soundEnabled ? '音效: 开' : '音效: 关'}
+                  {soundEnabled ? TRANSLATIONS[language].soundOn : TRANSLATIONS[language].soundOff}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+                  className="bg-purple-500/10 border border-purple-500/20 text-white hover:bg-purple-500/20"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M2 12h20" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  {language === 'zh' ? 'EN' : '中文'}
                 </Button>
               </div>
 
@@ -5587,7 +6002,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             variant="outline"
             className="w-full h-12 border-gray-600 hover:bg-gray-800"
           >
-            返回主页
+            {TRANSLATIONS[language].returnHome}
           </Button>
 
           {gameStateRef.current === GameState.GAME_OVER && (
@@ -5598,13 +6013,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 }}
                 className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-600"
               >
-                再玩一次
+                {TRANSLATIONS[language].playAgain}
               </Button>
               <Button
                 onClick={handleSubmit}
                 className="flex-1 h-12 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-600"
               >
-                提交成绩
+                {TRANSLATIONS[language].submitScore}
               </Button>
             </div>
           )}

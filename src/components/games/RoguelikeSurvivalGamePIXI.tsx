@@ -620,7 +620,7 @@ export default function RoguelikeSurvivalGamePIXI({ onComplete, onCancel }: Rogu
         <div className="space-y-6">
           <div className="text-center">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              肉鸽割草 (PixiJS版)
+              轮回裂隙 (PixiJS版)
             </h2>
             <p className="text-sm text-gray-400 mt-2">
               使用PixiJS渲染引擎的升级版本
