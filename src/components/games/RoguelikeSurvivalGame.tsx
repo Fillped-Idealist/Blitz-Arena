@@ -636,6 +636,25 @@ const SKILL_ICONS = {
   ]
 };
 
+// ==================== 辅助函数：确保数值为整数 ====================
+const ensureIntegers = (p: Player): Player => ({
+  ...p,
+  maxHp: Math.floor(p.maxHp),
+  hp: Math.floor(p.hp),
+  meleeDamage: Math.floor(p.meleeDamage),
+  rangedDamage: Math.floor(p.rangedDamage),
+  attackRange: Math.floor(p.attackRange),
+  speed: Math.floor(p.speed),
+  baseSpeed: Math.floor(p.baseSpeed),
+  shieldMaxHp: Math.floor(p.shieldMaxHp),
+  shieldHp: Math.floor(p.shieldHp),
+  auraRadius: Math.floor(p.auraRadius),
+  auraDamage: Math.floor(p.auraDamage),
+  regenRate: Math.floor(p.regenRate),
+  exp: Math.floor(p.exp),
+  expToNext: Math.floor(p.expToNext)
+});
+
 // ==================== 技能池 ====================
 const SKILL_POOL: Skill[] = [
   // 基础属性提升（主动）
@@ -1665,8 +1684,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         autoLockLevel: player.autoLockLevel
       });
 
-      // 随机选择3个技能
-      const shuffled = [...filteredSkills].sort(() => Math.random() - 0.5);
+      // 早期增加立场灼伤技能的刷新概率（前10级）
+      let shuffled = [...filteredSkills];
+      if (player.level <= 10) {
+        const auraSkill = filteredSkills.find(s => s.id === 'aura_burn');
+        if (auraSkill) {
+          // 将立场灼伤技能复制多份，增加被选中的概率（占60%概率）
+          const weightedSkills = [...filteredSkills];
+          for (let i = 0; i < 5; i++) {
+            weightedSkills.push(auraSkill);
+          }
+          shuffled = weightedSkills.sort(() => Math.random() - 0.5);
+        } else {
+          shuffled = shuffled.sort(() => Math.random() - 0.5);
+        }
+      } else {
+        shuffled = shuffled.sort(() => Math.random() - 0.5);
+      }
+
       const selectedSkills = shuffled.slice(0, 3);
 
       console.log('[Level Up] Skills selected', {
@@ -1794,17 +1829,33 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     const bossMultiplier = type === 'boss' ? 1.3 : 1;
     const finalDifficulty = difficulty * bossMultiplier;
 
+    // 后期怪物增强机制（0-10分钟，每10秒血量+20%，伤害+10%）
+    let lateGameHpMultiplier = 1;
+    let lateGameDamageMultiplier = 1;
+    if (player.gameTime > 0 && player.gameTime <= 600) { // 0-10分钟
+      const tenSecondBlocks = Math.floor(player.gameTime / 10); // 每10秒一个周期
+      lateGameHpMultiplier = 1 + (tenSecondBlocks * 0.2); // 每个周期血量+20%
+      lateGameDamageMultiplier = 1 + (tenSecondBlocks * 0.1); // 每个周期伤害+10%
+    }
+
+    // 应用后期增强系数（仅对小怪生效，不包含Boss）
+    // 注意：近战Boss不通过此函数生成，有独立的刷新逻辑
+    const isBoss = type === 'boss';
+    const applyLateGameBonus = !isBoss;
+    const hpMultiplier = applyLateGameBonus ? lateGameHpMultiplier : 1;
+    const damageMultiplier = applyLateGameBonus ? lateGameDamageMultiplier : 1;
+
     const monster: Monster = {
       id: monsterIdCounterRef.current++,
       x,
       y,
       vx: 0,
       vy: 0,
-      hp: Math.floor(stats.baseHp * finalDifficulty),
-      maxHp: Math.floor(stats.baseHp * finalDifficulty),
-      damage: Math.floor(stats.baseDamage * finalDifficulty),
+      hp: Math.floor(stats.baseHp * finalDifficulty * hpMultiplier),
+      maxHp: Math.floor(stats.baseHp * finalDifficulty * hpMultiplier),
+      damage: Math.floor(stats.baseDamage * finalDifficulty * damageMultiplier),
       speed: stats.baseSpeed * (0.95 + Math.random() * 0.1),  // 基础速度 ±5% 随机波动，不受难度影响
-      exp: Math.floor(stats.baseExp * finalDifficulty),
+      exp: Math.floor(stats.baseExp * finalDifficulty * hpMultiplier), // 经验值也随血量增加
       lastAttack: 0,
       size: stats.baseSize,
       color: stats.color,
@@ -1815,8 +1866,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       isStunned: false,
       stunnedTime: 0,
       hasShield: type === 'elite' || type === 'boss',
-      shieldHp: type === 'boss' ? Math.floor(200 * finalDifficulty) : 50,
-      shieldMaxHp: type === 'boss' ? Math.floor(200 * finalDifficulty) : 50,
+      shieldHp: type === 'boss' ? Math.floor(200 * finalDifficulty * hpMultiplier) : Math.floor(50 * hpMultiplier),
+      shieldMaxHp: type === 'boss' ? Math.floor(200 * finalDifficulty * hpMultiplier) : Math.floor(50 * hpMultiplier),
       lastDamageTime: 0, // 上次受到伤害的时间
       currentPhase: 0,
       phaseTimer: 0,
@@ -1905,7 +1956,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 碰撞检测：冲刺造成双倍伤害并击退
           // 计算冲刺路径参数
           const sizeMultiplier = monster.size / 140;
-          const chargePathLength = 400 * sizeMultiplier; // 与显示区域一致
+          const chargePathLength = 280 * sizeMultiplier; // 与显示区域一致（从400缩至70%）
           const chargePathWidth = 100 * sizeMultiplier; // 与显示区域一致
 
           // 检查玩家是否在冲刺路径上
@@ -2005,9 +2056,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monster.chargeDirection = { x: directionX, y: directionY };
             monster.chargeStartPos = { x: monster.x, y: monster.y };
             
-            // 计算终点（冲刺距离400像素）
+            // 计算终点（冲刺距离280像素，从400缩至70%）
             const sizeMultiplier = monster.size / 140;
-            const chargeDistance = 400 * sizeMultiplier;
+            const chargeDistance = 280 * sizeMultiplier;
             monster.chargeEndPos = {
               x: monster.x + directionX * chargeDistance,
               y: monster.y + directionY * chargeDistance
@@ -3200,20 +3251,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (now - player.auraLastDamageTime > auraDamageCooldown) {
                 // 立场灼烧伤害
                 let auraDamage = Math.floor(currentAuraDamage);
-                
+
                 // 狂战士被动：生命值越低伤害越高
                 const hasBerserker = player.skills.some(s => s.id === 'berserker');
                 if (hasBerserker && player.hp < player.maxHp * 0.5) {
                   const hpPercent = player.hp / player.maxHp;
-                  auraDamage *= 1 + (1 - hpPercent) * 1.25;
+                  auraDamage = Math.floor(auraDamage * (1 + (1 - hpPercent) * 1.25));
                 }
-                
+
                 // 巨人杀手被动
                 const hasGiantSlayer = player.skills.some(s => s.id === 'giant_slayer');
                 if (hasGiantSlayer && (monster.type === 'boss' || monster.type === 'elite' || monster.type === 'melee_boss')) {
-                  auraDamage *= 1.5;
+                  auraDamage = Math.floor(auraDamage * 1.5);
                 }
-                
+
                 monster.hp = Math.max(0, Math.floor(monster.hp - auraDamage));
                 player.auraLastDamageTime = now;
                 
@@ -3427,10 +3478,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (monster.isCharging) {
                 const chargeElapsed = performance.now() - monster.chargeStartTime;
                 if (chargeElapsed <= 1000) { // 前摇阶段
-                  // 根据Boss体型调整冲刺距离和宽度（大幅增加）
+                  // 根据Boss体型调整冲刺距离和宽度
                   const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
-                  const pathLength = 400 * sizeMultiplier; // 冲刺距离按体型比例调整（与实际冲刺距离一致）
-                  const pathWidth = 100 * sizeMultiplier; // 冲刺宽度按体型比例调整（大幅增加至Boss体型的70%）
+                  const pathLength = 280 * sizeMultiplier; // 冲刺距离按体型比例调整（从400缩至70%，与实际冲刺距离一致）
+                  const pathWidth = 100 * sizeMultiplier; // 冲刺宽度按体型比例调整
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
                   const progress = chargeElapsed / 1000;
@@ -3548,7 +3599,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 近战Boss护盾（淡紫色，更明显）
               if (monster.hasShield && monster.shieldHp > 0) {
                 const shieldAlpha = 0.35 + Math.sin(gameTimeRef.current * 2) * 0.1;
-                const shieldScale = monster.size / 140 * 8.5; // 大幅增大护盾显示，使其与体型匹配
+                const shieldScale = monster.size / 140 * 12; // 进一步增大护盾显示，从8.5倍提升至12倍
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
                 ctx.scale(shieldScale, shieldScale); // 整体缩放护盾
@@ -4765,7 +4816,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 console.log('[Keyboard] Applying skill', { skill });
 
                 if (playerRef.current) {
-                  playerRef.current = skill.apply(playerRef.current);
+                  playerRef.current = ensureIntegers(skill.apply(playerRef.current));
                   playerRef.current.skills.push(skill);
 
                   console.log('[Keyboard] Skill applied, resuming game', {
@@ -4919,7 +4970,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               if (playerRef.current) {
                 console.log('[Mouse Click] Applying skill', { skill });
 
-                playerRef.current = skill.apply(playerRef.current);
+                playerRef.current = ensureIntegers(skill.apply(playerRef.current));
                 playerRef.current.skills.push(skill);
 
                 console.log('[Mouse Click] Skill applied, resuming game', {
