@@ -819,6 +819,14 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return 'C';
   }
 
+  // 计算方块中心点的百分比坐标（所有路径相关计算统一使用此函数）
+  const getTileCenterPercent = (x: number, y: number): { x: number; y: number } => {
+    return {
+      x: ((x + 0.5) / (BOARD_COLS + 2)) * 100,
+      y: ((y + 0.5) / (BOARD_ROWS + 2)) * 100
+    };
+  }
+
   // SVG图标组件（第九艺术风格）
   const TileIcon = ({ type }: { type: number }) => {
     const icons = [
@@ -1130,8 +1138,10 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 游戏区域 */}
-                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-1 sm:p-2' : 'p-1 sm:p-2 md:p-3'}`}>
-                  {/* 连击显示（在游戏区域内） */}
+                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-2' : 'p-3'}`}>
+                  {/* 游戏板容器：使用宽高比确保方块比例一致 */}
+                  <div className={`relative w-full ${isFullscreen ? 'h-full' : ''}`} style={{ aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}` }}>
+                    {/* 连击显示（在游戏区域内） */}
                   {comboCount > 1 && (
                     <motion.div
                       initial={{ scale: 0.8, opacity: 0 }}
@@ -1151,32 +1161,35 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                   {/* 粒子特效层 */}
                   <div className="absolute inset-0 pointer-events-none z-50">
-                    {particles.map((particle) => (
-                      <motion.div
-                        key={particle.id}
-                        initial={{ 
-                          x: '0%', 
-                          y: '0%',
-                          scale: 1,
-                          opacity: 1
-                        }}
-                        animate={{
-                          x: `${particle.vx * 100}%`,
-                          y: `${particle.vy * 100}%`,
-                          scale: 0,
-                          opacity: 0
-                        }}
-                        transition={{ duration: 0.6, ease: 'easeOut' }}
-                        className="absolute w-3 h-3 rounded-full"
-                        style={{
-                          backgroundColor: particle.color,
-                          left: `${((particle.x + 0.5) / (BOARD_COLS + 2)) * 100}%`,
-                          top: `${((particle.y + 0.5) / (BOARD_ROWS + 2)) * 100}%`,
-                          filter: 'blur(1px)',
-                          boxShadow: `0 0 6px ${particle.color}, 0 0 12px ${particle.color}`
-                        }}
-                      />
-                    ))}
+                    {particles.map((particle) => {
+                      const center = getTileCenterPercent(particle.x, particle.y);
+                      return (
+                        <motion.div
+                          key={particle.id}
+                          initial={{
+                            x: '0%',
+                            y: '0%',
+                            scale: 1,
+                            opacity: 1
+                          }}
+                          animate={{
+                            x: `${particle.vx * 100}%`,
+                            y: `${particle.vy * 100}%`,
+                            scale: 0,
+                            opacity: 0
+                          }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className="absolute w-2.5 h-2.5 rounded-full"
+                          style={{
+                            backgroundColor: particle.color,
+                            left: `${center.x}%`,
+                            top: `${center.y}%`,
+                            filter: 'blur(0.5px)',
+                            boxShadow: `0 0 4px ${particle.color}, 0 0 8px ${particle.color}`
+                          }}
+                        />
+                      );
+                    })}
                   </div>
 
                   {/* 连接线层 */}
@@ -1205,50 +1218,47 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         {/* 连线发光效果（更宽，更明显） */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const x = ((point.x + 0.5) / (BOARD_COLS + 2)) * 100;
-                            const y = ((point.y + 0.5) / (BOARD_ROWS + 2)) * 100;
-                            return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
+                            const center = getTileCenterPercent(point.x, point.y);
+                            return `${index === 0 ? 'M' : 'L'} ${center.x}% ${center.y}%`;
                           }).join(' ')}
                           stroke="url(#lineGlowGradient)"
-                          strokeWidth="20"
+                          strokeWidth="18"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           filter="url(#glow)"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.15 }}
                         />
                         {/* 主连线 */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const x = ((point.x + 0.5) / (BOARD_COLS + 2)) * 100;
-                            const y = ((point.y + 0.5) / (BOARD_ROWS + 2)) * 100;
-                            return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
+                            const center = getTileCenterPercent(point.x, point.y);
+                            return `${index === 0 ? 'M' : 'L'} ${center.x}% ${center.y}%`;
                           }).join(' ')}
                           stroke="url(#lineGradient)"
-                          strokeWidth="10"
+                          strokeWidth="8"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.15 }}
                         />
                         {/* 连接点高亮 */}
                         {matchedPath.map((point, index) => {
-                          const x = ((point.x + 0.5) / (BOARD_COLS + 2)) * 100;
-                          const y = ((point.y + 0.5) / (BOARD_ROWS + 2)) * 100;
+                          const center = getTileCenterPercent(point.x, point.y);
                           return (
                             <motion.circle
                               key={`point-${index}`}
-                              cx={`${x}%`}
-                              cy={`${y}%`}
-                              r="4"
+                              cx={`${center.x}%`}
+                              cy={`${center.y}%`}
+                              r="3.5"
                               fill="#fcd34d"
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
-                              transition={{ duration: 0.2, delay: index * 0.05 }}
+                              transition={{ duration: 0.15, delay: index * 0.03 }}
                             />
                           );
                         })}
@@ -1257,7 +1267,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   </svg>
 
                   <div
-                    className={`grid gap-0.5 sm:gap-0.75 md:gap-1 relative z-10 ${isFullscreen ? 'h-full' : ''}`}
+                    className={`grid gap-1 relative z-10 ${isFullscreen ? 'h-full w-full' : 'w-full'}`}
                     style={{
                       gridTemplateColumns: `repeat(${BOARD_COLS + 2}, minmax(0, 1fr))`,
                       gridTemplateRows: `repeat(${BOARD_ROWS + 2}, minmax(0, 1fr))`
@@ -1271,11 +1281,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           onClick={() => handleTileClick(x, y)}
                           disabled={tile === 0}
                           className={`
-                            aspect-square rounded-lg flex items-center justify-center relative overflow-hidden
+                            w-full h-full rounded-md flex items-center justify-center relative overflow-hidden
                             transition-all duration-200
                             ${tile === 0 ? 'invisible' : 'visible'}
                             ${selectedTile?.x === x && selectedTile?.y === y
-                              ? 'ring-2 ring-yellow-400 scale-105 z-10 shadow-xl shadow-yellow-400/30'
+                              ? 'ring-2 ring-yellow-400 z-10 scale-105 shadow-lg shadow-yellow-400/20'
                               : ''}
                             ${eliminationTiles.some(t => t.x === x && t.y === y)
                               ? 'scale-0 opacity-0'
@@ -1285,26 +1295,26 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           `}
                           style={{
                             background: selectedTile?.x === x && selectedTile?.y === y
-                              ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.8) 0%, rgba(234, 179, 8, 0.8) 50%, rgba(202, 138, 4, 0.8) 100%)'
+                              ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.85) 0%, rgba(234, 179, 8, 0.85) 50%, rgba(202, 138, 4, 0.85) 100%)'
                               : tile > 0
-                              ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.6) 0%, rgba(236, 72, 153, 0.6) 50%, rgba(249, 115, 22, 0.6) 100%)'
+                              ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.65) 0%, rgba(236, 72, 153, 0.65) 50%, rgba(249, 115, 22, 0.65) 100%)'
                               : 'transparent',
                             boxShadow: selectedTile?.x === x && selectedTile?.y === y
-                              ? '0 8px 20px -2px rgba(251, 191, 36, 0.5), 0 4px 10px -2px rgba(251, 191, 36, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)'
+                              ? '0 6px 16px -2px rgba(251, 191, 36, 0.4), 0 3px 8px -2px rgba(251, 191, 36, 0.3)'
                               : tile > 0
-                              ? '0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                              ? '0 2px 4px -1px rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2)'
                               : 'none',
                             border: selectedTile?.x === x && selectedTile?.y === y
-                              ? '2px solid rgba(254, 243, 199, 0.5)'
+                              ? '2px solid rgba(254, 243, 199, 0.6)'
                               : tile > 0
-                              ? '1px solid rgba(255, 255, 255, 0.1)'
+                              ? '1px solid rgba(255, 255, 255, 0.15)'
                               : 'none'
                           }}
-                          whileHover={tile > 0 ? { scale: 1.08, boxShadow: '0 8px 16px -2px rgba(0, 0, 0, 0.5), 0 4px 8px -2px rgba(0, 0, 0, 0.4)' } : {}}
+                          whileHover={tile > 0 ? { scale: 1.08 } : {}}
                           whileTap={tile > 0 ? { scale: 0.92 } : {}}
                         >
                           {tile > 0 && (
-                            <div className="relative z-10 w-3/5 h-3/5">
+                            <div className="relative z-10" style={{ width: '65%', height: '65%' }}>
                               <TileIcon type={tile} />
                             </div>
                           )}
@@ -1313,13 +1323,15 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             <div
                               className="absolute inset-0 pointer-events-none"
                               style={{
-                                background: 'radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 70%)'
+                                background: 'radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35) 0%, transparent 65%)'
                               }}
                             />
                           )}
                         </motion.button>
                       ))
                     )}
+                  </div>
+                  {/* 游戏板容器结束 */}
                   </div>
                 </div>
               </motion.div>
