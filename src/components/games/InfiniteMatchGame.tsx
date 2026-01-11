@@ -155,55 +155,100 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     }
   }, []);
 
-  // 播放背景音乐
+  // 播放背景音乐（更优美的旋律，降低音量）
   const playBackgroundMusic = useCallback(() => {
     if (!soundEnabled || !audioContextRef.current || bgMusicPlaying) return;
 
     const ctx = audioContextRef.current;
-    
+
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
 
-    // 创建简单的背景音乐（使用多个振荡器产生和弦）
     const now = ctx.currentTime;
-    const frequencies = [261.63, 329.63, 392.00]; // C4, E4, G4 (C大调和弦)
-    
-    const oscillators: OscillatorNode[] = [];
-    const gainNode = ctx.createGain();
-    gainNode.connect(ctx.destination);
-    gainNode.gain.value = 0.03; // 背景音乐音量较低
 
-    frequencies.forEach((freq, i) => {
+    // 创建背景音乐（使用优美的五声音阶旋律）
+    // 使用更低音量和更柔和的振荡器类型
+    const masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
+    masterGain.gain.value = 0.015; // 降低音量
+
+    // 五声音阶频率（C小调五声）
+    const pentatonicScale = [
+      130.81, // C3
+      155.56, // Eb3
+      174.61, // F3
+      196.00, // G3
+      233.08, // Bb3
+      261.63, // C4
+      311.13, // Eb4
+      349.23, // F4
+      392.00, // G4
+      440.00  // A4
+    ];
+
+    // 创建更复杂的旋律模式
+    const createNote = (time: number, freq: number, duration: number, volume: number = 1) => {
       const osc = ctx.createOscillator();
-      osc.type = 'sine';
+      const noteGain = ctx.createGain();
+      
+      osc.type = 'triangle'; // 使用三角波，音色更柔和
       osc.frequency.value = freq;
-      osc.connect(gainNode);
-      osc.start(now + i * 0.5);
-      oscillators.push(osc);
-    });
-
-    // 使用GainNode控制音量包络，产生淡入淡出效果
-    const createLoop = (time: number, duration: number) => {
-      const loopOsc = ctx.createOscillator();
-      const loopGain = ctx.createGain();
-      loopOsc.connect(loopGain);
-      loopGain.connect(ctx.destination);
-      loopGain.gain.value = 0.02;
-      loopOsc.frequency.value = frequencies[0];
-      loopOsc.start(time);
-      loopOsc.stop(time + duration);
+      
+      // 音量包络（淡入淡出）
+      noteGain.gain.setValueAtTime(0, time);
+      noteGain.gain.linearRampToValueAtTime(volume * 0.3, time + 0.05);
+      noteGain.gain.linearRampToValueAtTime(volume * 0.2, time + duration * 0.3);
+      noteGain.gain.linearRampToValueAtTime(0, time + duration);
+      
+      osc.connect(noteGain);
+      noteGain.connect(masterGain);
+      
+      osc.start(time);
+      osc.stop(time + duration);
     };
 
-    // 创建循环播放的背景音乐
-    let loopTime = now;
-    const loopDuration = 4;
-    for (let i = 0; i < 100; i++) {
-      createLoop(loopTime + i * loopDuration, loopDuration);
+    // 创建循环的旋律
+    const melodyPattern = [0, 2, 4, 5, 4, 2, 0, 2, 4, 7, 5, 4, 2, 0, 4, 5];
+    const bassPattern = [0, 0, 2, 2, 4, 4, 0, 0];
+    
+    let noteTime = now;
+    const barDuration = 8; // 每个小节的时长（秒）
+    const noteDuration = 0.5;
+    const loopCount = 200; // 循环次数
+
+    for (let loop = 0; loop < loopCount; loop++) {
+      const barStart = now + loop * barDuration;
+      
+      // 旋律线
+      for (let i = 0; i < melodyPattern.length; i++) {
+        const freq = pentatonicScale[melodyPattern[i]];
+        const noteStartTime = barStart + i * noteDuration * 1.5;
+        createNote(noteStartTime, freq, noteDuration, 1);
+      }
+      
+      // 低音线（更慢）
+      for (let i = 0; i < bassPattern.length; i++) {
+        const freq = pentatonicScale[bassPattern[i]];
+        const bassStartTime = barStart + i * noteDuration * 2;
+        createNote(bassStartTime, freq * 0.5, noteDuration * 1.5, 0.6); // 低八度
+      }
+      
+      // 和弦伴奏
+      const chordFreqs = [pentatonicScale[0], pentatonicScale[2], pentatonicScale[4]];
+      chordFreqs.forEach((freq, i) => {
+        const chordStartTime = barStart;
+        createNote(chordStartTime, freq, barDuration * 0.8, 0.15);
+      });
     }
 
-    bgMusicOscillatorRef.current = oscillators[0];
-    bgMusicGainRef.current = gainNode;
+    bgMusicOscillatorRef.current = ctx.createOscillator();
+    bgMusicOscillatorRef.current.type = 'triangle';
+    bgMusicOscillatorRef.current.connect(masterGain);
+    bgMusicOscillatorRef.current.start(now);
+    bgMusicOscillatorRef.current.stop(now + loopCount * barDuration);
+    
+    bgMusicGainRef.current = masterGain;
     setBgMusicPlaying(true);
   }, [soundEnabled, bgMusicPlaying]);
 
@@ -773,28 +818,46 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return 'C';
   };
 
-  // 获取方块中心点坐标
+  // 获取方块中心点坐标（支持任意网格坐标，包括拐角点）
   const getTileCenterPixel = (x: number, y: number): { x: number; y: number } | null => {
-    const tileKey = `${x}-${y}`;
-    const tileElement = tileElementsRef.current.get(tileKey);
     const gameBoard = gameBoardRef.current;
 
-    if (!tileElement || !gameBoard) {
-      console.warn(`Tile element or game board not found for position (${x}, ${y})`);
+    if (!gameBoard) {
+      console.warn('Game board not found');
       return null;
     }
 
-    const tileRect = tileElement.getBoundingClientRect();
     const boardRect = gameBoard.getBoundingClientRect();
 
-    // 计算相对于游戏板的坐标
-    const x1 = tileRect.left - boardRect.left + tileRect.width / 2;
-    const y1 = tileRect.top - boardRect.top + tileRect.height / 2;
+    // 尝试获取实际方块的元素来计算尺寸和间距
+    let tileWidth = 0;
+    let tileHeight = 0;
+    let tileGap = 8; // 默认间距
+    let offsetX = 0;
+    let offsetY = 0;
 
-    // 确保坐标在合理范围内
-    if (x1 < 0 || y1 < 0 || x1 > boardRect.width || y1 > boardRect.height) {
-      console.warn(`Calculated point out of bounds: (${x1}, ${y1})`);
+    // 尝试从 (1,1) 位置获取方块信息
+    const referenceTileKey = '1-1';
+    const referenceTile = tileElementsRef.current.get(referenceTileKey);
+    if (referenceTile) {
+      const tileRect = referenceTile.getBoundingClientRect();
+      tileWidth = tileRect.width;
+      tileHeight = tileRect.height;
+
+      // 计算相对于游戏板的偏移
+      offsetX = tileRect.left - boardRect.left;
+      offsetY = tileRect.top - boardRect.top;
+    } else {
+      // 如果找不到参考方块，使用游戏板尺寸计算
+      // 网格是 BOARD_ROWS + 2 行（包含外围），BOARD_COLS + 2 列
+      tileWidth = boardRect.width / (BOARD_COLS + 2);
+      tileHeight = boardRect.height / (BOARD_ROWS + 2);
     }
+
+    // 计算任意网格坐标的中心点
+    // 网格坐标从 0 到 BOARD_COLS + 1（列），0 到 BOARD_ROWS + 1（行）
+    const x1 = offsetX + x * (tileWidth + tileGap) + tileWidth / 2;
+    const y1 = offsetY + y * (tileHeight + tileGap) + tileHeight / 2;
 
     return {
       x: x1,
@@ -1091,11 +1154,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                 {/* 游戏区域 */}
                 <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 flex items-center justify-center ${isFullscreen ? 'flex-1 min-h-0 p-4' : 'p-4'}`}>
-                  {/* 游戏板容器 - 全屏时使用h-full而非aspectRatio */}
-                  <div 
-                    ref={gameBoardRef} 
-                    className={`relative ${isFullscreen ? 'h-full w-full' : 'w-full max-w-4xl'}`} 
-                    style={!isFullscreen ? { aspectRatio: `${BOARD_COLS + 2} / ${BOARD_ROWS + 2}` } : {}}
+                  {/* 游戏板容器 - 根据窗口大小自适应 */}
+                  <div
+                    ref={gameBoardRef}
+                    className={`relative ${isFullscreen ? 'h-full w-full' : 'w-full'} max-w-full`}
+                    style={!isFullscreen ? { maxHeight: 'calc(100vh - 300px)' } : {}}
                   >
                     {/* 连击显示 */}
                     {comboCount > 1 && (
@@ -1175,10 +1238,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                     {/* 游戏网格 */}
                     <div
-                      className={`grid ${isFullscreen ? 'gap-2' : 'gap-1'} w-full h-full`}
+                      className={`grid w-full h-full`}
                       style={{
                         gridTemplateColumns: `repeat(${BOARD_COLS + 2}, 1fr)`,
-                        gridTemplateRows: `repeat(${BOARD_ROWS + 2}, 1fr)`
+                        gridTemplateRows: `repeat(${BOARD_ROWS + 2}, 1fr)`,
+                        gap: isFullscreen ? '0.5%' : '0.4%'
                       }}
                     >
                       {board.map((row, y) =>

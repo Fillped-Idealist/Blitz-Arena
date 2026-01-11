@@ -72,6 +72,7 @@ const TRANSLATIONS = {
     common: '普通',
     rare: '稀有',
     epic: '史诗',
+    hero: '英雄',
     legendary: '传奇',
     mythic: '神话',
     bossIncoming: '⚠️ 近战Boss来袭！',
@@ -247,6 +248,7 @@ const TRANSLATIONS = {
     common: 'Common',
     rare: 'Rare',
     epic: 'Epic',
+    hero: 'Hero',
     legendary: 'Legendary',
     mythic: 'Mythic',
     bossIncoming: '⚠️ Melee Boss Incoming!',
@@ -412,6 +414,7 @@ const COLORS = {
   common: '#95A5A6',
   rare: '#3498DB',
   epic: '#9B59B6',
+  hero: '#FF7F50',
   legendary: '#D4AF37',
   mythic: '#E74C3C',
   backgroundStart: '#1A1A2E',
@@ -609,7 +612,7 @@ interface Skill {
   description: string;
   type: 'active' | 'passive';
   apply: (player: Player) => Player;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
+  rarity: 'common' | 'rare' | 'epic' | 'hero' | 'legendary' | 'mythic';
   color: string;
   icon?: { x: number; y: number; color: string }[];
 }
@@ -1142,8 +1145,8 @@ const SKILL_POOL: Skill[] = [
     description: '近战伤害永久+100%，攻击范围+40%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 2, attackRange: p.attackRange * 1.4 }),
-    rarity: 'epic',
-    color: COLORS.epic,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.sword
   },
   {
@@ -1187,7 +1190,7 @@ const SKILL_POOL: Skill[] = [
     color: COLORS.legendary,
     icon: SKILL_ICONS.skull
   },
-  // 传说技能（25级后可解锁）
+  // 英雄技能（25级后可解锁）
   {
     id: 'champion',
     name: '冠军之心',
@@ -1202,8 +1205,8 @@ const SKILL_POOL: Skill[] = [
       baseSpeed: p.baseSpeed * 1.2,
       speed: p.speed * 1.2
     }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.star
   },
   // 武器切换（主动）
@@ -1282,8 +1285,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 追踪频率系列（缩短冷却）
@@ -1334,8 +1337,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 追踪穿透系列（法阵范围）
@@ -1355,8 +1358,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵范围扩大30%（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 武器切换（主动）
@@ -1435,8 +1438,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 追踪频率系列（缩短冷却）
@@ -1487,8 +1490,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 追踪穿透系列（法阵范围）
@@ -1508,8 +1511,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵范围扩大30%（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 被动技能
@@ -1609,8 +1612,8 @@ const SKILL_POOL: Skill[] = [
     description: '死亡时有20%几率回复50%生命值并继续战斗（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary
+    rarity: 'hero',
+    color: COLORS.hero
   },
   {
     id: 'passive_ultimate',
@@ -2340,6 +2343,12 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           if (hasSkill) return false;
         }
 
+        // 限制英雄技能只能选择一个
+        if (skill.rarity === 'hero') {
+          const hasHero = player.skills.some(s => s.rarity === 'hero');
+          if (hasHero) return false;
+        }
+
         // 限制传奇技能只能选择一个
         if (skill.rarity === 'legendary') {
           const hasLegendary = player.skills.some(s => s.rarity === 'legendary');
@@ -2366,8 +2375,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return false;
         }
 
-        // 传奇技能（25级后才能刷到，不包括神话技能）
+        // 传奇技能（25级后才能刷到）
         if (skill.rarity === 'legendary' && player.level < 25) {
+          return false;
+        }
+
+        // 英雄技能（20级后才能刷到）
+        if (skill.rarity === 'hero' && player.level < 20) {
           return false;
         }
 
@@ -2401,12 +2415,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
       }
 
-      // 25级和30级：必定刷到2个传奇/神话技能点（确保有选择权）
+      // 20级、25级和30级：必定刷到2个对应稀有度的技能点（确保有选择权）
+      const isLevel20Hero = player.level === 20;
       const isLevel25Legendary = player.level === 25;
       const isLevel30Mythic = player.level === 30;
 
-      if (isLevel25Legendary || isLevel30Mythic) {
-        const targetRarity = isLevel25Legendary ? 'legendary' : 'mythic';
+      if (isLevel20Hero || isLevel25Legendary || isLevel30Mythic) {
+        const targetRarity = isLevel20Hero ? 'hero' : (isLevel25Legendary ? 'legendary' : 'mythic');
         const targetSkills = filteredSkills.filter(s => s.rarity === targetRarity);
 
         console.log('[Level Up] High-tier skill unlock', {
@@ -3359,10 +3374,11 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const x = startX + index * (panelWidth + panelGap);
       const isSelected = selectedSkillIndexRef.current === index;
 
-      // 判断是否为高级技能（25级后的传奇/神话）
-      const isHighTierSkill = skill.rarity === 'legendary' || skill.rarity === 'mythic';
+      // 判断技能稀有度
+      const isHero = skill.rarity === 'hero';
       const isLegendary = skill.rarity === 'legendary';
       const isMythic = skill.rarity === 'mythic';
+      const isHighTierSkill = isHero || isLegendary || isMythic;
 
       // 获取翻译后的技能名称和描述
       const skillName = (t.skillNames as any)[skill.id] || skill.name;
@@ -3377,6 +3393,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         } else if (isLegendary) {
           panelGradient.addColorStop(0, 'rgba(212, 175, 55, 0.6)');
           panelGradient.addColorStop(1, 'rgba(180, 150, 40, 0.4)');
+        } else if (isHero) {
+          panelGradient.addColorStop(0, 'rgba(255, 127, 80, 0.6)');
+          panelGradient.addColorStop(1, 'rgba(230, 100, 50, 0.4)');
         } else {
           panelGradient.addColorStop(0, 'rgba(155, 89, 182, 0.5)');
           panelGradient.addColorStop(1, 'rgba(155, 89, 182, 0.3)');
@@ -3388,6 +3407,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         } else if (isLegendary) {
           panelGradient.addColorStop(0, 'rgba(70, 60, 30, 0.95)');
           panelGradient.addColorStop(1, 'rgba(50, 45, 20, 0.95)');
+        } else if (isHero) {
+          panelGradient.addColorStop(0, 'rgba(80, 40, 30, 0.95)');
+          panelGradient.addColorStop(1, 'rgba(60, 30, 20, 0.95)');
         } else {
           panelGradient.addColorStop(0, 'rgba(40, 35, 55, 0.95)');
           panelGradient.addColorStop(1, 'rgba(30, 25, 45, 0.95)');
@@ -3396,18 +3418,24 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.fillStyle = panelGradient;
 
       // 边框样式（根据稀有度调整）
+      let borderColor: string;
+      let borderWidth: number;
+
       if (isMythic) {
-        ctx.strokeStyle = isSelected ? '#FF4757' : '#C0392B';
-        ctx.lineWidth = isSelected ? 7 : 5;
+        borderColor = isSelected ? '#FF4757' : '#C0392B';
+        borderWidth = isSelected ? 6 : 4;
       } else if (isLegendary) {
-        ctx.strokeStyle = isSelected ? '#D4AF37' : '#B8960C';
-        ctx.lineWidth = isSelected ? 6 : 4;
+        borderColor = isSelected ? '#D4AF37' : '#B8960C';
+        borderWidth = isSelected ? 5 : 3;
+      } else if (isHero) {
+        borderColor = isSelected ? '#FF7F50' : '#E06040';
+        borderWidth = isSelected ? 4 : 2;
       } else {
-        ctx.strokeStyle = isSelected ? '#D4AF37' : 'rgba(155, 89, 182, 0.6)';
-        ctx.lineWidth = isSelected ? 5 : 2;
+        borderColor = isSelected ? '#D4AF37' : 'rgba(155, 89, 182, 0.6)';
+        borderWidth = isSelected ? 3 : 2;
       }
 
-      // 绘制圆角矩形
+      // 绘制圆角矩形（分离填充和描边操作，避免冒头问题）
       const radius = 16;
       ctx.beginPath();
       ctx.moveTo(x + radius, startY);
@@ -3422,68 +3450,95 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.closePath();
       ctx.fill();
 
-      // 确保边框绘制正确（修复边线冒头问题）
+      // 绘制边框（单独调用，使用正确的线帽样式）
       ctx.save();
-      ctx.lineCap = 'butt'; // 使用butt样式避免冒头
-      ctx.lineJoin = 'round'; // 使用round样式确保连接处平滑
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = borderWidth;
+      ctx.lineJoin = 'round';
       ctx.stroke();
       ctx.restore();
 
-      // 高级技能的额外装饰（边框、光晕效果）
+      // 高级技能的额外边框效果（使用独立的路径，避免重叠）
       if (isHighTierSkill) {
-        // 内边框（优化后的虚线，确保完全在面板内）
         ctx.save();
-        ctx.strokeStyle = isMythic ? '#FF4757' : '#D4AF37';
+        ctx.strokeStyle = isMythic ? '#FF4757' : (isLegendary ? '#D4AF37' : '#FF7F50');
         ctx.lineWidth = 2;
-        ctx.setLineDash([10, 6]);
-        ctx.beginPath();
-        // 使用更小的内边距，确保虚线边框在主边框内部
-        const innerPadding = 6;
-        const innerRadius = radius - innerPadding;
-        ctx.moveTo(x + innerPadding + innerRadius, startY + innerPadding);
-        ctx.lineTo(x + panelWidth - innerPadding - innerRadius, startY + innerPadding);
-        ctx.quadraticCurveTo(x + panelWidth - innerPadding, startY + innerPadding, x + panelWidth - innerPadding, startY + innerPadding + innerRadius);
-        ctx.lineTo(x + panelWidth - innerPadding, startY + panelHeight - innerPadding - innerRadius);
-        ctx.quadraticCurveTo(x + panelWidth - innerPadding, startY + panelHeight - innerPadding, x + panelWidth - innerPadding - innerRadius, startY + panelHeight - innerPadding);
-        ctx.lineTo(x + innerPadding + innerRadius, startY + panelHeight - innerPadding);
-        ctx.quadraticCurveTo(x + innerPadding, startY + panelHeight - innerPadding, x + innerPadding, startY + panelHeight - innerPadding - innerRadius);
-        ctx.lineTo(x + innerPadding, startY + innerPadding + innerRadius);
-        ctx.quadraticCurveTo(x + innerPadding, startY + innerPadding, x + innerPadding + innerRadius, startY + innerPadding);
-        ctx.closePath();
-        ctx.stroke();
+        ctx.setLineDash([8, 4]);
+
+        // 内边框（距离主边框5像素）
+        const innerPadding = 5;
+        const innerRadius = Math.max(0, radius - innerPadding);
+        const innerX = x + innerPadding;
+        const innerY = startY + innerPadding;
+        const innerWidth = panelWidth - innerPadding * 2;
+        const innerHeight = panelHeight - innerPadding * 2;
+
+        if (innerWidth > 0 && innerHeight > 0 && innerRadius > 0) {
+          ctx.beginPath();
+          ctx.moveTo(innerX + innerRadius, innerY);
+          ctx.lineTo(innerX + innerWidth - innerRadius, innerY);
+          ctx.quadraticCurveTo(innerX + innerWidth, innerY, innerX + innerWidth, innerY + innerRadius);
+          ctx.lineTo(innerX + innerWidth, innerY + innerHeight - innerRadius);
+          ctx.quadraticCurveTo(innerX + innerWidth, innerY + innerHeight, innerX + innerWidth - innerRadius, innerY + innerHeight);
+          ctx.lineTo(innerX + innerRadius, innerY + innerHeight);
+          ctx.quadraticCurveTo(innerX, innerY + innerHeight, innerX, innerY + innerHeight - innerRadius);
+          ctx.lineTo(innerX, innerY + innerRadius);
+          ctx.quadraticCurveTo(innerX, innerY, innerX + innerRadius, innerY);
+          ctx.closePath();
+          ctx.stroke();
+        }
         ctx.restore();
 
-        // 角落装饰（优化后的位置，确保不超出边框）
+        // 角落装饰（使用独立绘制，确保效果清晰）
         ctx.save();
-        ctx.fillStyle = isMythic ? '#FF4757' : '#D4AF37';
-        const cornerSize = 18;
+        ctx.fillStyle = isMythic ? '#FF4757' : (isLegendary ? '#D4AF37' : '#FF7F50');
+        const cornerSize = 15;
         const cornerThickness = 3;
+        const cornerOffset = 8;
+
         // 左上角
-        ctx.fillRect(x + 2, startY + 2, cornerSize, cornerThickness);
-        ctx.fillRect(x + 2, startY + 2, cornerThickness, cornerSize);
+        ctx.fillRect(x + cornerOffset, startY + cornerOffset, cornerSize, cornerThickness);
+        ctx.fillRect(x + cornerOffset, startY + cornerOffset, cornerThickness, cornerSize);
         // 右上角
-        ctx.fillRect(x + panelWidth - cornerSize - 2, startY + 2, cornerSize, cornerThickness);
-        ctx.fillRect(x + panelWidth - cornerThickness - 2, startY + 2, cornerThickness, cornerSize);
+        ctx.fillRect(x + panelWidth - cornerSize - cornerOffset, startY + cornerOffset, cornerSize, cornerThickness);
+        ctx.fillRect(x + panelWidth - cornerThickness - cornerOffset, startY + cornerOffset, cornerThickness, cornerSize);
         // 左下角
-        ctx.fillRect(x + 2, startY + panelHeight - cornerSize - 2, cornerSize, cornerThickness);
-        ctx.fillRect(x + 2, startY + panelHeight - cornerThickness - 2, cornerThickness, cornerSize);
+        ctx.fillRect(x + cornerOffset, startY + panelHeight - cornerSize - cornerOffset, cornerSize, cornerThickness);
+        ctx.fillRect(x + cornerOffset, startY + panelHeight - cornerThickness - cornerOffset, cornerThickness, cornerSize);
         // 右下角
-        ctx.fillRect(x + panelWidth - cornerSize - 2, startY + panelHeight - cornerSize - 2, cornerSize, cornerThickness);
-        ctx.fillRect(x + panelWidth - cornerThickness - 2, startY + panelHeight - cornerSize - 2, cornerThickness, cornerSize);
+        ctx.fillRect(x + panelWidth - cornerSize - cornerOffset, startY + panelHeight - cornerSize - cornerOffset, cornerSize, cornerThickness);
+        ctx.fillRect(x + panelWidth - cornerThickness - cornerOffset, startY + panelHeight - cornerSize - cornerOffset, cornerThickness, cornerSize);
         ctx.restore();
       }
 
-      // 选中时的光晕效果
+      // 选中时的外发光效果（使用独立的半透明层）
       if (isSelected) {
         ctx.save();
+        let glowColor: string;
         if (isMythic) {
-          ctx.strokeStyle = 'rgba(255, 71, 87, 0.4)';
+          glowColor = 'rgba(255, 71, 87, 0.3)';
         } else if (isLegendary) {
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+          glowColor = 'rgba(212, 175, 55, 0.3)';
+        } else if (isHero) {
+          glowColor = 'rgba(255, 127, 80, 0.25)';
         } else {
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+          glowColor = 'rgba(212, 175, 55, 0.2)';
         }
-        ctx.lineWidth = 12;
+
+        ctx.strokeStyle = glowColor;
+        ctx.lineWidth = 8;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x + radius, startY);
+        ctx.lineTo(x + panelWidth - radius, startY);
+        ctx.quadraticCurveTo(x + panelWidth, startY, x + panelWidth, startY + radius);
+        ctx.lineTo(x + panelWidth, startY + panelHeight - radius);
+        ctx.quadraticCurveTo(x + panelWidth, startY + panelHeight, x + panelWidth - radius, startY + panelHeight);
+        ctx.lineTo(x + radius, startY + panelHeight);
+        ctx.quadraticCurveTo(x, startY + panelHeight, x, startY + panelHeight - radius);
+        ctx.lineTo(x, startY + radius);
+        ctx.quadraticCurveTo(x, startY, x + radius, startY);
+        ctx.closePath();
         ctx.stroke();
         ctx.restore();
       }
