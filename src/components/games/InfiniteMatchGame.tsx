@@ -162,10 +162,21 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   }, []);
 
   // 播放音效
-  const playSound = useCallback((type: 'match' | 'combo' | 'levelup' | 'gameover' | 'select') => {
+  const playSound = useCallback(async (type: 'match' | 'combo' | 'levelup' | 'gameover' | 'select') => {
     if (!soundEnabled || !audioContextRef.current) return;
 
     const ctx = audioContextRef.current;
+    
+    // 确保AudioContext已恢复（某些浏览器需要用户交互后才能播放）
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.error('Failed to resume AudioContext:', e);
+        return;
+      }
+    }
+
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
 
@@ -305,55 +316,42 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       newBoard[1][1] = 0;
     }
 
-    // 确保每种图标都有偶数个
+    // 确保每种图标都有偶数个（优化的修正逻辑）
     const iconCounts = new Map<number, number>();
+    const iconPositions = new Map<number, Array<{ x: number; y: number }>>();
+    
     for (let y = 1; y <= BOARD_ROWS; y++) {
       for (let x = 1; x <= BOARD_COLS; x++) {
         const icon = newBoard[y][x];
         if (icon > 0) {
           iconCounts.set(icon, (iconCounts.get(icon) || 0) + 1);
+          if (!iconPositions.has(icon)) {
+            iconPositions.set(icon, []);
+          }
+          iconPositions.get(icon)!.push({ x, y });
         }
       }
     }
 
-    // 修正奇数个的图标
-    let fixNeeded = true;
-    while (fixNeeded) {
-      fixNeeded = false;
-      for (const [icon, count] of iconCounts) {
-        if (count % 2 !== 0) {
-          // 找到另一个奇数个的图标进行交换
-          for (const [otherIcon, otherCount] of iconCounts) {
-            if (otherIcon !== icon && otherCount % 2 !== 0) {
-              // 找到两个方块并交换
-              for (let y = 1; y <= BOARD_ROWS; y++) {
-                for (let x = 1; x <= BOARD_COLS; x++) {
-                  if (newBoard[y][x] === icon) {
-                    for (let y2 = 1; y2 <= BOARD_ROWS; y2++) {
-                      for (let x2 = 1; x2 <= BOARD_COLS; x2++) {
-                        if (newBoard[y2][x2] === otherIcon) {
-                          newBoard[y][x] = otherIcon;
-                          newBoard[y2][x2] = icon;
-                          iconCounts.set(icon, count + 1);
-                          iconCounts.set(otherIcon, otherCount + 1);
-                          fixNeeded = true;
-                          break;
-                        }
-                      }
-                      if (fixNeeded) break;
-                    }
-                    if (fixNeeded) break;
-                  }
-                  if (fixNeeded) break;
-                }
-                if (fixNeeded) break;
-              }
-              if (fixNeeded) break;
-            }
-            if (fixNeeded) break;
-          }
-          if (fixNeeded) break;
-        }
+    // 收集奇数个的图标
+    const oddIcons: number[] = [];
+    for (const [icon, count] of iconCounts) {
+      if (count % 2 !== 0) {
+        oddIcons.push(icon);
+      }
+    }
+
+    // 配对并修正奇数个的图标
+    for (let i = 0; i < oddIcons.length; i += 2) {
+      if (i + 1 < oddIcons.length) {
+        const icon1 = oddIcons[i];
+        const icon2 = oddIcons[i + 1];
+        const pos1 = iconPositions.get(icon1)![0];
+        const pos2 = iconPositions.get(icon2)![0];
+        
+        // 交换两个方块的图标类型
+        newBoard[pos1.y][pos1.x] = icon2;
+        newBoard[pos2.y][pos2.x] = icon1;
       }
     }
 
@@ -386,7 +384,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       if (tiles.length < 2) break;
 
       // 智能交换：尝试交换两个相同值的方块
-      const swapped = false;
+      let swapped = false;
       for (let i = 0; i < tiles.length && !swapped; i++) {
         for (let j = i + 1; j < tiles.length && !swapped; j++) {
           if (tiles[i].value === tiles[j].value) {
@@ -396,6 +394,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
             
             if (hasSolvableMatch(newBoard)) {
               // 交换有效，保持
+              swapped = true;
               break;
             } else {
               // 交换无效，换回来
@@ -406,7 +405,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
         }
       }
 
-      // 如果交换无效，随机交换两个不同的方块
+      // 如果智能交换无效，随机交换两个不同的方块
       if (!hasSolvableMatch(newBoard)) {
         const idx1 = Math.floor(Math.random() * tiles.length);
         let idx2 = Math.floor(Math.random() * tiles.length);
@@ -578,7 +577,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     setEliminationTiles([tile1, tile2]);
     setMatchedPath(path);
 
-    // 生成粒子特效
+    // 生成粒子特效（每次只显示当前消除的粒子，不累积）
     const colors = ['#fbbf24', '#f59e0b', '#d97706', '#fcd34d', '#8b5cf6', '#ec4899'];
     const newParticles: Array<{ id: string; x: number; y: number; vx: number; vy: number; color: string }> = [];
     
@@ -596,7 +595,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       }
     });
     
-    setParticles(prev => [...prev, ...newParticles]);
+    setParticles(newParticles);
 
     // 播放消除音效
     const newCombo = comboCount + 1;
@@ -640,7 +639,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       // 清理粒子
       setTimeout(() => {
         setParticles([]);
-      }, 600);
+      }, 200);
 
       // 检查是否完成当前关卡
       if (newTilesLeft === 0) {
@@ -1196,7 +1195,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             <stop offset="100%" stopColor="#d97706" stopOpacity="0.9" />
                           </linearGradient>
                           <filter id="glow">
-                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
                             <feMerge>
                               <feMergeNode in="coloredBlur"/>
                               <feMergeNode in="SourceGraphic"/>
@@ -1211,14 +1210,14 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                           }).join(' ')}
                           stroke="url(#lineGlowGradient)"
-                          strokeWidth="16"
+                          strokeWidth="20"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           filter="url(#glow)"
-                          initial={{ pathLength: 0, opacity: 0 }}
-                          animate={{ pathLength: 1, opacity: 1 }}
-                          transition={{ duration: 0.3, ease: 'easeOut' }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.2 }}
                         />
                         {/* 主连线 */}
                         <motion.path
@@ -1228,13 +1227,13 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                           }).join(' ')}
                           stroke="url(#lineGradient)"
-                          strokeWidth="8"
+                          strokeWidth="10"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          initial={{ pathLength: 0, opacity: 0 }}
-                          animate={{ pathLength: 1, opacity: 1 }}
-                          transition={{ duration: 0.3, ease: 'easeOut' }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.2 }}
                         />
                         {/* 连接点高亮 */}
                         {matchedPath.map((point, index) => {
