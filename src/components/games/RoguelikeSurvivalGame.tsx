@@ -1159,15 +1159,15 @@ const SKILL_POOL: Skill[] = [
     color: COLORS.epic,
     icon: SKILL_ICONS.heart
   },
-  // 传说技能
+  // 传说技能（已迁移至英雄稀有度）
   {
     id: 'fire_mastery',
     name: '火焰掌握',
     description: '远程伤害永久+75%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, rangedDamage: p.rangedDamage * 1.75 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.fire
   },
   {
@@ -1176,8 +1176,8 @@ const SKILL_POOL: Skill[] = [
     description: '对Boss和精英伤害永久+50%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.5, rangedDamage: p.rangedDamage * 1.5 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.sword
   },
   {
@@ -1186,11 +1186,11 @@ const SKILL_POOL: Skill[] = [
     description: '伤害永久+75%（可累加）',
     type: 'active',
     apply: (p) => ({ ...p, meleeDamage: p.meleeDamage * 1.75, rangedDamage: p.rangedDamage * 1.75 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.skull
   },
-  // 英雄技能（25级后可解锁）
+  // 英雄技能（15级后可解锁）
   {
     id: 'champion',
     name: '冠军之心',
@@ -1275,8 +1275,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   {
@@ -1316,8 +1316,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵冷却时间 -1秒（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 追踪多重（增加数量）
@@ -1327,8 +1327,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   {
@@ -1428,8 +1428,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   {
@@ -1469,8 +1469,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵冷却时间 -1秒（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   // 追踪多重（增加数量）
@@ -1480,8 +1480,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary,
+    rarity: 'hero',
+    color: COLORS.hero,
     icon: SKILL_ICONS.magic
   },
   {
@@ -1603,8 +1603,8 @@ const SKILL_POOL: Skill[] = [
     description: '攻击有15%几率连锁到附近敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'legendary',
-    color: COLORS.legendary
+    rarity: 'hero',
+    color: COLORS.hero
   },
   {
     id: 'passive_revive',
@@ -2331,9 +2331,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 过滤掉需要前置技能的选项和已拥有的被动技能
       const filteredSkills = SKILL_POOL.filter(skill => {
-        // 检查是否已经拥有该技能（被动技能和天命法阵相关技能，冰霜技能）
-        if (skill.type === 'passive' ||
-            skill.id === 'auto_tracking' ||
+        // 检查是否已经拥有该技能（法阵原有机制和不可叠加的技能）
+        // 法阵相关技能：天命法阵、法阵精通系列、法阵加速系列、法阵多重系列、法阵扩张系列、冰霜技能
+        // 不可叠加的技能：被动技能（除了法阵相关）
+        if (skill.id === 'auto_tracking' ||
             skill.id === 'passive_freeze' ||
             skill.id.startsWith('tracking_mastery') ||
             skill.id.startsWith('tracking_speed') ||
@@ -2341,12 +2342,6 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             skill.id.startsWith('tracking_pierce')) {
           const hasSkill = player.skills.some(s => s.id === skill.id);
           if (hasSkill) return false;
-        }
-
-        // 限制英雄技能只能选择一个
-        if (skill.rarity === 'hero') {
-          const hasHero = player.skills.some(s => s.rarity === 'hero');
-          if (hasHero) return false;
         }
 
         // 限制传奇技能只能选择一个
@@ -2380,8 +2375,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           return false;
         }
 
-        // 英雄技能（20级后才能刷到）
-        if (skill.rarity === 'hero' && player.level < 20) {
+        // 英雄技能（15级后才能刷到）
+        if (skill.rarity === 'hero' && player.level < 15) {
           return false;
         }
 
@@ -2415,13 +2410,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         }
       }
 
-      // 20级、25级和30级：必定刷到2个对应稀有度的技能点（确保有选择权）
-      const isLevel20Hero = player.level === 20;
+      // 15级、25级和30级：必定刷到2个对应稀有度的技能点（确保有选择权）
+      const isLevel15Hero = player.level === 15;
       const isLevel25Legendary = player.level === 25;
       const isLevel30Mythic = player.level === 30;
 
-      if (isLevel20Hero || isLevel25Legendary || isLevel30Mythic) {
-        const targetRarity = isLevel20Hero ? 'hero' : (isLevel25Legendary ? 'legendary' : 'mythic');
+      if (isLevel15Hero || isLevel25Legendary || isLevel30Mythic) {
+        const targetRarity = isLevel15Hero ? 'hero' : (isLevel25Legendary ? 'legendary' : 'mythic');
         const targetSkills = filteredSkills.filter(s => s.rarity === targetRarity);
 
         console.log('[Level Up] High-tier skill unlock', {

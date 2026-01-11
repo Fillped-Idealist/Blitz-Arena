@@ -1154,11 +1154,19 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
                 {/* 游戏区域 */}
                 <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 flex items-center justify-center ${isFullscreen ? 'flex-1 min-h-0 p-4' : 'p-4'}`}>
-                  {/* 游戏板容器 - 根据窗口大小自适应 */}
+                  {/* 游戏板容器 - 根据窗口大小自适应，选择较小边来调整边长 */}
                   <div
                     ref={gameBoardRef}
                     className={`relative ${isFullscreen ? 'h-full w-full' : 'w-full'} max-w-full`}
-                    style={!isFullscreen ? { maxHeight: 'calc(100vh - 300px)' } : {}}
+                    style={!isFullscreen ? {
+                      // 计算可用的最大尺寸，选择较小边来确保方块完全显示
+                      maxHeight: 'calc(100vh - 300px)',
+                      aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}`,
+                      maxWidth: 'min(100%, calc((100vh - 300px) * ${(BOARD_COLS + 2) / (BOARD_ROWS + 2)}))',
+                      margin: '0 auto'
+                    } : {
+                      aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}`
+                    }}
                   >
                     {/* 连击显示 */}
                     {comboCount > 1 && (
