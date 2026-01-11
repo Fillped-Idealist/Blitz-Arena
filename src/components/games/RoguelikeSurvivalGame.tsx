@@ -3277,27 +3277,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 检查场上是否已有近战Boss
               const existingMeleeBoss = monstersRef.current.find(m => m.type === 'melee_boss');
 
-              // 第一个Boss刷新：游戏时间>=360秒且未刷新过且场上没有Boss时刷新
-              if (!meleeBossFirstSpawnedRef.current && !existingMeleeBoss && player.gameTime >= 360) {
-                console.log('[MeleeBoss] Spawning first melee boss', {
-                  gameTime: player.gameTime
-                });
-                meleeBossFirstSpawnedRef.current = true;
-                meleeBossSpawnTimerRef.current = 0;
-                createNotification('⚠️ 近战Boss来袭！', '#FF4757');
-              }
-              // Boss刷新：Boss已死亡且计时满75秒，且场上没有Boss
-              else if (meleeBossDeadRef.current && meleeBossSpawnTimerRef.current >= 75 && !existingMeleeBoss) {
-                console.log('[MeleeBoss] Spawning next melee boss after death', {
-                  gameTime: player.gameTime,
-                  timeSinceDeath: meleeBossSpawnTimerRef.current
-                });
-                meleeBossDeadRef.current = false;
-                meleeBossSpawnTimerRef.current = 0;
-                createNotification('⚠️ 新的近战Boss来袭！', '#FF4757');
-              }
               // Boss死亡检测：场上不再有近战Boss，且已经刷新过第一个Boss
-              else if (!existingMeleeBoss && meleeBossFirstSpawnedRef.current && !meleeBossDeadRef.current) {
+              if (!existingMeleeBoss && meleeBossFirstSpawnedRef.current && !meleeBossDeadRef.current) {
                 // Boss死亡，开始计时75秒
                 console.log('[MeleeBoss] Melee boss died, starting 75s countdown');
                 meleeBossDeadRef.current = true;
@@ -3305,8 +3286,27 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               }
 
               // 执行Boss刷新
-              const shouldSpawn = (!existingMeleeBoss && (!meleeBossFirstSpawnedRef.current || (meleeBossDeadRef.current && meleeBossSpawnTimerRef.current >= 75)));
+              const shouldSpawn = (!existingMeleeBoss && ((!meleeBossFirstSpawnedRef.current && player.gameTime >= 360) || (meleeBossDeadRef.current && meleeBossSpawnTimerRef.current >= 75)));
               if (shouldSpawn) {
+                // 第一个Boss刷新
+                if (!meleeBossFirstSpawnedRef.current) {
+                  console.log('[MeleeBoss] Spawning first melee boss', {
+                    gameTime: player.gameTime
+                  });
+                  meleeBossFirstSpawnedRef.current = true;
+                  meleeBossSpawnTimerRef.current = 0;
+                  createNotification('⚠️ 近战Boss来袭！', '#FF4757');
+                }
+                // 后续Boss刷新（死亡后75秒）
+                else {
+                  console.log('[MeleeBoss] Spawning next melee boss after death', {
+                    gameTime: player.gameTime,
+                    timeSinceDeath: meleeBossSpawnTimerRef.current
+                  });
+                  meleeBossDeadRef.current = false;
+                  meleeBossSpawnTimerRef.current = 0;
+                  createNotification('⚠️ 新的近战Boss来袭！', '#FF4757');
+                }
 
               // 手动生成近战Boss（覆盖默认类型）
               const side = Math.floor(Math.random() * 4);
