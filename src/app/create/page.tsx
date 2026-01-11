@@ -56,6 +56,12 @@ const GAME_TYPES = [
     icon: "🌀",
     description: "Survive in the Cycle Rift, defeat endless monsters, upgrade skills, and survive as long as possible"
   },
+  {
+    value: "5",
+    label: "Infinite Match",
+    icon: "🧩",
+    description: "Match identical tiles through connected paths, challenge infinite levels"
+  },
 ];
 
 const PRIZE_DISTRIBUTION = [

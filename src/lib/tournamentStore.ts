@@ -127,7 +127,8 @@ const GAME_TYPES = {
   '1': { label: 'Number Guess', icon: '🔢' },
   '2': { label: 'Rock Paper Scissors', icon: '✊✋✌️' },
   '3': { label: 'Quick Click', icon: '🎯' },
-  '4': { label: 'Roguelike Survival', icon: '⚔️' }
+  '4': { label: 'Roguelike Survival', icon: '⚔️' },
+  '5': { label: 'Infinite Match', icon: '🧩' }
 };
 
 // 获取所有比赛

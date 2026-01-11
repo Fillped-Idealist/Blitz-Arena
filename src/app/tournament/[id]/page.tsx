@@ -17,13 +17,15 @@ export enum GameType {
   NumberGuess = 1,
   RockPaperScissors = 2,
   QuickClick = 3,
-  RoguelikeSurvival = 4
+  RoguelikeSurvival = 4,
+  InfiniteMatch = 5
 }
 import { getAllTournaments, joinTournament, getUserTournaments } from '@/lib/tournamentStore';
 import NumberGuessGame, { GameResult as NumberGuessResult } from '@/components/games/NumberGuessGame';
 import RockPaperScissorsGame, { GameResult as RPSResult } from '@/components/games/RockPaperScissorsGame';
 import QuickClickGame, { GameResult as QCResult } from '@/components/games/QuickClickGame';
 import RoguelikeSurvivalGame, { GameResult as RLSResult } from '@/components/games/RoguelikeSurvivalGame';
+import InfiniteMatchGame, { GameResult as IMResult } from '@/components/games/InfiniteMatchGame';
 import { Loader2, Gamepad2 } from 'lucide-react';
 
 export default function TournamentDetailPage() {
@@ -91,7 +93,7 @@ export default function TournamentDetailPage() {
   };
 
   // 处理游戏结果提交
-  const handleGameComplete = async (result: NumberGuessResult | RPSResult | QCResult | RLSResult) => {
+  const handleGameComplete = async (result: NumberGuessResult | RPSResult | QCResult | RLSResult | IMResult) => {
     try {
       // 模拟提交到链上
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -562,6 +564,9 @@ export default function TournamentDetailPage() {
                       )}
                       {activeGame === GameType.RoguelikeSurvival && (
                         <RoguelikeSurvivalGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
+                      )}
+                      {activeGame === GameType.InfiniteMatch && (
+                        <InfiniteMatchGame onComplete={handleGameComplete} onCancel={handleCancelGame} />
                       )}
                     </div>
                   </Card>

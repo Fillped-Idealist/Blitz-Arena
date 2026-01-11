@@ -41,15 +41,18 @@ contract GameRegistry is AccessControl {
         gameEnabled[Types.GameType.NumberGuess] = true;
         gameEnabled[Types.GameType.RockPaperScissors] = true;
         gameEnabled[Types.GameType.QuickClick] = true;
+        gameEnabled[Types.GameType.InfiniteMatch] = true;
 
         // 设置各游戏最大分数限制
         maxScores[Types.GameType.NumberGuess] = 100; // 猜数字最高100分
         maxScores[Types.GameType.RockPaperScissors] = 100; // 猜拳最高100分
         maxScores[Types.GameType.QuickClick] = 50; // 30秒内最多点击50次（合理上限）
+        maxScores[Types.GameType.InfiniteMatch] = 10000; // 无限消除最高10000分（理论最大值）
 
         emit GameEnabled(Types.GameType.NumberGuess);
         emit GameEnabled(Types.GameType.RockPaperScissors);
         emit GameEnabled(Types.GameType.QuickClick);
+        emit GameEnabled(Types.GameType.InfiniteMatch);
     }
 
     /// @notice 管理员启用游戏
@@ -152,6 +155,33 @@ contract GameRegistry is AccessControl {
             require(clicks <= 50, "Too many clicks");
             // 分数应该等于点击次数
             require(result.score == clicks, "Score does not match click count");
+
+        } else if (result.gameType == Types.GameType.InfiniteMatch) {
+            // 无限消除游戏验证
+            require(result.metadata.length >= 3, "Missing game metadata");
+            // metadata[0] = 最终得分, metadata[1] = 到达关卡, metadata[2] = 最大连击
+            uint256 finalScore = result.metadata[0];
+            uint256 level = result.metadata[1];
+            uint256 maxCombo = result.metadata[2];
+
+            // 验证关卡合理性（至少到达第1关）
+            require(level >= 1, "Invalid level");
+            require(maxCombo >= 1, "Invalid max combo");
+
+            // 验证分数合理性
+            // 基础分数计算：每关至少有60个方块（10x6），至少需要30次消除
+            // 每次消除基础10分，加上连击加成
+            // 所以第1关至少300分
+            uint256 minExpectedScore = level * 300;
+            require(finalScore >= minExpectedScore, "Score too low for level");
+
+            // 验证分数不超过理论最大值
+            // 假设每关平均1000分，最多10关
+            uint256 maxExpectedScore = level * 1000;
+            require(finalScore <= maxExpectedScore, "Score too high for level");
+
+            // 验证提交的分数与metadata中的分数一致
+            require(result.score == finalScore, "Score mismatch with metadata");
         }
     }
 

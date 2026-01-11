@@ -23,7 +23,8 @@ contract Types {
         None,               // 无游戏类型（默认值）
         NumberGuess,        // 猜数字游戏
         RockPaperScissors,  // 石头剪刀布
-        QuickClick          // 快速点击
+        QuickClick,         // 快速点击
+        InfiniteMatch       // 无限消除游戏
     }
 
     /// @dev 游戏结果结构体（用于链上验证）
