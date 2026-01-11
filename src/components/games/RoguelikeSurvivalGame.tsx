@@ -111,7 +111,7 @@ interface Player {
   auraRadius: number;  // 立场范围
   auraDamage: number;  // 立场灼烧伤害
   auraLastDamageTime: number;  // 上次立场伤害时间
-  healingMultiplier: number;  // 恢复倍率（吸血鬼之触等技能加成）
+  healingBonus: number;  // 恢复加成值（吸血鬼之触等技能加成）
 }
 
 interface Monster {
@@ -652,7 +652,7 @@ const ensureIntegers = (p: Player): Player => ({
   auraRadius: Math.floor(p.auraRadius),
   auraDamage: Math.floor(p.auraDamage),
   regenRate: Math.floor(p.regenRate),
-  healingMultiplier: p.healingMultiplier,
+  healingBonus: Math.floor(p.healingBonus),
   exp: Math.floor(p.exp),
   expToNext: Math.floor(p.expToNext)
 });
@@ -795,9 +795,9 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'vampirism',
     name: '吸血鬼之触',
-    description: '所有生命恢复+8%（可累加）',
+    description: '所有生命恢复+8（可累加）',
     type: 'active',
-    apply: (p) => ({ ...p, healingMultiplier: p.healingMultiplier + 0.08 }),
+    apply: (p) => ({ ...p, healingBonus: p.healingBonus + 8 }),
     rarity: 'epic',
     color: COLORS.epic,
     icon: SKILL_ICONS.heart
@@ -1736,7 +1736,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         // 生命汲取被动
         const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
         if (hasLifesteal) {
-          const healAmount = Math.floor(5 * player.healingMultiplier);
+          const healAmount = Math.floor(5 + player.healingBonus);
           player.hp = Math.min(player.hp + healAmount, player.maxHp);
           createDamageNumber(player.x, player.y - 20, healAmount, false, true);
           playSound('heal');
@@ -1745,7 +1745,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
         // 生命之源：击杀回血
         const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
         if (hasVitalitySource) {
-          const healAmount = Math.floor(15 * player.healingMultiplier);
+          const healAmount = Math.floor(15 + player.healingBonus);
           player.hp = Math.min(player.hp + healAmount, player.maxHp);
           createDamageNumber(player.x, player.y - 35, healAmount, false, true);
           playSound('heal');
@@ -3224,7 +3224,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           if (lastRegenTimeRef.current >= 1 && player.regenRate > 0) {
             lastRegenTimeRef.current = 0;
             if (player.hp < player.maxHp) {
-              const healAmount = Math.min(Math.floor(player.regenRate * player.healingMultiplier), Math.floor(player.maxHp - player.hp));
+              const healAmount = Math.min(Math.floor(player.regenRate + player.healingBonus), Math.floor(player.maxHp - player.hp));
               if (healAmount > 0) {
                 player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                 createDamageNumber(player.x, player.y - 25, healAmount, false, true);
@@ -4135,7 +4135,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   // 生命汲取被动
                   const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
                   if (hasLifesteal) {
-                    const healAmount = Math.floor(5 * player.healingMultiplier);
+                    const healAmount = Math.floor(5 + player.healingBonus);
                     player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                     createDamageNumber(player.x, player.y - 20, healAmount, false, true);
                     playSound('heal');
@@ -4144,7 +4144,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   // 生命之源：击杀回血
                   const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
                   if (hasVitalitySource) {
-                    const healAmount = Math.floor(15 * player.healingMultiplier);
+                    const healAmount = Math.floor(15 + player.healingBonus);
                     player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                     createDamageNumber(player.x, player.y - 35, healAmount, false, true);
                     playSound('heal');
@@ -4327,7 +4327,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                     // 生命汲取被动
                     const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
                     if (hasLifesteal) {
-                      const healAmount = Math.floor(5 * player.healingMultiplier);
+                      const healAmount = Math.floor(5 + player.healingBonus);
                       player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                       createDamageNumber(player.x, player.y - 20, healAmount, false, true);
                       playSound('heal');
@@ -4336,7 +4336,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                     // 生命之源：击杀回血
                     const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
                     if (hasVitalitySource) {
-                      const healAmount = Math.floor(15 * player.healingMultiplier);
+                      const healAmount = Math.floor(15 + player.healingBonus);
                       player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
                       createDamageNumber(player.x, player.y - 35, healAmount, false, true);
                       playSound('heal');
@@ -4992,7 +4992,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       auraRadius: 200,  // 初始立场范围200像素（扩大2.5倍）
       auraDamage: 70,  // 初始立场灼烧伤害70（每0.5秒）
       auraLastDamageTime: 0,  // 上次立场伤害时间
-      healingMultiplier: 1  // 初始恢复倍率为1
+      healingBonus: 0  // 初始恢复加成为0
     };
 
     monstersRef.current = [];
