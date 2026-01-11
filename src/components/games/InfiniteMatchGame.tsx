@@ -144,6 +144,8 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   const audioContextRef = useRef<AudioContext | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const tileRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const gameBoardRef = useRef<HTMLDivElement>(null);
 
   // 监听全屏变化
   useEffect(() => {
@@ -819,11 +821,21 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return 'C';
   }
 
-  // 计算方块中心点的百分比坐标（所有路径相关计算统一使用此函数）
-  const getTileCenterPercent = (x: number, y: number): { x: number; y: number } => {
+  // 获取方块中心点的实际像素坐标（相对于游戏板）
+  const getTileCenterPixel = (x: number, y: number): { x: number; y: number } | null => {
+    const tileKey = `${x}-${y}`;
+    const tileElement = tileRefs.current.get(tileKey);
+    const gameBoard = gameBoardRef.current;
+
+    if (!tileElement || !gameBoard) return null;
+
+    // 获取 div 的位置（div 包裹 button，它们应该有相同的位置和尺寸）
+    const tileRect = tileElement.getBoundingClientRect();
+    const boardRect = gameBoard.getBoundingClientRect();
+
     return {
-      x: ((x + 0.5) / (BOARD_COLS + 2)) * 100,
-      y: ((y + 0.5) / (BOARD_ROWS + 2)) * 100
+      x: tileRect.left - boardRect.left + tileRect.width / 2,
+      y: tileRect.top - boardRect.top + tileRect.height / 2
     };
   }
 
@@ -1140,7 +1152,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 {/* 游戏区域 */}
                 <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-2' : 'p-3'}`}>
                   {/* 游戏板容器：使用宽高比确保方块比例一致 */}
-                  <div className={`relative w-full ${isFullscreen ? 'h-full' : ''}`} style={{ aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}` }}>
+                  <div ref={gameBoardRef} className={`relative w-full ${isFullscreen ? 'h-full' : ''}`} style={{ aspectRatio: `${BOARD_COLS + 2}/${BOARD_ROWS + 2}` }}>
                     {/* 连击显示（在游戏区域内） */}
                   {comboCount > 1 && (
                     <motion.div
@@ -1162,19 +1174,20 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   {/* 粒子特效层 */}
                   <div className="absolute inset-0 pointer-events-none z-50">
                     {particles.map((particle) => {
-                      const center = getTileCenterPercent(particle.x, particle.y);
+                      const center = getTileCenterPixel(particle.x, particle.y);
+                      if (!center) return null;
                       return (
                         <motion.div
                           key={particle.id}
                           initial={{
-                            x: '0%',
-                            y: '0%',
+                            x: center.x,
+                            y: center.y,
                             scale: 1,
                             opacity: 1
                           }}
                           animate={{
-                            x: `${particle.vx * 100}%`,
-                            y: `${particle.vy * 100}%`,
+                            x: center.x + particle.vx * 100,
+                            y: center.y + particle.vy * 100,
                             scale: 0,
                             opacity: 0
                           }}
@@ -1182,8 +1195,6 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           className="absolute w-2.5 h-2.5 rounded-full"
                           style={{
                             backgroundColor: particle.color,
-                            left: `${center.x}%`,
-                            top: `${center.y}%`,
                             filter: 'blur(0.5px)',
                             boxShadow: `0 0 4px ${particle.color}, 0 0 8px ${particle.color}`
                           }}
@@ -1218,8 +1229,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         {/* 连线发光效果（更宽，更明显） */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const center = getTileCenterPercent(point.x, point.y);
-                            return `${index === 0 ? 'M' : 'L'} ${center.x}% ${center.y}%`;
+                            const center = getTileCenterPixel(point.x, point.y);
+                            if (!center) return '';
+                            return `${index === 0 ? 'M' : 'L'} ${center.x.toFixed(2)} ${center.y.toFixed(2)}`;
                           }).join(' ')}
                           stroke="url(#lineGlowGradient)"
                           strokeWidth="18"
@@ -1234,8 +1246,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         {/* 主连线 */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const center = getTileCenterPercent(point.x, point.y);
-                            return `${index === 0 ? 'M' : 'L'} ${center.x}% ${center.y}%`;
+                            const center = getTileCenterPixel(point.x, point.y);
+                            if (!center) return '';
+                            return `${index === 0 ? 'M' : 'L'} ${center.x.toFixed(2)} ${center.y.toFixed(2)}`;
                           }).join(' ')}
                           stroke="url(#lineGradient)"
                           strokeWidth="8"
@@ -1248,12 +1261,13 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         />
                         {/* 连接点高亮 */}
                         {matchedPath.map((point, index) => {
-                          const center = getTileCenterPercent(point.x, point.y);
+                          const center = getTileCenterPixel(point.x, point.y);
+                          if (!center) return null;
                           return (
                             <motion.circle
                               key={`point-${index}`}
-                              cx={`${center.x}%`}
-                              cy={`${center.y}%`}
+                              cx={center.x}
+                              cy={center.y}
                               r="3.5"
                               fill="#fcd34d"
                               initial={{ scale: 0, opacity: 0 }}
@@ -1275,59 +1289,67 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   >
                     {board.map((row, y) =>
                       row.map((tile, x) => (
-                        <motion.button
+                        <div
                           key={`${x}-${y}`}
-                          type="button"
-                          onClick={() => handleTileClick(x, y)}
-                          disabled={tile === 0}
-                          className={`
-                            w-full h-full rounded-md flex items-center justify-center relative overflow-hidden
-                            transition-all duration-200
-                            ${tile === 0 ? 'invisible' : 'visible'}
-                            ${selectedTile?.x === x && selectedTile?.y === y
-                              ? 'ring-2 ring-yellow-400 z-10 scale-105 shadow-lg shadow-yellow-400/20'
-                              : ''}
-                            ${eliminationTiles.some(t => t.x === x && t.y === y)
-                              ? 'scale-0 opacity-0'
-                              : ''}
-                            hover:scale-105 active:scale-95
-                            ${tile > 0 ? 'cursor-pointer' : 'cursor-default'}
-                          `}
-                          style={{
-                            background: selectedTile?.x === x && selectedTile?.y === y
-                              ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.85) 0%, rgba(234, 179, 8, 0.85) 50%, rgba(202, 138, 4, 0.85) 100%)'
-                              : tile > 0
-                              ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.65) 0%, rgba(236, 72, 153, 0.65) 50%, rgba(249, 115, 22, 0.65) 100%)'
-                              : 'transparent',
-                            boxShadow: selectedTile?.x === x && selectedTile?.y === y
-                              ? '0 6px 16px -2px rgba(251, 191, 36, 0.4), 0 3px 8px -2px rgba(251, 191, 36, 0.3)'
-                              : tile > 0
-                              ? '0 2px 4px -1px rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2)'
-                              : 'none',
-                            border: selectedTile?.x === x && selectedTile?.y === y
-                              ? '2px solid rgba(254, 243, 199, 0.6)'
-                              : tile > 0
-                              ? '1px solid rgba(255, 255, 255, 0.15)'
-                              : 'none'
+                          ref={(el) => {
+                            if (el) {
+                              tileRefs.current.set(`${x}-${y}`, el);
+                            }
                           }}
-                          whileHover={tile > 0 ? { scale: 1.08 } : {}}
-                          whileTap={tile > 0 ? { scale: 0.92 } : {}}
                         >
-                          {tile > 0 && (
-                            <div className="relative z-10" style={{ width: '65%', height: '65%' }}>
-                              <TileIcon type={tile} />
-                            </div>
-                          )}
-                          {/* 内发光效果 */}
-                          {tile > 0 && (
-                            <div
-                              className="absolute inset-0 pointer-events-none"
-                              style={{
-                                background: 'radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35) 0%, transparent 65%)'
-                              }}
-                            />
-                          )}
-                        </motion.button>
+                          <motion.button
+                            type="button"
+                            onClick={() => handleTileClick(x, y)}
+                            disabled={tile === 0}
+                            className={`
+                              w-full h-full rounded-md flex items-center justify-center relative overflow-hidden
+                              transition-all duration-200
+                              ${tile === 0 ? 'invisible' : 'visible'}
+                              ${selectedTile?.x === x && selectedTile?.y === y
+                                ? 'ring-2 ring-yellow-400 z-10 scale-105 shadow-lg shadow-yellow-400/20'
+                                : ''}
+                              ${eliminationTiles.some(t => t.x === x && t.y === y)
+                                ? 'scale-0 opacity-0'
+                                : ''}
+                              hover:scale-105 active:scale-95
+                              ${tile > 0 ? 'cursor-pointer' : 'cursor-default'}
+                            `}
+                            style={{
+                              background: selectedTile?.x === x && selectedTile?.y === y
+                                ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.85) 0%, rgba(234, 179, 8, 0.85) 50%, rgba(202, 138, 4, 0.85) 100%)'
+                                : tile > 0
+                                ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.65) 0%, rgba(236, 72, 153, 0.65) 50%, rgba(249, 115, 22, 0.65) 100%)'
+                                : 'transparent',
+                              boxShadow: selectedTile?.x === x && selectedTile?.y === y
+                                ? '0 6px 16px -2px rgba(251, 191, 36, 0.4), 0 3px 8px -2px rgba(251, 191, 36, 0.3)'
+                                : tile > 0
+                                ? '0 2px 4px -1px rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2)'
+                                : 'none',
+                              border: selectedTile?.x === x && selectedTile?.y === y
+                                ? '2px solid rgba(254, 243, 199, 0.6)'
+                                : tile > 0
+                                ? '1px solid rgba(255, 255, 255, 0.15)'
+                                : 'none'
+                            }}
+                            whileHover={tile > 0 ? { scale: 1.08 } : {}}
+                            whileTap={tile > 0 ? { scale: 0.92 } : {}}
+                          >
+                            {tile > 0 && (
+                              <div className="relative z-10" style={{ width: '65%', height: '65%' }}>
+                                <TileIcon type={tile} />
+                              </div>
+                            )}
+                            {/* 内发光效果 */}
+                            {tile > 0 && (
+                              <div
+                                className="absolute inset-0 pointer-events-none"
+                                style={{
+                                  background: 'radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35) 0%, transparent 65%)'
+                                }}
+                              />
+                            )}
+                          </motion.button>
+                        </div>
                       ))
                     )}
                   </div>
