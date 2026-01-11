@@ -144,7 +144,8 @@ interface Monster {
   chargeTrail: { x: number; y: number; life: number }[];
   chargeStartPos: { x: number; y: number }; // 冲刺起始位置
   chargeEndPos: { x: number; y: number }; // 冲刺终点位置
-  meleeBossSpawnIndex: number; // 近战Boss生成序号（用于计算属性成长）
+  meleeBossSpawnIndex?: number; // 近战Boss生成序号（用于计算属性成长）
+  chargeStartEffectTriggered?: boolean; // 冲刺开始效果是否已触发（仅近战Boss使用）
 }
 
 interface Projectile {
@@ -376,36 +377,46 @@ const PIXEL_ART = {
       { x: 1, y: 2, color: '#9B59B6' }, { x: 2, y: 2, color: '#9B59B6' },
     ],
     melee_boss: [
-      // 近战Boss像素艺术（更大体型）
-      { x: -6, y: -6, color: '#E74C3C' }, { x: -5, y: -6, color: '#E74C3C' }, { x: -4, y: -6, color: '#C0392B' },
+      // 近战Boss像素艺术（更大体型，添加发光眼睛和凶狠表情）
+      // 头顶角（增强威胁感）
+      { x: -6, y: -6, color: '#C0392B' }, { x: -5, y: -6, color: '#E74C3C' }, { x: -4, y: -6, color: '#E74C3C' },
       { x: 4, y: -6, color: '#E74C3C' }, { x: 5, y: -6, color: '#E74C3C' }, { x: 6, y: -6, color: '#C0392B' },
+      // 头顶细节
       { x: -6, y: -5, color: '#E74C3C' }, { x: -5, y: -5, color: '#FF6B6B' }, { x: -4, y: -5, color: '#E74C3C' },
       { x: -3, y: -5, color: '#C0392B' }, { x: 3, y: -5, color: '#C0392B' }, { x: 4, y: -5, color: '#E74C3C' },
       { x: 5, y: -5, color: '#FF6B6B' }, { x: 6, y: -5, color: '#E74C3C' },
+      // 眼睛上方
       { x: -5, y: -4, color: '#E74C3C' }, { x: -4, y: -4, color: '#FF6B6B' }, { x: -3, y: -4, color: '#E74C3C' },
       { x: -2, y: -4, color: '#C0392B' }, { x: -1, y: -4, color: '#E74C3C' }, { x: 1, y: -4, color: '#E74C3C' },
       { x: 2, y: -4, color: '#C0392B' }, { x: 3, y: -4, color: '#E74C3C' }, { x: 4, y: -4, color: '#FF6B6B' },
       { x: 5, y: -4, color: '#E74C3C' },
-      { x: -4, y: -3, color: '#E74C3C' }, { x: -3, y: -3, color: '#FFFFFF' }, { x: -2, y: -3, color: '#E74C3C' },
-      { x: -1, y: -3, color: '#C0392B' }, { x: 0, y: -3, color: '#E74C3C' }, { x: 1, y: -3, color: '#C0392B' },
-      { x: 2, y: -3, color: '#E74C3C' }, { x: 3, y: -3, color: '#FFFFFF' }, { x: 4, y: -3, color: '#E74C3C' },
+      // 发光眼睛（更明显的黄色发光效果）
+      { x: -4, y: -3, color: '#FFD93D' }, { x: -3, y: -3, color: '#FF0000' }, { x: -2, y: -3, color: '#E74C3C' },
+      { x: -1, y: -3, color: '#FF0000' }, { x: 0, y: -3, color: '#E74C3C' }, { x: 1, y: -3, color: '#FF0000' },
+      { x: 2, y: -3, color: '#E74C3C' }, { x: 3, y: -3, color: '#FF0000' }, { x: 4, y: -3, color: '#FFD93D' },
+      // 眼睛下方和面部
       { x: -3, y: -2, color: '#E74C3C' }, { x: -2, y: -2, color: '#FF6B6B' }, { x: -1, y: -2, color: '#E74C3C' },
       { x: 0, y: -2, color: '#C0392B' }, { x: 1, y: -2, color: '#E74C3C' }, { x: 2, y: -2, color: '#FF6B6B' },
       { x: 3, y: -2, color: '#E74C3C' },
-      { x: -3, y: -1, color: '#E74C3C' }, { x: -2, y: -1, color: '#FFFFFF' }, { x: -1, y: -1, color: '#E74C3C' },
-      { x: 0, y: -1, color: '#C0392B' }, { x: 1, y: -1, color: '#E74C3C' }, { x: 2, y: -1, color: '#FFFFFF' },
+      // 凶狠的表情（嘴巴）
+      { x: -3, y: -1, color: '#E74C3C' }, { x: -2, y: -1, color: '#C0392B' }, { x: -1, y: -1, color: '#E74C3C' },
+      { x: 0, y: -1, color: '#FF0000' }, { x: 1, y: -1, color: '#E74C3C' }, { x: 2, y: -1, color: '#C0392B' },
       { x: 3, y: -1, color: '#E74C3C' },
-      { x: -4, y: 0, color: '#E74C3C' }, { x: -3, y: 0, color: '#FF6B6B' }, { x: -2, y: 0, color: '#E74C3C' },
-      { x: -1, y: 0, color: '#C0392B' }, { x: 0, y: 0, color: '#E74C3C' }, { x: 1, y: 0, color: '#C0392B' },
-      { x: 2, y: 0, color: '#E74C3C' }, { x: 3, y: 0, color: '#FF6B6B' }, { x: 4, y: 0, color: '#E74C3C' },
-      { x: -3, y: 1, color: '#E74C3C' }, { x: -2, y: 1, color: '#FFFFFF' }, { x: -1, y: 1, color: '#E74C3C' },
-      { x: 0, y: 1, color: '#C0392B' }, { x: 1, y: 1, color: '#E74C3C' }, { x: 2, y: 1, color: '#FFFFFF' },
+      // 牙齿（白色，增加凶狠感）
+      { x: -4, y: 0, color: '#E74C3C' }, { x: -3, y: 0, color: '#FF6B6B' }, { x: -2, y: 0, color: '#FFFFFF' },
+      { x: -1, y: 0, color: '#E74C3C' }, { x: 0, y: 0, color: '#E74C3C' }, { x: 1, y: 0, color: '#E74C3C' },
+      { x: 2, y: 0, color: '#FFFFFF' }, { x: 3, y: 0, color: '#FF6B6B' }, { x: 4, y: 0, color: '#E74C3C' },
+      // 身体上部
+      { x: -3, y: 1, color: '#E74C3C' }, { x: -2, y: 1, color: '#FF6B6B' }, { x: -1, y: 1, color: '#E74C3C' },
+      { x: 0, y: 1, color: '#C0392B' }, { x: 1, y: 1, color: '#E74C3C' }, { x: 2, y: 1, color: '#FF6B6B' },
       { x: 3, y: 1, color: '#E74C3C' },
+      // 身体中部
       { x: -3, y: 2, color: '#E74C3C' }, { x: -2, y: 2, color: '#FF6B6B' }, { x: -1, y: 2, color: '#E74C3C' },
       { x: 0, y: 2, color: '#C0392B' }, { x: 1, y: 2, color: '#E74C3C' }, { x: 2, y: 2, color: '#FF6B6B' },
       { x: 3, y: 2, color: '#E74C3C' },
-      { x: -2, y: 3, color: '#E74C3C' }, { x: -1, y: 3, color: '#E74C3C' }, { x: 0, y: 3, color: '#E74C3C' },
-      { x: 1, y: 3, color: '#E74C3C' }, { x: 2, y: 3, color: '#E74C3C' },
+      // 身体下部（收窄）
+      { x: -2, y: 3, color: '#E74C3C' }, { x: -1, y: 3, color: '#FF6B6B' }, { x: 0, y: 3, color: '#E74C3C' },
+      { x: 1, y: 3, color: '#FF6B6B' }, { x: 2, y: 3, color: '#E74C3C' },
     ]
   },
   magicCircle: {
@@ -1780,18 +1791,46 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           monster.vx = 0;
           monster.vy = 0;
           monster.lastAbilityTime = now;
+          monster.chargeStartEffectTriggered = false; // 重置冲刺效果标志
         } else if (chargeElapsed > 1000) {
           // 实际冲刺阶段（0.5秒）- 沿着锁定的直线移动
           const sprintProgress = (chargeElapsed - 1000) / 500; // 0到1
           const accelerationCurve = Math.pow(sprintProgress, 0.7); // 非线性加速曲线
           const currentSpeed = 40 + accelerationCurve * 40; // 从40加速到80（更猛烈）
 
-          // 沿着锁定的直线从起点向终点移动
-          monster.vx = monster.chargeDirection.x * currentSpeed;
-          monster.vy = monster.chargeDirection.y * currentSpeed;
+          // 冲刺开始的爆发效果（只在冲刺刚开始时触发一次）
+          if (sprintProgress < 0.05 && !monster.chargeStartEffectTriggered) {
+            monster.chargeStartEffectTriggered = true;
+            // 冲刺爆发视觉反馈
+            createParticles(monster.x, monster.y, '#FF6B6B', 15, 'explosion');
+            createParticles(monster.x, monster.y, '#FFD93D', 10, 'spark');
+            triggerScreenShake(4, 0.15);
+            playSound('explosion');
+          }
 
-          // 记录冲刺轨迹
-          monster.chargeTrail.push({ x: monster.x, y: monster.y, life: 2.0 });
+          // 冲刺结束的刹车效果（最后0.15秒）
+          if (sprintProgress > 0.7) {
+            const brakeFactor = Math.pow((1 - sprintProgress) / 0.3, 2); // 平滑刹车曲线
+            const brakeSpeed = currentSpeed * (1 - brakeFactor * 0.6); // 刹车时减速60%
+
+            monster.vx = monster.chargeDirection.x * brakeSpeed;
+            monster.vy = monster.chargeDirection.y * brakeSpeed;
+
+            // 刹车时的粒子拖尾
+            if (Math.random() < 0.5) {
+              createParticles(monster.x, monster.y, '#2ECC71', 2, 'dust');
+            }
+          } else {
+            // 正常冲刺
+            monster.vx = monster.chargeDirection.x * currentSpeed;
+            monster.vy = monster.chargeDirection.y * currentSpeed;
+          }
+
+          // 记录冲刺轨迹（降低频率到每3帧记录一次，优化性能）
+          if (!monster.chargeTrail || monster.chargeTrail.length === 0 ||
+              Math.floor(sprintProgress * 30) % 3 === 0) {
+            monster.chargeTrail.push({ x: monster.x, y: monster.y, life: 2.0 });
+          }
 
           // 碰撞检测：冲刺造成双倍伤害并击退
           if (checkCollision(player.x, player.y, PLAYER_SIZE, monster.x, monster.y, monster.size)) {
@@ -1860,9 +1899,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 前摇阶段的后退动作（模拟蓄力，不改变实际冲刺路线）
           const retreatProgress = Math.sin(windupProgress * Math.PI * 0.5); // 0到1的平滑曲线
           const retreatDistance = retreatProgress * 50; // 最多后退50像素
+          const retreatSpeed = 2 + retreatProgress * 2; // 从2加速到4的平滑速度
 
-          monster.vx = -monster.chargeDirection.x * retreatDistance * 2; // 后退速度
-          monster.vy = -monster.chargeDirection.y * retreatDistance * 2;
+          monster.vx = -monster.chargeDirection.x * retreatSpeed;
+          monster.vy = -monster.chargeDirection.y * retreatSpeed;
         }
       } else {
         // 检查是否开始冲刺（CD结束且玩家在攻击范围内）
@@ -2864,7 +2904,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 chargeTrail: [],
                 chargeStartPos: { x: 0, y: 0 },
                 chargeEndPos: { x: 0, y: 0 },
-                meleeBossSpawnIndex: existingMeleeBossCount
+                meleeBossSpawnIndex: existingMeleeBossCount,
+                chargeStartEffectTriggered: false
               };
 
               monstersRef.current.push(meleeBoss);
@@ -2965,7 +3006,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             const mdy = player.y - monster.y;
             const mDistance = Math.sqrt(mdx * mdx + mdy * mdy);
 
-            if (mDistance > 1) {
+            // 近战Boss在冲刺状态下跳过普通移动逻辑（由Boss AI控制）
+            if (monster.type === 'melee_boss' && monster.isCharging) {
+              // 跳过普通移动，直接应用Boss AI设置的vx/vy
+            } else if (mDistance > 1) {
             const moveSpeed = monster.speed * (monster.isStunned ? 0 : 1);
 
             // 避障AI
@@ -3095,8 +3139,31 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
             // 怪物动画
             // 近战Boss浮动更明显（8像素），普通怪物浮动较小（2像素）
-            const floatAmplitude = monster.type === 'melee_boss' ? 8 : 2;
-            const animOffset = Math.sin(gameTimeRef.current * 5 + monster.animationOffset) * floatAmplitude;
+            // 冲刺时Boss不浮动，前摇时浮动加重（12像素）
+            let floatAmplitude = monster.type === 'melee_boss' ? 8 : 2;
+            let floatSpeed = 5;
+            let animOffset = 0;
+
+            if (monster.type === 'melee_boss') {
+              if (monster.isCharging) {
+                const chargeElapsed = performance.now() - monster.chargeStartTime;
+                if (chargeElapsed > 1000) {
+                  // 冲刺阶段：不浮动，改为震动
+                  floatAmplitude = 0;
+                  animOffset = (Math.random() - 0.5) * 2; // 轻微震动
+                } else {
+                  // 前摇阶段：浮动加重并加快
+                  floatAmplitude = 12;
+                  floatSpeed = 10; // 更快的浮动频率
+                  animOffset = Math.sin(gameTimeRef.current * floatSpeed + monster.animationOffset) * floatAmplitude;
+                }
+              } else {
+                // 普通状态：正常浮动
+                animOffset = Math.sin(gameTimeRef.current * floatSpeed + monster.animationOffset) * floatAmplitude;
+              }
+            } else {
+              animOffset = Math.sin(gameTimeRef.current * floatSpeed + monster.animationOffset) * floatAmplitude;
+            }
 
             // 根据怪物类型绘制
             const monsterPixels = PIXEL_ART.monsters[monster.type];
@@ -3110,6 +3177,32 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               ctx.scale(monster.scale * scaleMultiplier, monster.scale * scaleMultiplier);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
               ctx.restore();
+            }
+
+            // 近战Boss冲刺前摇发光效果
+            if (monster.type === 'melee_boss' && monster.isCharging) {
+              const chargeElapsed = performance.now() - monster.chargeStartTime;
+              if (chargeElapsed <= 1000) { // 前摇阶段
+                const windupProgress = chargeElapsed / 1000;
+                const glowAlpha = 0.3 + Math.sin(windupProgress * Math.PI) * 0.2; // 脉冲发光
+
+                ctx.save();
+                ctx.translate(monsterScreenX, monsterScreenY + animOffset);
+
+                // 外圈红色发光
+                ctx.fillStyle = `rgba(255, 100, 100, ${glowAlpha * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, monster.size * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 中圈橙色发光
+                ctx.fillStyle = `rgba(255, 200, 50, ${glowAlpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, monster.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+              }
             }
 
             // Boss护盾视觉效果（使用淡紫色，更不明显）
@@ -3261,21 +3354,23 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 近战Boss护盾（淡紫色，更不明显）
               if (monster.hasShield && monster.shieldHp > 0) {
                 const shieldAlpha = 0.2 + Math.sin(gameTimeRef.current * 3) * 0.08;
+                const shieldScale = monster.size / 45 * 2.8; // 根据Boss体型动态调整护盾大小
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
+                ctx.scale(shieldScale, shieldScale); // 整体缩放护盾
 
                 // 绘制外圈护盾（淡紫色）
                 const outerShield = PIXEL_ART.bossShield.shield;
                 outerShield.forEach(pixel => {
                   ctx.fillStyle = pixel.color.replace('0.6', shieldAlpha.toFixed(2)).replace('52, 152, 219', '142, 68, 173');
-                  ctx.fillRect(pixel.x - 2, pixel.y - 2, 4, 4); // 放大以适应更大体型
+                  ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
                 });
 
                 // 绘制内圈护盾（淡紫色高亮）
                 const innerShield = PIXEL_ART.bossShield.innerShield;
                 innerShield.forEach(pixel => {
                   ctx.fillStyle = pixel.color.replace('0.8', (shieldAlpha + 0.1).toFixed(2)).replace('93, 173, 226', '167, 107, 199');
-                  ctx.fillRect(pixel.x - 2, pixel.y - 2, 4, 4); // 放大以适应更大体型
+                  ctx.fillRect(pixel.x - 1, pixel.y - 1, 3, 3);
                 });
 
                 ctx.restore();
