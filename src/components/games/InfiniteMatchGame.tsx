@@ -142,6 +142,16 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 监听全屏变化
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // 初始化音效系统
   const initAudio = useCallback(() => {
@@ -706,9 +716,15 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     };
   }, []);
 
-  // 切换全屏（伪全屏：只放大游戏区域）
+  // 切换全屏（参考肉鸽游戏实现）
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(prev => !prev);
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
   }, []);
 
   // 切换音效
@@ -874,13 +890,14 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
 
   return (
     <motion.div
+      ref={containerRef}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className={`w-full max-w-6xl mx-auto ${isFullscreen ? 'fixed inset-0 z-[9999] p-4 flex items-center justify-center' : ''}`}
+      className="w-full max-w-6xl mx-auto"
     >
-      <Card className={`p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative transition-all duration-300 ${isFullscreen ? 'h-full' : ''}`}>
+      <Card className="p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative">
         {/* 动态背景光晕 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
@@ -1109,27 +1126,52 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                   {/* 连接线层 */}
                   <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
                     {matchedPath.length > 1 && (
-                      <motion.path
-                        d={matchedPath.map((point, index) => {
-                          const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
-                          const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
-                          return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                        }).join(' ')}
-                        stroke="url(#lineGradient)"
-                        strokeWidth="4"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.2 }}
-                      />
+                      <>
+                        {/* 连线发光效果 */}
+                        <motion.path
+                          d={matchedPath.map((point, index) => {
+                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
+                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
+                            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                          }).join(' ')}
+                          stroke="url(#lineGlowGradient)"
+                          strokeWidth="10"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.3 }}
+                          style={{ filter: 'blur(8px)' }}
+                        />
+                        {/* 主连线 */}
+                        <motion.path
+                          d={matchedPath.map((point, index) => {
+                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
+                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
+                            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                          }).join(' ')}
+                          stroke="url(#lineGradient)"
+                          strokeWidth="5"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </>
                     )}
                     <defs>
                       <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.9" />
-                        <stop offset="50%" stopColor="#ec4899" stopOpacity="0.9" />
-                        <stop offset="100%" stopColor="#f97316" stopOpacity="0.9" />
+                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
+                        <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
+                        <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
+                      </linearGradient>
+                      <linearGradient id="lineGlowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.8" />
+                        <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#d97706" stopOpacity="0.8" />
                       </linearGradient>
                     </defs>
                   </svg>
@@ -1153,7 +1195,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             transition-all duration-200
                             ${tile === 0 ? 'invisible' : 'visible'}
                             ${selectedTile?.x === x && selectedTile?.y === y
-                              ? 'ring-4 ring-yellow-400 scale-105 z-10 shadow-lg shadow-yellow-400/20'
+                              ? 'ring-4 ring-yellow-400 scale-110 z-10 shadow-xl shadow-yellow-400/30'
                               : ''}
                             ${eliminationTiles.some(t => t.x === x && t.y === y)
                               ? 'scale-0 opacity-0'
@@ -1162,13 +1204,21 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             ${tile > 0 ? 'cursor-pointer' : 'cursor-default'}
                           `}
                           style={{
-                            background: tile > 0
+                            background: selectedTile?.x === x && selectedTile?.y === y
+                              ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.8) 0%, rgba(234, 179, 8, 0.8) 50%, rgba(202, 138, 4, 0.8) 100%)'
+                              : tile > 0
                               ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.6) 0%, rgba(236, 72, 153, 0.6) 50%, rgba(249, 115, 22, 0.6) 100%)'
                               : 'transparent',
-                            boxShadow: tile > 0
+                            boxShadow: selectedTile?.x === x && selectedTile?.y === y
+                              ? '0 8px 20px -2px rgba(251, 191, 36, 0.5), 0 4px 10px -2px rgba(251, 191, 36, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)'
+                              : tile > 0
                               ? '0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
                               : 'none',
-                            border: tile > 0 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
+                            border: selectedTile?.x === x && selectedTile?.y === y
+                              ? '2px solid rgba(254, 243, 199, 0.5)'
+                              : tile > 0
+                              ? '1px solid rgba(255, 255, 255, 0.1)'
+                              : 'none'
                           }}
                           whileHover={tile > 0 ? { scale: 1.08, boxShadow: '0 8px 16px -2px rgba(0, 0, 0, 0.5), 0 4px 8px -2px rgba(0, 0, 0, 0.4)' } : {}}
                           whileTap={tile > 0 ? { scale: 0.92 } : {}}
