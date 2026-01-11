@@ -136,6 +136,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   // 动画和效果
   const [eliminationTiles, setEliminationTiles] = useState<{ x: number; y: number }[]>([]);
   const [showTutorial, setShowTutorial] = useState(true);
+  const [particles, setParticles] = useState<Array<{ id: string; x: number; y: number; vx: number; vy: number; color: string }>>([]);
 
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -577,6 +578,26 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     setEliminationTiles([tile1, tile2]);
     setMatchedPath(path);
 
+    // 生成粒子特效
+    const colors = ['#fbbf24', '#f59e0b', '#d97706', '#fcd34d', '#8b5cf6', '#ec4899'];
+    const newParticles: Array<{ id: string; x: number; y: number; vx: number; vy: number; color: string }> = [];
+    
+    // 为每个消除位置生成粒子
+    [tile1, tile2].forEach(tile => {
+      for (let i = 0; i < 12; i++) {
+        newParticles.push({
+          id: `${tile.x}-${tile.y}-${i}-${Date.now()}`,
+          x: tile.x,
+          y: tile.y,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8,
+          color: colors[Math.floor(Math.random() * colors.length)]
+        });
+      }
+    });
+    
+    setParticles(prev => [...prev, ...newParticles]);
+
     // 播放消除音效
     const newCombo = comboCount + 1;
     if (newCombo >= 8) {
@@ -610,11 +631,16 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     const newTilesLeft = tilesLeft - 2;
     setTilesLeft(newTilesLeft);
 
-    // 延迟更新游戏板
+    // 延迟更新游戏板（延长连线显示时间）
     setTimeout(() => {
       setBoard(newBoard);
       setEliminationTiles([]);
       setMatchedPath([]);
+
+      // 清理粒子
+      setTimeout(() => {
+        setParticles([]);
+      }, 600);
 
       // 检查是否完成当前关卡
       if (newTilesLeft === 0) {
@@ -623,7 +649,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
         // 如果无解，智能重新排列
         smartReshuffle(newBoard);
       }
-    }, 300);
+    }, 400); // 从 300ms 增加到 400ms
   }
 
   // 智能重新洗牌
@@ -895,9 +921,9 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-6xl mx-auto"
+      className={`w-full mx-auto ${isFullscreen ? 'h-screen p-4' : 'max-w-6xl'}`}
     >
-      <Card className="p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative">
+      <Card className={`p-4 sm:p-6 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 backdrop-blur-xl border-purple-500/20 shadow-2xl overflow-hidden relative ${isFullscreen ? 'h-full' : ''}`}>
         {/* 动态背景光晕 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
@@ -936,11 +962,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
           />
         </div>
 
-        <div className="relative z-10 space-y-4">
+        <div className={`relative z-10 ${isFullscreen ? 'h-full flex flex-col' : 'space-y-4'}`}>
           {/* 顶部工具栏 */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between shrink-0">
             <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
                 {t.title}
               </h2>
             </div>
@@ -1051,10 +1077,10 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-4"
+                className={`${isFullscreen ? 'flex-1 flex flex-col min-h-0' : 'space-y-4'}`}
               >
                 {/* 时间进度条 */}
-                <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden">
+                <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden shrink-0">
                   <motion.div
                     className={`h-full transition-all duration-1000 ${
                       timeLeft < 30 
@@ -1077,27 +1103,27 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 状态显示栏（固定在顶部，不影响游戏区域） */}
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-violet-500/20">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                <div className={`grid ${isFullscreen ? 'grid-cols-4' : 'grid-cols-4'} gap-2 sm:gap-3 shrink-0`}>
+                  <div className="bg-gradient-to-br from-violet-500/10 to-violet-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-violet-500/20">
+                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
                       {formatTime(timeLeft)}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">{t.ui.timeLeft}</div>
                   </div>
-                  <div className="bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-fuchsia-500/20">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                  <div className="bg-gradient-to-br from-fuchsia-500/10 to-fuchsia-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-fuchsia-500/20">
+                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
                       {score}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">{t.ui.score}</div>
                   </div>
-                  <div className="bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-pink-500/20">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">
+                  <div className="bg-gradient-to-br from-pink-500/10 to-pink-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-pink-500/20">
+                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">
                       {level}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">{t.ui.level}</div>
                   </div>
-                  <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl p-4 text-center backdrop-blur-sm border border-cyan-500/20">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl p-2 sm:p-4 text-center backdrop-blur-sm border border-cyan-500/20">
+                    <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                       {tilesLeft}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">{t.ui.tilesLeft}</div>
@@ -1105,7 +1131,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                 </div>
 
                 {/* 游戏区域 */}
-                <div className="relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl p-4 overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50">
+                <div className={`relative bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm border border-slate-700/50 ${isFullscreen ? 'flex-1 min-h-0 p-2 sm:p-3' : 'p-2 sm:p-3 md:p-4'}`}>
                   {/* 连击显示（在游戏区域内） */}
                   {comboCount > 1 && (
                     <motion.div
@@ -1123,61 +1149,116 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                       </div>
                     </motion.div>
                   )}
+
+                  {/* 粒子特效层 */}
+                  <div className="absolute inset-0 pointer-events-none z-50">
+                    {particles.map((particle) => (
+                      <motion.div
+                        key={particle.id}
+                        initial={{ 
+                          x: '0%', 
+                          y: '0%',
+                          scale: 1,
+                          opacity: 1
+                        }}
+                        animate={{
+                          x: `${particle.vx * 100}%`,
+                          y: `${particle.vy * 100}%`,
+                          scale: 0,
+                          opacity: 0
+                        }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className="absolute w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor: particle.color,
+                          left: `${(particle.x / (BOARD_COLS + 2)) * 100}%`,
+                          top: `${(particle.y / (BOARD_ROWS + 2)) * 100}%`,
+                          filter: 'blur(1px)',
+                          boxShadow: `0 0 6px ${particle.color}, 0 0 12px ${particle.color}`
+                        }}
+                      />
+                    ))}
+                  </div>
+
                   {/* 连接线层 */}
-                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
+                  <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 40 }}>
                     {matchedPath.length > 1 && (
                       <>
-                        {/* 连线发光效果 */}
+                        <defs>
+                          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
+                            <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
+                            <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
+                          </linearGradient>
+                          <linearGradient id="lineGlowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9" />
+                            <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.9" />
+                            <stop offset="100%" stopColor="#d97706" stopOpacity="0.9" />
+                          </linearGradient>
+                          <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                              <feMergeNode in="coloredBlur"/>
+                              <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
+                        </defs>
+                        {/* 连线发光效果（更宽，更明显） */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
-                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
-                            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100;
+                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100;
+                            return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                           }).join(' ')}
                           stroke="url(#lineGlowGradient)"
-                          strokeWidth="10"
+                          strokeWidth="16"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          initial={{ pathLength: 0 }}
-                          animate={{ pathLength: 1 }}
-                          transition={{ duration: 0.3 }}
-                          style={{ filter: 'blur(8px)' }}
+                          filter="url(#glow)"
+                          initial={{ pathLength: 0, opacity: 0 }}
+                          animate={{ pathLength: 1, opacity: 1 }}
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
                         />
                         {/* 主连线 */}
                         <motion.path
                           d={matchedPath.map((point, index) => {
-                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100 + '%';
-                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100 + '%';
-                            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                            const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100;
+                            const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100;
+                            return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                           }).join(' ')}
                           stroke="url(#lineGradient)"
-                          strokeWidth="5"
+                          strokeWidth="8"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          initial={{ pathLength: 0 }}
-                          animate={{ pathLength: 1 }}
-                          transition={{ duration: 0.3 }}
+                          initial={{ pathLength: 0, opacity: 0 }}
+                          animate={{ pathLength: 1, opacity: 1 }}
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
                         />
+                        {/* 连接点高亮 */}
+                        {matchedPath.map((point, index) => {
+                          const x = ((point.x - 0.5) / (BOARD_COLS + 2)) * 100;
+                          const y = ((point.y - 0.5) / (BOARD_ROWS + 2)) * 100;
+                          return (
+                            <motion.circle
+                              key={`point-${index}`}
+                              cx={`${x}%`}
+                              cy={`${y}%`}
+                              r="4"
+                              fill="#fcd34d"
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ duration: 0.2, delay: index * 0.05 }}
+                            />
+                          );
+                        })}
                       </>
                     )}
-                    <defs>
-                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
-                        <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
-                      </linearGradient>
-                      <linearGradient id="lineGlowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.8" />
-                        <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#d97706" stopOpacity="0.8" />
-                      </linearGradient>
-                    </defs>
                   </svg>
 
                   <div
-                    className="grid gap-2 relative z-10"
+                    className={`grid gap-1 sm:gap-1.5 md:gap-2 relative z-10 ${isFullscreen ? 'h-full' : ''}`}
                     style={{
                       gridTemplateColumns: `repeat(${BOARD_COLS + 2}, minmax(0, 1fr))`,
                       gridTemplateRows: `repeat(${BOARD_ROWS + 2}, minmax(0, 1fr))`
@@ -1191,11 +1272,11 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                           onClick={() => handleTileClick(x, y)}
                           disabled={tile === 0}
                           className={`
-                            aspect-square rounded-xl flex items-center justify-center relative overflow-hidden
+                            aspect-square rounded-lg flex items-center justify-center relative overflow-hidden
                             transition-all duration-200
                             ${tile === 0 ? 'invisible' : 'visible'}
                             ${selectedTile?.x === x && selectedTile?.y === y
-                              ? 'ring-4 ring-yellow-400 scale-110 z-10 shadow-xl shadow-yellow-400/30'
+                              ? 'ring-3 ring-yellow-400 scale-110 z-10 shadow-xl shadow-yellow-400/30'
                               : ''}
                             ${eliminationTiles.some(t => t.x === x && t.y === y)
                               ? 'scale-0 opacity-0'
