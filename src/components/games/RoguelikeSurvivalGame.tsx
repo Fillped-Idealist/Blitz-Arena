@@ -121,7 +121,7 @@ const TRANSLATIONS = {
       passive_crit: '弱点识别：暴击几率永久+10%（可累加）',
       passive_damage: '力量：所有伤害永久+15%（可累加）',
       passive_shield: '护盾：每15秒获得1500点临时护盾（被动）',
-      passive_freeze: '冰霜：攻击有10%几率冻结敌人1秒（被动）',
+      passive_freeze: '冰霜：攻击有20%几率冻结敌人1秒（被动）',
       passive_chain: '连锁：攻击有15%几率连锁到附近敌人（被动）',
       passive_revive: '不屈：死亡时有20%几率回复50%生命值并继续战斗（被动）',
       passive_ultimate: '终极：所有被动技能效果+50%（被动）',
@@ -296,7 +296,7 @@ const TRANSLATIONS = {
       passive_crit: 'Weakness Detection: Crit chance +10% (stackable)',
       passive_damage: 'Strength: All damage +15% (stackable)',
       passive_shield: 'Shield: Gain 1500 temporary shield every 15s (passive)',
-      passive_freeze: 'Frost: 10% chance to freeze enemy for 1s on attack (passive)',
+      passive_freeze: 'Frost: 20% chance to freeze enemy for 1s on attack (passive)',
       passive_chain: 'Chain: 15% chance to chain to nearby enemies (passive)',
       passive_revive: 'Unyielding: 20% chance to revive with 50% HP on death (passive)',
       passive_ultimate: 'Ultimate: All passive effects +50% (passive)',
@@ -1187,7 +1187,7 @@ const SKILL_POOL: Skill[] = [
     color: COLORS.legendary,
     icon: SKILL_ICONS.skull
   },
-  // 神话技能（25级后可解锁）
+  // 传说技能（25级后可解锁）
   {
     id: 'champion',
     name: '冠军之心',
@@ -1202,8 +1202,8 @@ const SKILL_POOL: Skill[] = [
       baseSpeed: p.baseSpeed * 1.2,
       speed: p.speed * 1.2
     }),
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.star
   },
   // 武器切换（主动）
@@ -1282,8 +1282,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.magic
   },
   // 追踪频率系列（缩短冷却）
@@ -1334,8 +1334,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.magic
   },
   // 追踪穿透系列（法阵范围）
@@ -1355,8 +1355,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵范围扩大30%（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.magic
   },
   // 武器切换（主动）
@@ -1435,8 +1435,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵伤害 +200（被动）',
     type: 'passive',
     apply: (p) => ({ ...p, trackingMasteryLevel: p.trackingMasteryLevel + 1 }),
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.magic
   },
   // 追踪频率系列（缩短冷却）
@@ -1487,8 +1487,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵同时锁定 +1个敌人（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.magic
   },
   // 追踪穿透系列（法阵范围）
@@ -1508,8 +1508,8 @@ const SKILL_POOL: Skill[] = [
     description: '天命法阵范围扩大30%（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'mythic',
-    color: COLORS.mythic,
+    rarity: 'legendary',
+    color: COLORS.legendary,
     icon: SKILL_ICONS.magic
   },
   // 被动技能
@@ -1588,7 +1588,7 @@ const SKILL_POOL: Skill[] = [
   {
     id: 'passive_freeze',
     name: '冰霜',
-    description: '攻击有10%几率冻结敌人1秒（被动）',
+    description: '攻击有20%几率冻结敌人1秒（被动）',
     type: 'passive',
     apply: (p) => p,
     rarity: 'epic',
@@ -1609,8 +1609,8 @@ const SKILL_POOL: Skill[] = [
     description: '死亡时有20%几率回复50%生命值并继续战斗（被动）',
     type: 'passive',
     apply: (p) => p,
-    rarity: 'mythic',
-    color: COLORS.mythic
+    rarity: 'legendary',
+    color: COLORS.legendary
   },
   {
     id: 'passive_ultimate',
@@ -2328,9 +2328,10 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
       // 过滤掉需要前置技能的选项和已拥有的被动技能
       const filteredSkills = SKILL_POOL.filter(skill => {
-        // 检查是否已经拥有该技能（被动技能和天命法阵相关技能）
+        // 检查是否已经拥有该技能（被动技能和天命法阵相关技能，冰霜技能）
         if (skill.type === 'passive' ||
             skill.id === 'auto_tracking' ||
+            skill.id === 'passive_freeze' ||
             skill.id.startsWith('tracking_mastery') ||
             skill.id.startsWith('tracking_speed') ||
             skill.id.startsWith('tracking_multishot') ||
@@ -4105,6 +4106,18 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
           if (monster.isStunned) {
             monster.stunnedTime -= deltaTime * 1000;
+            // 冰霜视觉效果：持续产生冰霜粒子
+            const now = performance.now();
+            if (!monster.lastDamageTime || now - monster.lastDamageTime > 100) {
+              createParticles(
+                monster.x + (Math.random() - 0.5) * monster.size,
+                monster.y + (Math.random() - 0.5) * monster.size,
+                '#85C1E9',
+                3,
+                'ice'
+              );
+              monster.lastDamageTime = now;
+            }
             if (monster.stunnedTime <= 0) {
               monster.isStunned = false;
             }
@@ -4337,6 +4350,51 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               const finalScale = monster.scale * scaleMultiplier * attackScale;
               ctx.scale(finalScale, finalScale);
               drawPixelArt(ctx, monsterPixels, -4, -4, 1);
+              ctx.restore();
+            }
+
+            // 冰霜冻结视觉效果（蓝色光环和脉冲）
+            if (monster.isStunned) {
+              const pulseAlpha = 0.3 + Math.sin(gameTimeRef.current * 5) * 0.15;
+              ctx.save();
+              ctx.translate(monsterScreenX, monster.y + animOffset);
+
+              // 外圈冰霜光环（浅蓝色）
+              ctx.fillStyle = `rgba(135, 206, 250, ${pulseAlpha * 0.4})`;
+              ctx.beginPath();
+              ctx.arc(0, 0, monster.size * 1.2, 0, Math.PI * 2);
+              ctx.fill();
+
+              // 中圈冰霜光环（深蓝色）
+              ctx.fillStyle = `rgba(0, 206, 201, ${pulseAlpha * 0.3})`;
+              ctx.beginPath();
+              ctx.arc(0, 0, monster.size * 0.9, 0, Math.PI * 2);
+              ctx.fill();
+
+              // 内圈冰霜光环（青色）
+              ctx.fillStyle = `rgba(133, 193, 233, ${pulseAlpha * 0.5})`;
+              ctx.beginPath();
+              ctx.arc(0, 0, monster.size * 0.6, 0, Math.PI * 2);
+              ctx.fill();
+
+              // 冰晶粒子装饰（围绕怪物旋转）
+              const crystalCount = 6;
+              for (let i = 0; i < crystalCount; i++) {
+                const angle = (gameTimeRef.current * 2) + (i * (Math.PI * 2 / crystalCount));
+                const radius = monster.size * 1.3;
+                const cx = Math.cos(angle) * radius;
+                const cy = Math.sin(angle) * radius;
+                const crystalSize = 4 + Math.sin(gameTimeRef.current * 3 + i) * 2;
+
+                ctx.fillStyle = `rgba(200, 230, 255, ${pulseAlpha * 0.6})`;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - crystalSize);
+                ctx.lineTo(cx - crystalSize * 0.7, cy + crystalSize * 0.7);
+                ctx.lineTo(cx + crystalSize * 0.7, cy + crystalSize * 0.7);
+                ctx.closePath();
+                ctx.fill();
+              }
+
               ctx.restore();
             }
 
@@ -4692,12 +4750,14 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                   playSound('shoot');
                 }
 
-                // 冰霜被动
+                // 冰霜被动（20%冻结概率，不可叠加，强化视觉效果）
                 const hasFreeze = player.skills.some(s => s.id === 'passive_freeze');
-                if (hasFreeze && Math.random() < 0.1) {
+                if (hasFreeze && !monster.isStunned && Math.random() < 0.2) {
                   monster.isStunned = true;
                   monster.stunnedTime = 1000;
-                  createParticles(monster.x, monster.y, '#85C1E9', 10, 'ice');
+                  // 增加冻结粒子数量和范围
+                  createParticles(monster.x, monster.y, '#85C1E9', 25, 'ice');
+                  createParticles(monster.x, monster.y, '#00CEC9', 15, 'ice');
                 }
 
                 if (damage > 0) {
