@@ -1683,9 +1683,20 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       const angle = Math.atan2(monster.y - player.y, monster.x - player.x);
       createSlashEffect(player.x, player.y, angle, 'diagonal');
 
-      monster.hp = Math.max(0, Math.floor(monster.hp - damage));
-      monster.isStunned = true;
-      monster.stunnedTime = 350;
+      // 护盾优先吸收（修复近战Boss快速掉血问题）
+      if (monster.hasShield && monster.shieldHp > 0) {
+        const absorbed = Math.min(damage, monster.shieldHp);
+        monster.shieldHp = Math.max(0, Math.floor(monster.shieldHp - absorbed));
+        damage = Math.max(0, Math.floor(damage - absorbed));
+        createParticles(monster.x, monster.y, '#3498DB', 6, 'shield');
+        playSound('shoot');
+      }
+
+      if (damage > 0) {
+        monster.hp = Math.max(0, Math.floor(monster.hp - damage));
+        monster.isStunned = true;
+        monster.stunnedTime = 350;
+      }
 
       createParticles(monster.x, monster.y, COLORS.blood, 8, 'blood');
       createDamageNumber(monster.x, monster.y, damage, isCrit);
@@ -1978,8 +1989,8 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
     if (player.level >= 2 && typeRoll > 0.55 - difficulty * 0.05) type = 'skeleton';
     if (player.level >= 4 && typeRoll > 0.70 - difficulty * 0.05) type = 'ghost';
     if (player.level >= 5 && typeRoll > 0.82 - difficulty * 0.05) type = 'elite';
-    // 远程Boss刷新阈值（阈值越高概率越低，0.98表示约2%概率）
-    if (player.level >= 7 && typeRoll > 0.98 - difficulty * 0.05) type = 'boss';
+    // 远程Boss刷新阈值（阈值越高概率越低，0.99表示约1%概率，降低一半）
+    if (player.level >= 7 && typeRoll > 0.99 - difficulty * 0.05) type = 'boss';
     // 近战Boss不通过普通生成逻辑生成（使用独立刷新逻辑）
 
     const monsterStats = {
@@ -2142,7 +2153,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
           // 碰撞检测：冲刺造成双倍伤害并击退
           // 计算冲刺路径参数
           const sizeMultiplier = monster.size / 140;
-          const chargePathLength = 220 * sizeMultiplier; // 与显示区域一致（从280缩至78.5%）
+          const chargePathLength = 132 * sizeMultiplier; // 与显示区域一致（从220缩至60%）
           const chargePathWidth = 100 * sizeMultiplier; // 与显示区域一致
 
           // 检查玩家是否在冲刺路径上
@@ -2242,9 +2253,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
             monster.chargeDirection = { x: directionX, y: directionY };
             monster.chargeStartPos = { x: monster.x, y: monster.y };
             
-            // 计算终点（冲刺距离220像素，从280缩至78.5%）
+            // 计算终点（冲刺距离132像素，从220缩至60%）
             const sizeMultiplier = monster.size / 140;
-            const chargeDistance = 220 * sizeMultiplier;
+            const chargeDistance = 132 * sizeMultiplier;
             monster.chargeEndPos = {
               x: monster.x + directionX * chargeDistance,
               y: monster.y + directionY * chargeDistance
@@ -2731,6 +2742,9 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       skills: availableSkillsRef.current.map(s => ({ id: s.id, name: s.name }))
     });
 
+    // 重置Canvas状态，防止残留效果导致边框绘制问题
+    resetContext(ctx);
+
     // 半透明遮罩（渐变背景）
     const gradient = ctx.createRadialGradient(
       CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
@@ -2840,7 +2854,13 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
       ctx.quadraticCurveTo(x, startY, x + radius, startY);
       ctx.closePath();
       ctx.fill();
+
+      // 确保边框绘制正确（修复边线冒头问题）
+      ctx.save();
+      ctx.lineCap = 'butt'; // 使用butt样式避免冒头
+      ctx.lineJoin = 'round'; // 使用round样式确保连接处平滑
       ctx.stroke();
+      ctx.restore();
 
       // 高级技能的额外装饰（边框、光晕效果）
       if (isHighTierSkill) {
@@ -3746,7 +3766,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                 if (chargeElapsed <= 1000) { // 前摇阶段
                   // 根据Boss体型调整冲刺距离和宽度
                   const sizeMultiplier = monster.size / 140; // 相对于近战Boss基础体型（140像素）的倍数
-                  const pathLength = 220 * sizeMultiplier; // 冲刺距离按体型比例调整（从280缩至78.5%，与实际冲刺距离一致）
+                  const pathLength = 132 * sizeMultiplier; // 冲刺距离按体型比例调整（从220缩至60%，与实际冲刺距离一致）
                   const pathWidth = 100 * sizeMultiplier; // 冲刺宽度按体型比例调整
                   const dirX = monster.chargeDirection.x;
                   const dirY = monster.chargeDirection.y;
@@ -3865,7 +3885,7 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
               // 近战Boss护盾（淡紫色，更明显）
               if (monster.hasShield && monster.shieldHp > 0) {
                 const shieldAlpha = 0.35 + Math.sin(gameTimeRef.current * 2) * 0.1;
-                const shieldScale = monster.size / 140 * 18; // 进一步增大护盾显示，从12倍提升至18倍
+                const shieldScale = monster.size / 140 * 25.2; // 进一步增大护盾显示，从18倍提升至25.2倍（1.4倍）
                 ctx.save();
                 ctx.translate(monsterScreenX, monsterScreenY + animOffset);
                 ctx.scale(shieldScale, shieldScale); // 整体缩放护盾
