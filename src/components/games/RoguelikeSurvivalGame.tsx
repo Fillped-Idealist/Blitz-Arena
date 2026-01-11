@@ -3576,13 +3576,50 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
 
                 monster.hp = Math.max(0, Math.floor(monster.hp - auraDamage));
                 player.auraLastDamageTime = now;
-                
+
                 // 立场伤害视觉反馈（火焰粒子）
                 createParticles(monster.x, monster.y, '#FF6B6B', 3, 'fire');
                 createParticles(monster.x, monster.y, '#FFD93D', 2, 'spark');
-                
+
                 // 立场伤害数字（每次都显示，使用橙色区别于其他伤害）
                 createDamageNumber(monster.x, monster.y - monster.size * 0.5, Math.floor(auraDamage), false, false, '#FF8C00');
+
+                // 立场击杀处理
+                if (monster.hp < 0.1) {
+                  let expGain = monster.exp;
+
+                  // 快速学习被动
+                  const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
+                  if (hasFastLearning) {
+                    expGain *= 1.25;
+                  }
+
+                  player.exp += expGain;
+                  player.totalKills++;
+
+                  // 生命汲取被动
+                  const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
+                  if (hasLifesteal) {
+                    const healAmount = Math.floor(5 + player.healingBonus);
+                    player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                    createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+                    playSound('heal');
+                  }
+
+                  // 生命之源：击杀回血
+                  const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
+                  if (hasVitalitySource) {
+                    const healAmount = Math.floor(15 + player.healingBonus);
+                    player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                    createDamageNumber(player.x, player.y - 35, healAmount, false, true);
+                    playSound('heal');
+                  }
+
+                  createParticles(monster.x, monster.y, monster.color, 15, 'explosion');
+                  triggerScreenShake(1.5, 0.05);
+                  scoreRef.current += Math.floor(monster.exp);
+                  playSound('kill');
+                }
               }
             }
           }
@@ -4116,6 +4153,43 @@ export default function RoguelikeSurvivalGame({ onComplete, onCancel }: Roguelik
                     if (otherMonster.id !== monster.id && checkCollision(monster.x, monster.y, 100, otherMonster.x, otherMonster.y, otherMonster.size)) {
                       otherMonster.hp = Math.max(0, Math.floor(otherMonster.hp - damage * 0.5));
                       createParticles(otherMonster.x, otherMonster.y, '#F1C40F', 6, 'magic');
+
+                      // 连锁击杀处理
+                      if (otherMonster.hp < 0.1) {
+                        let expGain = Math.floor(otherMonster.exp);
+
+                        // 快速学习被动
+                        const hasFastLearning = player.skills.some(s => s.id === 'passive_exp');
+                        if (hasFastLearning) {
+                          expGain = Math.floor(expGain * 1.25);
+                        }
+
+                        player.exp += expGain;
+                        player.totalKills++;
+
+                        // 生命汲取被动
+                        const hasLifesteal = player.skills.some(s => s.id === 'passive_lifesteal');
+                        if (hasLifesteal) {
+                          const healAmount = Math.floor(5 + player.healingBonus);
+                          player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                          createDamageNumber(player.x, player.y - 20, healAmount, false, true);
+                          playSound('heal');
+                        }
+
+                        // 生命之源：击杀回血
+                        const hasVitalitySource = player.skills.some(s => s.id === 'ultimate_vitality');
+                        if (hasVitalitySource) {
+                          const healAmount = Math.floor(15 + player.healingBonus);
+                          player.hp = Math.min(player.maxHp, Math.floor(player.hp + healAmount));
+                          createDamageNumber(player.x, player.y - 35, healAmount, false, true);
+                          playSound('heal');
+                        }
+
+                        createParticles(otherMonster.x, otherMonster.y, otherMonster.color, 12, 'explosion');
+                        triggerScreenShake(1.5, 0.05);
+                        scoreRef.current += Math.floor(otherMonster.exp);
+                        playSound('kill');
+                      }
                     }
                   }
                 }
