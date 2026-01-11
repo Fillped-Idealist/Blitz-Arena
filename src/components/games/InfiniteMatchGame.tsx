@@ -157,23 +157,30 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
   }, []);
 
   // 初始化音效系统
-  const initAudio = useCallback(() => {
+  const initAudio = useCallback(async () => {
     if (typeof window !== 'undefined' && !audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // 确保 AudioContext 处于运行状态
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+    } else if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
     }
   }, []);
 
   // 播放背景音乐（更优美的旋律，降低音量，改进循环机制）
-  const playBackgroundMusic = useCallback(() => {
+  const playBackgroundMusic = useCallback(async () => {
     if (!soundEnabled || !audioContextRef.current) return;
 
     const ctx = audioContextRef.current;
 
+    // 确保 AudioContext 已启动
     if (ctx.state === 'suspended') {
-      ctx.resume();
+      await ctx.resume();
     }
 
-    // 如果音乐已经在播放，先停止
+    // 如果音乐已经在播放，直接返回
     if (bgMusicPlaying) return;
 
     const now = ctx.currentTime;
@@ -890,7 +897,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
     return 'C';
   };
 
-  // 获取方块中心点坐标（更智能、更可靠的方法）
+  // 获取方块中心点坐标（重写：支持任意网格坐标，包括边界和拐点）
   const getTileCenterPixel = (x: number, y: number): { x: number; y: number } | null => {
     const gameBoard = gameBoardRef.current;
 
@@ -899,8 +906,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    // 方法：直接使用 DOM 的 offsetLeft/offsetTop 来计算，避免 getBoundingClientRect 的复杂性和浏览器渲染影响
-    // 参考 (1,1) 方块
+    // 获取游戏板的尺寸和第一个方块（1,1）的信息
     const referenceTileKey = '1-1';
     const referenceTile = tileElementsRef.current.get(referenceTileKey);
 
@@ -909,39 +915,82 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
       return null;
     }
 
-    // 获取方块相对于游戏板的偏移
+    // 获取参考方块的尺寸和位置
     const tileLeft = referenceTile.offsetLeft;
     const tileTop = referenceTile.offsetTop;
     const tileWidth = referenceTile.offsetWidth;
     const tileHeight = referenceTile.offsetHeight;
 
-    // 获取相邻方块来计算实际间距
-    const nextXTile = tileElementsRef.current.get('2-1');
-    const nextYTile = tileElementsRef.current.get('1-2');
+    // 计算每个网格单元的尺寸（包括间距）
+    const cellWidth = tileWidth + (referenceTile.parentElement?.offsetLeft || 0) - tileLeft;
+    const cellHeight = tileHeight + (referenceTile.parentElement?.offsetTop || 0) - tileTop;
 
-    if (!nextXTile || !nextYTile) {
-      console.warn('Adjacent tiles not found');
-      return null;
-    }
+    // 获取游戏板的实际尺寸（考虑 padding）
+    const boardWidth = gameBoard.offsetWidth;
+    const boardHeight = gameBoard.offsetHeight;
 
-    // 计算间距（使用 offset 差值）
-    const tileGapX = nextXTile.offsetLeft - (tileLeft + tileWidth);
-    const tileGapY = nextYTile.offsetTop - (tileTop + tileHeight);
+    // 计算网格行列数
+    const gridCols = currentCols + 2;
+    const gridRows = currentRows + 2;
 
-    // 计算任意网格坐标的中心点
-    // 坐标 (0,0) 是游戏板的左上角，坐标 (1,1) 是第一个方块
-    // 需要计算相对于第一个方块 (1,1) 的偏移
-    const deltaX = (x - 1) * (tileWidth + tileGapX);
-    const deltaY = (y - 1) * (tileHeight + tileGapY);
+    // 计算每个网格单元的平均尺寸
+    const avgCellWidth = boardWidth / gridCols;
+    const avgCellHeight = boardHeight / gridRows;
 
-    const targetX = tileLeft + deltaX + tileWidth / 2;
-    const targetY = tileTop + deltaY + tileHeight / 2;
+    // 计算目标坐标的中心点
+    const targetX = x * avgCellWidth + avgCellWidth / 2;
+    const targetY = y * avgCellHeight + avgCellHeight / 2;
+
+    console.log('[getTileCenterPixel] Calculated position', {
+      x, y,
+      targetX, targetY,
+      boardWidth, boardHeight,
+      gridCols, gridRows,
+      avgCellWidth, avgCellHeight
+    });
 
     return {
       x: targetX,
       y: targetY
     };
   };
+
+  // 获取动态连线宽度和点大小
+  const getDynamicLineSizes = useCallback(() => {
+    const gameBoard = gameBoardRef.current;
+    if (!gameBoard) {
+      return { strokeWidth: 8, pointRadius: 4 };
+    }
+
+    // 获取游戏板的实际尺寸
+    const boardWidth = gameBoard.offsetWidth;
+    const boardHeight = gameBoard.offsetHeight;
+
+    // 计算网格行列数
+    const gridCols = currentCols + 2;
+    const gridRows = currentRows + 2;
+
+    // 计算每个网格单元的平均尺寸
+    const avgCellWidth = boardWidth / gridCols;
+    const avgCellHeight = boardHeight / gridRows;
+    const avgCellSize = (avgCellWidth + avgCellHeight) / 2;
+
+    // 基于单元格大小计算连线宽度（约单元格大小的 15%-20%）
+    const strokeWidth = Math.max(4, Math.min(avgCellSize * 0.18, 12));
+
+    // 点的大小约为连线宽度的 60%-70%
+    const pointRadius = Math.max(2.5, strokeWidth * 0.65);
+
+    console.log('[getDynamicLineSizes] Calculated sizes', {
+      boardWidth, boardHeight,
+      gridCols, gridRows,
+      avgCellSize,
+      strokeWidth,
+      pointRadius
+    });
+
+    return { strokeWidth, pointRadius };
+  }, [currentCols, currentRows]);
 
   // SVG图标组件
   const TileIcon = ({ type }: { type: number }) => {
@@ -1251,7 +1300,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.8, opacity: 0 }}
-                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30"
+                        className="absolute bottom-4 right-4 pointer-events-none z-30"
                       >
                         <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 via-yellow-600 to-orange-600 rounded-full shadow-lg shadow-orange-500/30">
                           <Flame className="w-5 h-5 text-white" />
@@ -1266,43 +1315,24 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                     {/* 连接线层 */}
                     <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full">
                       {matchedPath.length > 1 && (() => {
+                        const { strokeWidth, pointRadius } = getDynamicLineSizes();
                         const pathPoints = matchedPath.map((point) => getTileCenterPixel(point.x, point.y));
                         const validPoints = pathPoints.filter(p => p !== null) as Array<{ x: number; y: number }>;
 
                         if (validPoints.length < 2) return null;
 
-                        // 验证所有点的坐标是否在有效范围内
-                        const gameBoard = gameBoardRef.current;
-                        if (!gameBoard) return null;
+                        // 不再过滤边界点，因为我们重写了 getTileCenterPixel 函数
 
-                        const boardWidth = gameBoard.offsetWidth;
-                        const boardHeight = gameBoard.offsetHeight;
-
-                        // 过滤掉坐标超出边界的点
-                        const filteredPoints = validPoints.filter(
-                          point => point.x >= 0 && point.x <= boardWidth && point.y >= 0 && point.y <= boardHeight
-                        );
-
-                        if (filteredPoints.length < 2) {
-                          console.warn('[SVG] Filtered points result in < 2 points', {
-                            originalPoints: matchedPath,
-                            pathPoints,
-                            validPoints,
-                            filteredPoints,
-                            boardWidth,
-                            boardHeight
-                          });
-                          return null;
-                        }
-
-                        const pathD = filteredPoints.map((point, index) => {
+                        const pathD = validPoints.map((point, index) => {
                           return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
                         }).join(' ');
 
                         console.log('[SVG] Rendering path', {
                           pathD,
-                          pointCount: filteredPoints.length,
-                          points: filteredPoints
+                          pointCount: validPoints.length,
+                          points: validPoints,
+                          strokeWidth,
+                          pointRadius
                         });
 
                         return (
@@ -1324,7 +1354,7 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                             <motion.path
                               d={pathD}
                               stroke="url(#lineGradient)"
-                              strokeWidth={isFullscreen ? "12" : "8"}
+                              strokeWidth={strokeWidth}
                               fill="none"
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -1333,12 +1363,12 @@ export default function InfiniteMatchGame({ onComplete, onCancel }: InfiniteMatc
                               animate={{ opacity: 1 }}
                               transition={{ duration: 0.1 }}
                             />
-                            {filteredPoints.map((point, index) => (
+                            {validPoints.map((point, index) => (
                               <motion.circle
                                 key={`point-${index}`}
                                 cx={point.x}
                                 cy={point.y}
-                                r={isFullscreen ? "6" : "4"}
+                                r={pointRadius}
                                 fill="#fcd34d"
                                 filter="url(#glow)"
                                 initial={{ scale: 0, opacity: 0 }}
