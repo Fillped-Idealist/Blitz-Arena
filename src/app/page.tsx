@@ -14,6 +14,7 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
+  Gamepad2,
 } from "lucide-react";
 
 const stats = [
@@ -175,6 +176,16 @@ export default function HomePage() {
                 >
                   <Sparkles className="mr-2 w-5 h-5" />
                   Create Tournament
+                </Button>
+              </Link>
+              <Link href="/test">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="group text-violet-400 border-violet-500/30 hover:border-violet-500/50 hover:bg-violet-500/10 text-lg px-8 py-6 rounded-xl backdrop-blur-sm transition-all duration-300"
+                >
+                  <Gamepad2 className="mr-2 w-5 h-5" />
+                  Test Mode
                 </Button>
               </Link>
             </motion.div>
