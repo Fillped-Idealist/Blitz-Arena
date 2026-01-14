@@ -17,6 +17,8 @@ import {
   CheckCircle,
   AlertCircle,
   TrendingUp,
+  MessageSquare,
+  Hash,
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Card } from '@/components/ui/card';
@@ -61,12 +63,23 @@ const sections = [
   },
   {
     id: 'rewards',
-    title: 'Rewards',
+    title: 'Rewards & BLZ Token',
     icon: <Coins className="w-5 h-5" />,
     subsections: [
       { id: 'how-earn', title: 'How to Earn' },
-      { id: 'prize-pools', title: 'Prize Pools' },
-      { id: 'leaderboard', title: 'Leaderboard Rewards' },
+      { id: 'blz-token', title: 'BLZ Token' },
+      { id: 'leveling-system', title: 'Leveling System' },
+      { id: 'achievements', title: 'Achievements' },
+    ],
+  },
+  {
+    id: 'social',
+    title: 'Social Features',
+    icon: <Users className="w-5 h-5" />,
+    subsections: [
+      { id: 'friends', title: 'Friends System' },
+      { id: 'chat', title: 'Chat System' },
+      { id: 'profile', title: 'Profile & Likes' },
     ],
   },
   {
@@ -166,6 +179,9 @@ export default function DocsPage() {
               )}
               {activeSection === 'rewards' && (
                 <Rewards key="rewards" activeSubsection={activeSubsection} />
+              )}
+              {activeSection === 'social' && (
+                <Social key="social" activeSubsection={activeSubsection} />
               )}
               {activeSection === 'faq' && (
                 <FAQ key="faq" />
@@ -1284,5 +1300,231 @@ function FAQ() {
         ))}
       </div>
     </motion.div>
+  );
+}
+
+// Social Component
+function Social({ activeSubsection }: { activeSubsection: string }) {
+  return (
+    <div className="space-y-8">
+      {activeSubsection === 'friends' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-blue-500 to-purple-600 border-none text-white">
+              Social Connections
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Friends System
+            </h1>
+            <p className="text-lg text-gray-400">
+              Connect with other players and build your community on Blitz Arena.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-400" />
+                Adding Friends
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Add other players as friends to stay connected and track their achievements.
+              </p>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>By Wallet Address:</strong> Enter player's wallet address to send a friend request</li>
+                <li>• <strong>Pending Requests:</strong> Accept or decline friend requests from other players</li>
+                <li>• <strong>Friend List:</strong> View all your accepted friends on your profile or chat page</li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Friend Features</h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <MessageSquare className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <strong>Private Messaging</strong>
+                    <p className="text-gray-400 text-sm">Send private messages to your friends anytime</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Trophy className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <strong>Track Progress</strong>
+                    <p className="text-gray-400 text-sm">View your friends' achievements and tournament history</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Coins className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <strong>Achievement Bonus</strong>
+                    <p className="text-gray-400 text-sm">Unlock "First Friend" achievement (3 BLZ) and "Social Butterfly" achievement (10 BLZ for 10 friends)</p>
+                  </div>
+                </li>
+              </ul>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubsection === 'chat' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-green-500 to-teal-600 border-none text-white">
+              Communication
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Chat System
+            </h1>
+            <p className="text-lg text-gray-400">
+              Stay connected with friends and tournament participants through our chat system.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-green-400" />
+                Chat Types
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Blitz Arena offers two types of chat: private messaging and tournament chat rooms.
+              </p>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>Private Messages:</strong> One-on-one conversations with your friends</li>
+                <li>• <strong>Tournament Chat:</strong> Group chat for tournament participants only</li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Tournament Chat Rooms</h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <Hash className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <strong>Auto-Created</strong>
+                    <p className="text-gray-400 text-sm">A chat room is automatically created when a tournament is created</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Users className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <strong>Participants Only</strong>
+                    <p className="text-gray-400 text-sm">Only tournament participants can access the chat room</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Clock className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <strong>Auto-Cleanup</strong>
+                    <p className="text-gray-400 text-sm">Chat messages are automatically deleted 24 hours after the tournament ends</p>
+                  </div>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Privacy & Storage</h3>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>Local Storage:</strong> All chat messages are stored locally in your browser</li>
+                <li>• <strong>No On-Chain Cost:</strong> Chat data is stored off-chain to reduce gas fees</li>
+                <li>• <strong>Private:</strong> Only you and your friends can see your private messages</li>
+                <li>• <strong>Secure:</strong> Messages are not shared with third parties</li>
+              </ul>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubsection === 'profile' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-purple-500 to-pink-600 border-none text-white">
+              Personal Brand
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Profile & Likes
+            </h1>
+            <p className="text-lg text-gray-400">
+              Customize your profile and connect with the community.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-purple-400" />
+                Profile Features
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Your profile showcases your gaming achievements, tournament history, and social connections.
+              </p>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>Player Stats:</strong> Total tournaments, total prizes, and win rate</li>
+                <li>• <strong>Level & Tokens:</strong> Display your current level and BLZ token balance</li>
+                <li>• <strong>Achievements:</strong> Show off your unlocked achievements</li>
+                <li>• <strong>Tournament History:</strong> View all tournaments you've participated in</li>
+                <li>• <strong>Friends List:</strong> See all your accepted friends</li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-pink-400" />
+                Likes System
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Give and receive likes to show appreciation and build reputation.
+              </p>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <strong>Like Other Profiles</strong>
+                    <p className="text-gray-400 text-sm">Click the heart icon on any player's profile to like them</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <TrendingUp className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <strong>Receive Likes</strong>
+                    <p className="text-gray-400 text-sm">Others can like your profile to show appreciation</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <strong>Like Count</strong>
+                    <p className="text-gray-400 text-sm">Total likes are displayed on your profile for others to see</p>
+                  </div>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Profile Privacy</h3>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>Public Stats:</strong> Your tournament results and rankings are publicly visible</li>
+                <li>• <strong>Wallet Address:</strong> Your wallet address is visible on your profile</li>
+                <li>• <strong>Social Data:</strong> Friends, messages, and likes are stored locally</li>
+                <li>• <strong>No Personal Info:</strong> We do not collect or store personal information</li>
+              </ul>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+    </div>
   );
 }

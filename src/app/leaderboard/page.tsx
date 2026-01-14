@@ -17,15 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { Navbar } from "@/components/navbar";
-import { getLeaderboardData } from "@/lib/tournamentStore";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 
 type LeaderboardEntry = {
   rank: number;
   address: string;
-  totalPrizes: number;
+  totalPrizes: string;
   tournaments: number;
   wins: number;
-  gameType?: string;
 };
 
 // 游戏类型配置（无图标）
@@ -47,22 +46,18 @@ const TIME_RANGES = [
 
 export default function LeaderboardPage() {
   const [isMounted, setIsMounted] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedGameType, setSelectedGameType] = useState('all');
   const [selectedTimeRange, setSelectedTimeRange] = useState<'all' | 'week' | 'month'>('all');
+
+  // 从智能合约获取排行榜数据
+  const { leaderboard, loading, error } = useLeaderboard({
+    gameType: selectedGameType,
+    timeRange: selectedTimeRange,
+  });
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      setLeaderboard(getLeaderboardData({
-        gameType: selectedGameType,
-        timeRange: selectedTimeRange
-      }));
-    }
-  }, [isMounted, selectedGameType, selectedTimeRange]);
 
   if (!isMounted) {
     return (
@@ -72,6 +67,20 @@ export default function LeaderboardPage() {
           <div className="text-center py-20">
             <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <div className="text-2xl text-gray-400">Loading leaderboard...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <div className="container mx-auto px-6 pt-32 pb-20">
+          <div className="text-center py-20">
+            <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4 animate-spin" />
+            <div className="text-2xl text-gray-400">Loading leaderboard from blockchain...</div>
           </div>
         </div>
       </div>
@@ -236,14 +245,6 @@ export default function LeaderboardPage() {
                         <span className="text-sm text-gray-400">Wins</span>
                         <span className="text-lg font-bold text-white">{player.wins}</span>
                       </div>
-                      {player.gameType && selectedGameType === 'all' && (
-                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                          <span className="text-sm text-gray-400">Best Game</span>
-                          <span className="text-lg font-bold text-white">
-                            {GAME_TYPES.find(g => g.value === player.gameType)?.label}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </Card>

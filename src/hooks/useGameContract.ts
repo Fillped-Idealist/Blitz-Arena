@@ -972,29 +972,62 @@ export function useStartGame() {
 }
 
 /**
- * 结束比赛的 hook
+ * 设置比赛获胜者的 hook
  */
-export function useEndGame() {
+export function useSetWinners() {
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
 
-  const endGame = async (gameAddress: `0x${string}`) => {
-    toast.info('Ending game...', {
+  const setWinners = async (gameAddress: `0x${string}`, winners: `0x${string}`[]) => {
+    toast.info('Setting winners...', {
       description: 'Please approve the transaction in your wallet',
     });
 
     writeContract({
       address: gameAddress,
       abi: GAME_INSTANCE_ABI,
-      functionName: 'cancelGame',
+      functionName: 'setWinners',
+      args: [winners],
     });
   };
 
   return {
-    endGame,
+    setWinners,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+/**
+ * 分配奖金的 hook
+ */
+export function useDistributePrize() {
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  const distributePrize = async (gameAddress: `0x${string}`) => {
+    toast.info('Distributing prizes...', {
+      description: 'Please approve the transaction in your wallet',
+    });
+
+    writeContract({
+      address: gameAddress,
+      abi: GAME_INSTANCE_ABI,
+      functionName: 'distributePrize',
+    });
+  };
+
+  return {
+    distributePrize,
     hash,
     isPending,
     isConfirming,
