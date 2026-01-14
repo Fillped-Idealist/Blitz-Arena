@@ -404,7 +404,7 @@ export default function CreateTournamentPage() {
                       handleInputChange("distributionType", value)
                     }
                   >
-                    <SelectTrigger className="mt-2 bg-white/5 border-white/10 text-white">
+                    <SelectTrigger className="mt-2 h-12 bg-white/5 border-white/10 text-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-white/10">
@@ -412,7 +412,7 @@ export default function CreateTournamentPage() {
                         <SelectItem
                           key={dist.value}
                           value={dist.value}
-                          className="py-3 text-gray-300 focus:text-white focus:bg-white/10"
+                          className="py-2 text-gray-300 focus:text-white focus:bg-white/10"
                         >
                           <div className="flex flex-col gap-1">
                             <div className="font-medium text-base leading-tight">{dist.label}</div>
