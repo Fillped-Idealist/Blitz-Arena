@@ -280,22 +280,57 @@ export function submitGameResult(
 }
 
 // 获取排行榜数据
-export function getLeaderboardData(): Array<{
+export function getLeaderboardData(options?: {
+  gameType?: string;
+  timeRange?: 'all' | 'week' | 'month';
+}): Array<{
   rank: number;
   address: string;
   totalPrizes: number;
   tournaments: number;
   wins: number;
+  gameType?: string;
 }> {
   const tournaments = getAllTournaments();
-  const playerStats = new Map<string, { prizes: number; tournaments: number; wins: number }>();
+  const { gameType, timeRange = 'all' } = options || {};
+
+  // 筛选比赛
+  let filteredTournaments = tournaments;
+
+  if (gameType && gameType !== 'all') {
+    filteredTournaments = tournaments.filter(t => t.gameType === gameType);
+  }
+
+  if (timeRange !== 'all') {
+    const now = Date.now();
+    const timeLimit = timeRange === 'week'
+      ? 7 * 24 * 60 * 60 * 1000 // 7天
+      : 30 * 24 * 60 * 60 * 1000; // 30天
+
+    filteredTournaments = filteredTournaments.filter(t =>
+      t.results.some(r => r.timestamp > now - timeLimit)
+    );
+  }
+
+  const playerStats = new Map<string, { prizes: number; tournaments: number; wins: number; gameType: string }>();
 
   // 统计所有玩家数据
-  tournaments.forEach(tournament => {
+  filteredTournaments.forEach(tournament => {
     tournament.results.forEach((result, index) => {
+      // 时间范围过滤
+      if (timeRange !== 'all') {
+        const now = Date.now();
+        const timeLimit = timeRange === 'week'
+          ? 7 * 24 * 60 * 60 * 1000
+          : 30 * 24 * 60 * 60 * 1000;
+
+        if (result.timestamp <= now - timeLimit) return;
+      }
+
       const player = result.playerAddress;
-      const stats = playerStats.get(player) || { prizes: 0, tournaments: 0, wins: 0 };
+      const stats = playerStats.get(player) || { prizes: 0, tournaments: 0, wins: 0, gameType: '' };
       stats.tournaments += 1;
+      stats.gameType = tournament.gameType;
 
       // 简单计算奖金：第一名拿50%，前3名按比例分配
       const prizePerResult = Math.floor(parseInt(tournament.prize) * 0.5 / Math.max(1, tournament.results.length));
@@ -316,7 +351,8 @@ export function getLeaderboardData(): Array<{
       address: address.slice(0, 6) + '...' + address.slice(-4),
       totalPrizes: stats.prizes,
       tournaments: stats.tournaments,
-      wins: stats.wins
+      wins: stats.wins,
+      gameType: stats.gameType
     }))
     .sort((a, b) => b.totalPrizes - a.totalPrizes)
     .slice(0, 50); // 只显示前50名

@@ -11,6 +11,7 @@ import {
   Users,
   Calendar,
   ArrowRight,
+  Filter,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,16 +25,44 @@ type LeaderboardEntry = {
   totalPrizes: number;
   tournaments: number;
   wins: number;
+  gameType?: string;
 };
+
+// 游戏类型配置
+const GAME_TYPES = [
+  { id: 'all', label: 'All Games', icon: '🎮' },
+  { id: '1', label: 'Number Guess', icon: '🔢' },
+  { id: '2', label: 'Rock Paper Scissors', icon: '✊✋✌️' },
+  { id: '3', label: 'Quick Click', icon: '🎯' },
+  { id: '4', label: 'Cycle Rift', icon: '🌀' },
+  { id: '5', label: 'Infinite Match', icon: '🧩' },
+];
+
+// 时间范围配置
+const TIME_RANGES = [
+  { id: 'all', label: 'All Time' },
+  { id: 'week', label: 'This Week' },
+  { id: 'month', label: 'This Month' },
+];
 
 export default function LeaderboardPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [selectedGameType, setSelectedGameType] = useState('all');
+  const [selectedTimeRange, setSelectedTimeRange] = useState<'all' | 'week' | 'month'>('all');
 
   useEffect(() => {
     setIsMounted(true);
-    setLeaderboard(getLeaderboardData());
   }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      setLeaderboard(getLeaderboardData({
+        gameType: selectedGameType,
+        timeRange: selectedTimeRange
+      }));
+    }
+  }, [isMounted, selectedGameType, selectedTimeRange]);
 
   if (!isMounted) {
     return (
@@ -85,9 +114,9 @@ export default function LeaderboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="mb-8"
         >
-          <Badge className="mb-6 bg-gradient-to-r from-yellow-500 to-orange-600 border-none text-white">
+          <Badge className="mb-4 bg-gradient-to-r from-yellow-500 to-orange-600 border-none text-white">
             Top Performers
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -100,11 +129,74 @@ export default function LeaderboardPage() {
           </p>
         </motion.div>
 
-        {/* Top 3 Podium */}
+        {/* Filters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <Card className="bg-white/5 border-white/10 p-6">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Game Type Filter */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-400">Game Type</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {GAME_TYPES.map((game) => (
+                    <Button
+                      key={game.id}
+                      size="sm"
+                      variant={selectedGameType === game.id ? 'default' : 'outline'}
+                      onClick={() => setSelectedGameType(game.id)}
+                      className={`${
+                        selectedGameType === game.id
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white'
+                      }`}
+                    >
+                      <span className="mr-2">{game.icon}</span>
+                      {game.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Time Range Filter */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-400">Time Range</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {TIME_RANGES.map((range) => (
+                    <Button
+                      key={range.id}
+                      size="sm"
+                      variant={selectedTimeRange === range.id ? 'default' : 'outline'}
+                      onClick={() => setSelectedTimeRange(range.id as 'all' | 'week' | 'month')}
+                      className={`${
+                        selectedTimeRange === range.id
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white'
+                      }`}
+                    >
+                      {range.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Top 3 Podium */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
           className="grid md:grid-cols-3 gap-6 mb-12"
         >
           {topThree.map((player, index) => {
@@ -169,6 +261,15 @@ export default function LeaderboardPage() {
                         <span className="text-gray-400">Wins</span>
                         <span className="font-bold text-white">{player.wins}</span>
                       </div>
+                      {player.gameType && selectedGameType === 'all' && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Best Game</span>
+                          <span className="font-bold text-white">
+                            {GAME_TYPES.find(g => g.id === player.gameType)?.icon}{' '}
+                            {GAME_TYPES.find(g => g.id === player.gameType)?.label}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -249,7 +350,10 @@ export default function LeaderboardPage() {
                 No Rankings Yet
               </h3>
               <p className="text-gray-400 mb-6">
-                Be the first to compete and claim the top spot!
+                {selectedGameType !== 'all' || selectedTimeRange !== 'all'
+                  ? 'No rankings for this filter. Try a different category.'
+                  : 'Be the first to compete and claim the top spot!'
+                }
               </p>
             </Card>
           </motion.div>
