@@ -8,30 +8,23 @@ import {
   Trophy,
   Users,
   DollarSign,
-  TrendingUp,
-  Calendar,
-  Clock,
-  Gamepad2,
-  ArrowRight,
-  Medal,
   Star,
   Heart,
   UserPlus,
-  MessageSquare,
+  Gamepad2,
+  ArrowRight,
   Award,
   Zap,
+  Clock,
 } from "lucide-react";
+import { GameStatus } from "@/hooks/useGameContract";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Navbar } from "@/components/navbar";
-import {
-  getUserTournaments,
-  getUserStats,
-  Tournament,
-} from "@/lib/tournamentStore";
+import { useUserGames, GameType } from "@/hooks/useGameContract";
 import {
   getUserTokenBalance,
   getUserLevelData,
@@ -39,40 +32,32 @@ import {
   getUserAchievements,
   getUserFriends,
   getProfileLikes,
-  hasLiked,
-  likeProfile,
   getPendingFriendRequests,
   acceptFriendRequest,
   rejectFriendRequest,
   sendFriendRequest,
 } from "@/lib/socialStore";
+import { formatUnits } from "viem";
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
   const [isMounted, setIsMounted] = useState(false);
-  const [userTournaments, setUserTournaments] = useState<Tournament[]>([]);
-  const [stats, setStats] = useState({
-    totalTournaments: 0,
-    totalPrizes: 0,
-    wins: 0,
-    averageScore: 0,
-  });
 
-  // 社交和代币数据
+  // 使用合约获取用户比赛数据
+  const { userGames, loading: gamesLoading } = useUserGames();
+
+  // 社交和代币数据（保持使用 localStorage，因为社交数据应该存储在链下）
   const [tokenBalance, setTokenBalance] = useState({ balance: 0, totalEarned: 0, totalSpent: 0 });
   const [userLevel, setUserLevel] = useState({ level: 1, experience: 0, nextLevelExp: 100 });
   const [achievements, setAchievements] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
   const [likes, setLikes] = useState(0);
-  const [liked, setLiked] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [newFriendAddress, setNewFriendAddress] = useState("");
 
   useEffect(() => {
     setIsMounted(true);
     if (address) {
-      setUserTournaments(getUserTournaments(address));
-      setStats(getUserStats(address));
       setTokenBalance(getUserTokenBalance(address));
       setUserLevel(getUserLevelData(address));
       setAchievements(getUserAchievements(address));
@@ -81,6 +66,21 @@ export default function ProfilePage() {
       setPendingRequests(getPendingFriendRequests(address));
     }
   }, [address]);
+
+  // 从比赛数据计算统计数据
+  const stats = {
+    totalTournaments: userGames.length,
+    totalPrizes: userGames.reduce((sum, game) => {
+      // 计算奖金（这里需要从合约获取实际奖金，简化处理）
+      return sum + Number(formatUnits(game.prizePool, 18));
+    }, 0),
+    wins: userGames.filter(game => {
+      // 判断是否获胜（需要根据比赛结果判断）
+      // 简化处理：假设结束的比赛中有分数的就是参与者
+      return game.status === BigInt(2) || game.status === BigInt(3);
+    }).length,
+    averageScore: 0, // 需要从合约获取实际分数
+  };
 
   // 处理添加好友
   const handleAddFriend = (e: React.FormEvent) => {
@@ -109,46 +109,36 @@ export default function ProfilePage() {
     setPendingRequests(getPendingFriendRequests(address!));
   };
 
-  const gameTypeIcons: Record<string, string> = {
-    "1": "🔢",
-    "2": "✊✋✌️",
-    "3": "🎯"
+  const gameTypeIcons: Record<number, string> = {
+    [GameType.NumberGuess]: "🔢",
+    [GameType.RockPaperScissors]: "✊✋✌️",
+    [GameType.QuickClick]: "🎯",
+    4: "🌀",
+    5: "🧩",
   };
 
-  const gameTypeLabels: Record<string, string> = {
-    "1": "Number Guess",
-    "2": "Rock Paper Scissors",
-    "3": "Quick Click"
+  const gameTypeLabels: Record<number, string> = {
+    [GameType.NumberGuess]: "Number Guess",
+    [GameType.RockPaperScissors]: "Rock Paper Scissors",
+    [GameType.QuickClick]: "Quick Click",
+    4: "Cycle Rift",
+    5: "Infinite Match",
   };
 
-  const formatTime = (startTimeOffset: number) => {
-    if (!isMounted) return "";
-    const startTime = Date.now() + startTimeOffset * 60 * 1000;
-    const date = new Date(startTime);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const statusLabels: Record<number, string> = {
+    [GameStatus.Created]: "Open",
+    [GameStatus.Ongoing]: "Ongoing",
+    [GameStatus.Ended]: "Ended",
+    [GameStatus.Canceled]: "Canceled",
+    [GameStatus.PrizeDistributed]: "Completed",
   };
 
-  const getTimeRemaining = (startTimeOffset: number) => {
-    if (!isMounted) return "";
-    const startTime = Date.now() + startTimeOffset * 60 * 1000;
-    const diff = startTime - Date.now();
-
-    if (diff <= 0) return "Ended";
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      return `${days}d ${hours % 24}h`;
-    }
-
-    return `${hours}h ${minutes}m`;
+  const statusColors: Record<number, string> = {
+    [GameStatus.Created]: "bg-blue-500/20 text-blue-400",
+    [GameStatus.Ongoing]: "bg-green-500/20 text-green-400",
+    [GameStatus.Ended]: "bg-gray-500/20 text-gray-400",
+    [GameStatus.Canceled]: "bg-red-500/20 text-red-400",
+    [GameStatus.PrizeDistributed]: "bg-purple-500/20 text-purple-400",
   };
 
   if (!isConnected) {
@@ -223,7 +213,7 @@ export default function ProfilePage() {
               <span className="text-sm text-gray-400">Total Prizes</span>
             </div>
             <div className="text-3xl font-bold text-white">
-              {stats.totalPrizes}
+              {stats.totalPrizes.toFixed(2)}
             </div>
           </Card>
 
@@ -326,7 +316,12 @@ export default function ProfilePage() {
             </TabsList>
 
             <TabsContent value="tournaments" className="mt-6">
-              {userTournaments.length === 0 ? (
+              {gamesLoading ? (
+                <div className="text-center py-20">
+                  <Clock className="w-12 h-12 text-blue-400 mx-auto mb-4 animate-spin" />
+                  <div className="text-xl text-gray-400">Loading tournaments...</div>
+                </div>
+              ) : userGames.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -350,9 +345,9 @@ export default function ProfilePage() {
                 </motion.div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {userTournaments.map((tournament, index) => (
+                  {userGames.map((game, index) => (
                     <motion.div
-                      key={tournament.id}
+                      key={game.address}
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
@@ -360,29 +355,20 @@ export default function ProfilePage() {
                       <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden hover:border-white/20 transition-all duration-300 group h-full flex flex-col">
                         <div className="p-6 pb-4">
                           <div className="flex items-center justify-between mb-4">
-                            <Badge
-                              className={`${tournament.statusColor} text-white border-none`}
-                            >
-                              {tournament.status}
+                            <Badge className={statusColors[Number(game.status)]}>
+                              {statusLabels[Number(game.status)]}
                             </Badge>
-                            <div className="flex items-center text-sm text-gray-400">
-                              <Clock className="w-4 h-4 mr-1" />
-                              {getTimeRemaining(tournament.startTimeOffset)}
-                            </div>
                           </div>
 
                           <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
-                            {tournament.title}
+                            {game.title}
                           </h3>
-                          <p className="text-gray-400 text-sm mb-4">
-                            {tournament.description}
-                          </p>
 
                           <Badge
                             variant="outline"
                             className="border-white/20 text-gray-300 mb-4"
                           >
-                            {gameTypeIcons[tournament.gameType]} {gameTypeLabels[tournament.gameType]}
+                            {gameTypeIcons[Number(game.gameType)]} {gameTypeLabels[Number(game.gameType)]}
                           </Badge>
                         </div>
 
@@ -394,23 +380,23 @@ export default function ProfilePage() {
                                 <span className="text-xs text-gray-400">Prize Pool</span>
                               </div>
                               <div className="text-lg font-bold text-white">
-                                {tournament.prize}
+                                {formatUnits(game.prizePool, 18)}
                               </div>
                             </div>
                             <div className="bg-white/5 rounded-lg p-3">
                               <div className="flex items-center gap-2 mb-1">
                                 <Users className="w-4 h-4 text-blue-400" />
-                                <span className="text-xs text-gray-400">Players</span>
+                                <span className="text-xs text-gray-400">Entry Fee</span>
                               </div>
                               <div className="text-lg font-bold text-white">
-                                {tournament.currentPlayers}/{tournament.maxPlayers}
+                                {formatUnits(game.entryFee, 18)}
                               </div>
                             </div>
                           </div>
                         </div>
 
                         <div className="p-6 pt-0 border-t border-white/10 mt-auto">
-                          <Link href={`/tournament/${tournament.id}`}>
+                          <Link href={`/tournament/${game.address}`}>
                             <Button
                               variant="outline"
                               className="w-full border-white/20 text-white hover:bg-white/10"
@@ -427,43 +413,6 @@ export default function ProfilePage() {
               )}
             </TabsContent>
 
-            <TabsContent value="activity" className="mt-6">
-              <Card className="bg-white/5 border-white/10 p-8">
-                <h3 className="text-xl font-bold text-white mb-6">
-                  Recent Activity
-                </h3>
-                {userTournaments.length === 0 ? (
-                  <p className="text-gray-400">
-                    No recent activity. Join a tournament to start tracking your progress!
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {userTournaments.slice(0, 10).map((tournament) => (
-                      <div
-                        key={tournament.id}
-                        className="flex items-start gap-4 p-4 bg-white/5 rounded-lg border border-white/10"
-                      >
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                          <Gamepad2 className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-white mb-1">
-                            {tournament.title}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            Joined tournament • {new Date(tournament.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <Badge className={`${tournament.statusColor} text-white border-none`}>
-                          {tournament.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </TabsContent>
-
             {/* Achievements Tab */}
             <TabsContent value="achievements" className="mt-6">
               <Card className="bg-white/5 border-white/10 p-8">
@@ -475,22 +424,21 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {getAllAchievements().map((achievement) => {
-                    const unlocked = achievements.some(a => a.achievementId === achievement.id);
+                    const unlocked = achievements.some((a) => a.achievementId === achievement.id);
                     return (
                       <Card
                         key={achievement.id}
-                        className={`p-6 ${unlocked
-                          ? 'bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20'
-                          : 'bg-white/5 border-white/10 opacity-50'
+                        className={`p-6 ${
+                          unlocked
+                            ? "bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20"
+                            : "bg-white/5 border-white/10 opacity-50"
                         }`}
                       >
                         <h4 className="text-lg font-bold text-white mb-2">{achievement.name}</h4>
                         <p className="text-sm text-gray-400 mb-3">{achievement.description}</p>
                         <div className="flex items-center gap-2">
                           {unlocked ? (
-                            <Badge className="bg-green-500/20 text-green-400">
-                              Unlocked
-                            </Badge>
+                            <Badge className="bg-green-500/20 text-green-400">Unlocked</Badge>
                           ) : (
                             <Badge variant="outline" className="border-white/20 text-gray-400">
                               Locked
@@ -553,9 +501,7 @@ export default function ProfilePage() {
                                 <div className="text-sm font-medium text-white">
                                   {request.requester.slice(0, 6)}...{request.requester.slice(-4)}
                                 </div>
-                                <div className="text-xs text-gray-400">
-                                  Wants to be your friend
-                                </div>
+                                <div className="text-xs text-gray-400">Wants to be your friend</div>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -588,9 +534,7 @@ export default function ProfilePage() {
                     My Friends ({friends.length})
                   </h3>
                   {friends.length === 0 ? (
-                    <p className="text-gray-400">
-                      No friends yet. Add someone to get started!
-                    </p>
+                    <p className="text-gray-400">No friends yet. Add someone to get started!</p>
                   ) : (
                     <div className="space-y-3">
                       {friends.map((friend) => {
@@ -616,7 +560,7 @@ export default function ProfilePage() {
                               variant="outline"
                               onClick={() => {
                                 const profileUrl = `/profile?address=${friendAddress}`;
-                                window.open(profileUrl, '_blank');
+                                window.open(profileUrl, "_blank");
                               }}
                               className="border-white/20 text-gray-400"
                             >
@@ -669,7 +613,9 @@ export default function ProfilePage() {
                     <h4 className="text-lg font-bold text-white mb-4">Token Balance</h4>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-3xl font-bold text-violet-400">{tokenBalance.balance} BLZ</div>
+                        <div className="text-3xl font-bold text-violet-400">
+                          {tokenBalance.balance} BLZ
+                        </div>
                         <div className="text-sm text-gray-400 mt-1">
                           Earned: {tokenBalance.totalEarned} | Spent: {tokenBalance.totalSpent}
                         </div>

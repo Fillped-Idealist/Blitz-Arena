@@ -30,8 +30,7 @@ import { Slider } from "@/components/ui/slider";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
-import { createTournament } from "@/lib/tournamentStore";
-import { useCreateGame, useERC20, GameType, PrizeDistributionType, useNetworkCheck } from "@/hooks/useGameContract";
+import { useCreateGame, useERC20, GameType, PrizeDistributionType, useNetworkCheck, useContractAddresses } from "@/hooks/useGameContract";
 
 const GAME_TYPES = [
   {
@@ -87,7 +86,8 @@ export default function CreateTournamentPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { supported } = useNetworkCheck();
-  const { addresses, createGame } = useCreateGame();
+  const { createGame } = useCreateGame();
+  const addresses = useContractAddresses();
   const { approve } = useERC20(addresses.PRIZE_TOKEN as `0x${string}`);
 
   const [loading, setLoading] = useState(false);
@@ -178,22 +178,6 @@ export default function CreateTournamentPage() {
 
       // 创建比赛
       const result = await createGame(config);
-
-      // 同时更新本地存储
-      createTournament({
-        title: formData.title,
-        description: formData.description,
-        gameType: formData.gameType,
-        entryFee: formData.entryFee,
-        prizePool: formData.prizePool,
-        minPlayers: formData.minPlayers,
-        maxPlayers: formData.maxPlayers,
-        distributionType: formData.distributionType,
-        registrationDuration: formData.registrationDuration,
-        gameDuration: formData.gameDuration,
-        creatorAddress: address || '0xcreator',
-        startImmediately: formData.startImmediately,
-      });
 
       toast.success("Tournament created successfully!");
       router.push("/tournaments");

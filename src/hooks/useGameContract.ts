@@ -162,7 +162,6 @@ export function useCreateGame() {
     isConfirming,
     isSuccess,
     error,
-    addresses,
   };
 }
 
@@ -649,3 +648,389 @@ interface GameData {
   isJoined?: boolean;
 }
 
+interface GameDetails extends GameData {
+  description?: string;
+  creator?: `0x${string}`;
+  playersList?: Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }>;
+  myScore?: bigint;
+  hasSubmitted?: boolean;
+  canStartGame?: boolean;
+  prizeToClaim?: bigint;
+}
+
+/**
+ * 获取用户参与的所有比赛的 hook
+ */
+export function useUserGames(userAddress?: `0x${string}`) {
+  const { address } = useAccount();
+  const chainId = useChainId();
+  const userAddr = userAddress || address;
+  const publicClient = usePublicClient();
+  const addresses = getContractAddresses(chainId);
+  const [userGames, setUserGames] = useState<GameData[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!userAddr || !publicClient || !addresses.GAME_FACTORY) return;
+
+    const fetchUserGames = async () => {
+      setLoading(true);
+      try {
+        // 获取所有游戏
+        const allGames = await publicClient.readContract({
+          address: addresses.GAME_FACTORY,
+          abi: GAME_FACTORY_ABI,
+          functionName: 'allGames',
+        }) as unknown as `0x${string}`[];
+
+        // 批量检查用户是否参与了每个游戏
+        const gamesWithStatus = await Promise.allSettled(
+          allGames.map(async (gameAddr) => {
+            try {
+              const isJoined = await publicClient.readContract({
+                address: gameAddr,
+                abi: GAME_INSTANCE_ABI,
+                functionName: 'isJoined',
+                args: [userAddr],
+              }) as unknown as boolean;
+
+              if (isJoined) {
+                // 获取游戏基本信息
+                const [title, status, gameType, entryFee, prizePool] =
+                  await Promise.all([
+                    publicClient.readContract({
+                      address: gameAddr,
+                      abi: GAME_INSTANCE_ABI,
+                      functionName: 'title',
+                    }),
+                    publicClient.readContract({
+                      address: gameAddr,
+                      abi: GAME_INSTANCE_ABI,
+                      functionName: 'status',
+                    }),
+                    publicClient.readContract({
+                      address: gameAddr,
+                      abi: GAME_INSTANCE_ABI,
+                      functionName: 'gameType',
+                    }),
+                    publicClient.readContract({
+                      address: gameAddr,
+                      abi: GAME_INSTANCE_ABI,
+                      functionName: 'entryFee',
+                    }),
+                    publicClient.readContract({
+                      address: gameAddr,
+                      abi: GAME_INSTANCE_ABI,
+                      functionName: 'prizePool',
+                    }),
+                  ]);
+
+                // 获取玩家列表
+                const players = await publicClient.readContract({
+                  address: gameAddr,
+                  abi: GAME_INSTANCE_ABI,
+                  functionName: 'players',
+                }) as unknown as Promise<Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }>>;
+
+                const playersArray = await players;
+
+                return {
+                  address: gameAddr,
+                  title: title as string,
+                  status: status as unknown as bigint,
+                  gameType: gameType as unknown as bigint,
+                  entryFee: entryFee as unknown as bigint,
+                  prizePool: prizePool as unknown as bigint,
+                  players: playersArray?.length || 0,
+                  isJoined: true,
+                };
+              }
+              return null as GameData | null;
+            } catch (error) {
+              console.error(`Failed to check game ${gameAddr}:`, error);
+              return null;
+            }
+          })
+        );
+
+        const validGames = gamesWithStatus
+          .filter((result): result is PromiseFulfilledResult<GameData> => result.status === 'fulfilled' && result.value !== null)
+          .map((result): GameData => result.value!);
+
+        setUserGames(validGames);
+      } catch (error) {
+        console.error('Error fetching user games:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserGames();
+  }, [userAddr, publicClient, addresses.GAME_FACTORY]);
+
+  return { userGames, loading, refetch: () => {} };
+}
+
+/**
+ * 获取单个比赛完整详情的 hook
+ */
+export function useGameDetails(gameAddress: `0x${string}` | null) {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const [gameDetails, setGameDetails] = useState<GameDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!gameAddress || !publicClient) {
+      setGameDetails(null);
+      return;
+    }
+
+    const fetchGameDetails = async () => {
+      setLoading(true);
+      try {
+        const [
+          title,
+          description,
+          status,
+          gameType,
+          entryFee,
+          prizePool,
+          minPlayers,
+          maxPlayers,
+          registrationEndTime,
+          gameStartTime,
+          creator,
+        ] = await Promise.all([
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'title',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'description',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'status',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'gameType',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'entryFee',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'prizePool',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'minPlayers',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'maxPlayers',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'registrationEndTime',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'gameStartTime',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'creator',
+          }),
+        ]);
+
+        // 获取玩家列表和分数
+        const players = await publicClient.readContract({
+          address: gameAddress,
+          abi: GAME_INSTANCE_ABI,
+          functionName: 'players',
+        }) as unknown as Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }>;
+
+        let myScore: bigint | undefined;
+        let hasSubmitted = false;
+        let isJoined = false;
+        let prizeToClaim: bigint | undefined;
+
+        if (address) {
+          isJoined = await publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'isJoined',
+            args: [address],
+          }) as unknown as boolean;
+
+          if (isJoined) {
+            myScore = await publicClient.readContract({
+              address: gameAddress,
+              abi: GAME_INSTANCE_ABI,
+              functionName: 'scores',
+              args: [address],
+            }) as unknown as bigint;
+
+            hasSubmitted = myScore !== undefined && myScore > BigInt(0);
+
+            prizeToClaim = await publicClient.readContract({
+              address: gameAddress,
+              abi: GAME_INSTANCE_ABI,
+              functionName: 'prizeToClaimsAmount',
+              args: [address],
+            }) as unknown as bigint;
+          }
+        }
+
+        // 检查是否可以开始游戏
+        const now = Math.floor(Date.now() / 1000);
+        const registrationEnd = Number(registrationEndTime);
+        const gameStart = Number(gameStartTime);
+        const statusBigInt = status as unknown as bigint;
+        const canStartGame = statusBigInt === BigInt(GameStatus.Created) && now >= registrationEnd;
+
+        setGameDetails({
+          address: gameAddress,
+          title: title as string,
+          description: description as string,
+          status: status as unknown as bigint,
+          gameType: gameType as unknown as bigint,
+          entryFee: entryFee as unknown as bigint,
+          prizePool: prizePool as unknown as bigint,
+          minPlayers: minPlayers as unknown as bigint,
+          maxPlayers: maxPlayers as unknown as bigint,
+          registrationEndTime: registrationEndTime as bigint,
+          gameStartTime: gameStartTime as bigint,
+          creator: creator as `0x${string}`,
+          playersList: players,
+          players: players?.length || 0,
+          myScore,
+          hasSubmitted,
+          isJoined,
+          canStartGame,
+          prizeToClaim,
+        });
+      } catch (error) {
+        console.error('Error fetching game details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGameDetails();
+  }, [gameAddress, publicClient, address]);
+
+  return { gameDetails, loading };
+}
+
+/**
+ * 开始比赛的 hook
+ */
+export function useStartGame() {
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  const startGame = async (gameAddress: `0x${string}`) => {
+    toast.info('Starting game...', {
+      description: 'Please approve the transaction in your wallet',
+    });
+
+    writeContract({
+      address: gameAddress,
+      abi: GAME_INSTANCE_ABI,
+      functionName: 'startGame',
+    });
+  };
+
+  return {
+    startGame,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+/**
+ * 结束比赛的 hook
+ */
+export function useEndGame() {
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  const endGame = async (gameAddress: `0x${string}`) => {
+    toast.info('Ending game...', {
+      description: 'Please approve the transaction in your wallet',
+    });
+
+    writeContract({
+      address: gameAddress,
+      abi: GAME_INSTANCE_ABI,
+      functionName: 'cancelGame',
+    });
+  };
+
+  return {
+    endGame,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+/**
+ * 取消比赛的 hook
+ */
+export function useCancelGame() {
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  const cancelGame = async (gameAddress: `0x${string}`) => {
+    toast.info('Cancelling game...', {
+      description: 'Please approve the transaction in your wallet',
+    });
+
+    writeContract({
+      address: gameAddress,
+      abi: GAME_INSTANCE_ABI,
+      functionName: 'cancelGame',
+    });
+  };
+
+  return {
+    cancelGame,
+    hash,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error,
+  };
+}
