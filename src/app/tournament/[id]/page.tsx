@@ -522,39 +522,82 @@ export default function TournamentDetailPage() {
                     </Card>
                   )}
 
-                  {/* Start Game Button */}
-                  {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) && (
-                    <Card className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/20 p-8 text-center">
-                      <h3 className="text-2xl font-bold text-white mb-4">Ready to Play?</h3>
-                      <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                        Join the {gameTypeLabels[tournament.gameType]} game and compete for the prize pool!
-                      </p>
-                      <Button
-                        size="lg"
-                        onClick={handleStartGame}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                      >
-                        <Gamepad2 className="w-5 h-5 mr-2" />
-                        Start Game
-                      </Button>
-                    </Card>
-                  )}
-
-                  {/* Try Game Button - Always visible */}
+                  {/* Action Buttons - Unified Card */}
                   {!activeGame && (
-                    <Card className="bg-gradient-to-r from-green-500/10 to-teal-500/10 border-green-500/20 p-8 text-center">
-                      <h3 className="text-2xl font-bold text-white mb-4">Want to Try First?</h3>
-                      <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                        Experience the {gameTypeLabels[tournament.gameType]} game in practice mode without joining the tournament.
-                      </p>
-                      <Button
-                        size="lg"
-                        onClick={handleTryGame}
-                        className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white"
-                      >
-                        <Gamepad2 className="w-5 h-5 mr-2" />
-                        Try Game
-                      </Button>
+                    <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden">
+                      <div className="p-8">
+                        <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
+                          {/* Primary Action */}
+                          <div className="flex-1 text-center md:text-left">
+                            <h3 className="text-2xl font-bold text-white mb-2">
+                              {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address)
+                                ? 'Ready to Play'
+                                : 'Experience the Game'
+                              }
+                            </h3>
+                            <p className="text-gray-400">
+                              {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address)
+                                ? `Join the ${gameTypeLabels[tournament.gameType]} game and compete for the prize pool`
+                                : 'Try the game in practice mode without joining the tournament'
+                              }
+                            </p>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                            {/* Primary Button - Start Game */}
+                            {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) && (
+                              <Button
+                                size="lg"
+                                onClick={handleStartGame}
+                                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-8"
+                              >
+                                <Gamepad2 className="w-5 h-5 mr-2" />
+                                Start Game
+                              </Button>
+                            )}
+
+                            {/* Secondary Button - Try Game */}
+                            <Button
+                              size="lg"
+                              onClick={handleTryGame}
+                              variant={hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) ? 'outline' : 'default'}
+                              className={`w-full sm:w-auto font-semibold px-8 ${
+                                hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address)
+                                  ? 'border-purple-500/50 text-purple-400 hover:bg-purple-500/10'
+                                  : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white'
+                              }`}
+                            >
+                              <Gamepad2 className="w-5 h-5 mr-2" />
+                              Try Game
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Status Badge - Only show if cannot start game */}
+                        {(!hasJoined || tournament.status === 'Ended' || tournament.results.some(r => r.playerAddress === address)) && (
+                          <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-sm text-gray-400">
+                            {tournament.status === 'Ended' && (
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-gray-500" />
+                                Tournament has ended
+                              </span>
+                            )}
+                            {!hasJoined && tournament.status !== 'Ended' && (
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                                Join the tournament to compete
+                              </span>
+                            )}
+                            {tournament.results.some(r => r.playerAddress === address) && (
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-green-500" />
+                                Your score has been submitted
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </Card>
                   )}
 
