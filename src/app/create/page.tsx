@@ -27,6 +27,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { createTournament } from "@/lib/tournamentStore";
@@ -405,7 +406,7 @@ export default function CreateTournamentPage() {
                     }
                   >
                     <SelectTrigger className="mt-2 h-12 bg-white/5 border-white/10 text-white">
-                      <SelectValue placeholder={PRIZE_DISTRIBUTION.find(d => d.value === formData.distributionType)?.label || "Select distribution method"} />
+                      <SelectValue placeholder="Select distribution method" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-white/10">
                       {PRIZE_DISTRIBUTION.map((dist) => (
@@ -415,7 +416,9 @@ export default function CreateTournamentPage() {
                           className="py-2 text-gray-300 focus:text-white focus:bg-white/10"
                         >
                           <div className="flex flex-col gap-1">
-                            <div className="font-medium text-base leading-tight">{dist.label}</div>
+                            <SelectPrimitive.ItemText className="font-medium text-base leading-tight">
+                              {dist.label}
+                            </SelectPrimitive.ItemText>
                             <div className="text-xs text-gray-400 leading-snug">
                               {dist.description}
                             </div>
