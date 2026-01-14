@@ -53,7 +53,7 @@ export function Navbar() {
               </div>
             </motion.div>
             <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              Game Arena
+              Blitz Arena
             </span>
           </Link>
 

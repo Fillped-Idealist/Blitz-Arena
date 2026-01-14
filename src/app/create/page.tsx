@@ -412,11 +412,11 @@ export default function CreateTournamentPage() {
                         <SelectItem
                           key={dist.value}
                           value={dist.value}
-                          className="text-gray-300 focus:text-white"
+                          className="py-3 text-gray-300 focus:text-white focus:bg-white/10"
                         >
-                          <div>
-                            <div className="font-medium">{dist.label}</div>
-                            <div className="text-sm text-gray-400">
+                          <div className="flex flex-col gap-1">
+                            <div className="font-medium text-base leading-tight">{dist.label}</div>
+                            <div className="text-xs text-gray-400 leading-snug">
                               {dist.description}
                             </div>
                           </div>

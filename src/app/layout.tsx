@@ -6,7 +6,7 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Game Arena - Professional Gaming Platform",
+  title: "Blitz Arena - Professional Gaming Platform",
   description: "Create, join, and compete in blockchain-powered gaming tournaments",
 };
 

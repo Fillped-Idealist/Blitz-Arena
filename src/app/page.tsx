@@ -228,7 +228,7 @@ export default function HomePage() {
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
               <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                Why Game Arena?
+                Why Blitz Arena?
               </span>
             </h2>
             <p className="text-xl text-gray-400">

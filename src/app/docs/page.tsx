@@ -30,7 +30,7 @@ const sections = [
     title: 'Getting Started',
     icon: <BookOpen className="w-5 h-5" />,
     subsections: [
-      { id: 'what-is-gamefi-arena', title: 'What is GameFi Arena?' },
+      { id: 'what-is-blitz-arena', title: 'What is Blitz Arena?' },
       { id: 'quick-start', title: 'Quick Start Guide' },
       { id: 'wallet-setup', title: 'Wallet Setup' },
     ],
@@ -79,7 +79,7 @@ const sections = [
 
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState('getting-started');
-  const [activeSubsection, setActiveSubsection] = useState('what-is-gamefi-arena');
+  const [activeSubsection, setActiveSubsection] = useState('what-is-blitz-arena');
 
   return (
     <div className="min-h-screen bg-black">
@@ -182,7 +182,7 @@ export default function DocsPage() {
 function GettingStarted({ activeSubsection }: { activeSubsection: string }) {
   return (
     <div className="space-y-8">
-      {activeSubsection === 'what-is-gamefi-arena' && (
+      {activeSubsection === 'what-is-blitz-arena' && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -193,10 +193,10 @@ function GettingStarted({ activeSubsection }: { activeSubsection: string }) {
               Platform Overview
             </Badge>
             <h1 className="text-4xl font-bold text-white mb-4">
-              What is GameFi Arena?
+              What is Blitz Arena?
             </h1>
             <p className="text-lg text-gray-400">
-              GameFi Arena is a blockchain-powered gaming tournament platform where players compete in various skill-based games for real rewards.
+              Blitz Arena is a blockchain-powered gaming tournament platform where players compete in various skill-based games for real rewards.
             </p>
           </div>
 
@@ -260,7 +260,7 @@ function GettingStarted({ activeSubsection }: { activeSubsection: string }) {
               Quick Start Guide
             </h1>
             <p className="text-lg text-gray-400">
-              Get started with GameFi Arena in 3 simple steps.
+              Get started with Blitz Arena in 3 simple steps.
             </p>
           </div>
 
@@ -874,7 +874,7 @@ function Tournaments({ activeSubsection }: { activeSubsection: string }) {
               Platform Rules & Policies
             </h1>
             <p className="text-lg text-gray-400">
-              Important rules and policies governing all tournaments and interactions on GameFi Arena.
+              Important rules and policies governing all tournaments and interactions on Blitz Arena.
             </p>
           </div>
 
@@ -1034,7 +1034,7 @@ function Rewards({ activeSubsection }: { activeSubsection: string }) {
               How to Earn
             </h1>
             <p className="text-lg text-gray-400">
-              Multiple ways to earn rewards on GameFi Arena.
+              Multiple ways to earn rewards on Blitz Arena.
             </p>
           </div>
 
@@ -1207,8 +1207,8 @@ function Rewards({ activeSubsection }: { activeSubsection: string }) {
 function FAQ() {
   const faqs = [
     {
-      question: 'What is GameFi Arena?',
-      answer: 'GameFi Arena is a blockchain-powered gaming tournament platform where players compete in skill-based games for real rewards. All tournaments are recorded on-chain for transparency.',
+      question: 'What is Blitz Arena?',
+      answer: 'Blitz Arena is a blockchain-powered gaming tournament platform where players compete in skill-based games for real rewards. All tournaments are recorded on-chain for transparency.',
     },
     {
       question: 'How do I get started?',
@@ -1266,7 +1266,7 @@ function FAQ() {
           Frequently Asked Questions
         </h1>
         <p className="text-lg text-gray-400">
-          Common questions and answers about GameFi Arena.
+          Common questions and answers about Blitz Arena.
         </p>
       </div>
 
