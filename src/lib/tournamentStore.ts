@@ -225,14 +225,23 @@ export function getAllTournaments(): Tournament[] {
     // 更新所有比赛状态
     const updatedTournaments = tournaments.map(updateTournamentStatus);
 
-    // 处理新取消的比赛退款
+    // 处理状态变化
     tournaments.forEach((oldTournament, i) => {
       const newTournament = updatedTournaments[i];
+
+      // 比赛被取消，处理退款
       if (oldTournament.status !== 'Canceled' && newTournament.status === 'Canceled') {
-        // 比赛被取消了，处理退款
         if (newTournament.participants.length > 0) {
           processCancelRefunds(newTournament.id);
           toast.error(`Tournament "${newTournament.title}" has been canceled due to insufficient players (${newTournament.currentPlayers}/${newTournament.minPlayers})`);
+        }
+      }
+
+      // 比赛结束，分配奖金
+      if (oldTournament.status !== 'Ended' && newTournament.status === 'Ended') {
+        if (newTournament.results.length > 0) {
+          distributePrizes(newTournament.id);
+          toast.success(`Tournament "${newTournament.title}" has ended! Prizes have been distributed.`);
         }
       }
     });

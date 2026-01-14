@@ -244,6 +244,13 @@ export default function TournamentDetailPage() {
     'Canceled': 'bg-red-500/20 text-red-400'
   };
 
+  // 奖金分配方式标签
+  const distributionLabels: Record<string, string> = {
+    '0': 'Winner Takes All',
+    '1': 'Average Split',
+    '2': 'Top 3 Ranked'
+  };
+
   // 加载状态
   if (loading) {
     return (
@@ -439,6 +446,12 @@ export default function TournamentDetailPage() {
                           <span className="text-gray-400">Prize Pool:</span>
                           <span className="text-white">
                             {tournament.prize} tokens
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Distribution:</span>
+                          <span className="text-white">
+                            {distributionLabels[tournament.distributionType] || 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -758,17 +771,6 @@ export default function TournamentDetailPage() {
                             );
                           })}
                       </div>
-
-                      {/* Empty State */}
-                      {tournament.results.length === 0 && (
-                        <div className="p-12 text-center">
-                          <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                          <h3 className="text-xl font-bold text-white mb-2">No Scores Yet</h3>
-                          <p className="text-gray-400">
-                            Be the first to submit a score and claim the top spot!
-                          </p>
-                        </div>
-                      )}
                     </Card>
                   )}
 
