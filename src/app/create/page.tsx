@@ -31,6 +31,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { createTournament } from "@/lib/tournamentStore";
+import { useCreateGame, useERC20, GameType, PrizeDistributionType, useNetworkCheck } from "@/hooks/useGameContract";
 
 const GAME_TYPES = [
   {
@@ -85,8 +86,13 @@ const TIME_PRESETS = [
 export default function CreateTournamentPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const { supported } = useNetworkCheck();
+  const { addresses, createGame } = useCreateGame();
+  const { approve } = useERC20(addresses.PRIZE_TOKEN as `0x${string}`);
+
   const [loading, setLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -122,6 +128,11 @@ export default function CreateTournamentPage() {
       return;
     }
 
+    if (!supported) {
+      toast.error("Please switch to a supported network");
+      return;
+    }
+
     // Validation
     if (!formData.title.trim()) {
       toast.error("Please enter a tournament title");
@@ -145,10 +156,30 @@ export default function CreateTournamentPage() {
 
     setLoading(true);
     try {
-      // Simulate blockchain transaction
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // 计算时间戳
+      const now = Math.floor(Date.now() / 1000);
+      const registrationEndTime = now + formData.registrationDuration * 60;
+      const gameStartTime = registrationEndTime + formData.gameDuration * 60;
 
-      // Create tournament with real storage
+      // 准备配置
+      const config = {
+        title: formData.title,
+        description: formData.description,
+        gameType: parseInt(formData.gameType) as GameType,
+        entryFee: formData.entryFee,
+        prizePool: formData.prizePool,
+        minPlayers: formData.minPlayers,
+        maxPlayers: formData.maxPlayers,
+        registrationEndTime,
+        gameStartTime,
+        distributionType: parseInt(formData.distributionType) as PrizeDistributionType,
+        rankPrizes: formData.distributionType === "2" ? [6000, 3000, 1000] : [], // 60%, 30%, 10% for top 3
+      };
+
+      // 创建比赛
+      const result = await createGame(config);
+
+      // 同时更新本地存储
       createTournament({
         title: formData.title,
         description: formData.description,
@@ -166,8 +197,11 @@ export default function CreateTournamentPage() {
 
       toast.success("Tournament created successfully!");
       router.push("/tournaments");
-    } catch (error) {
-      toast.error("Failed to create tournament");
+    } catch (error: any) {
+      console.error('Failed to create tournament:', error);
+      toast.error("Failed to create tournament", {
+        description: error?.message || "Please check your wallet and try again",
+      });
     } finally {
       setLoading(false);
     }
