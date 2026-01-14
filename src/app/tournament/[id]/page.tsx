@@ -351,7 +351,7 @@ export default function TournamentDetailPage() {
                       {statusLabels[tournament.status]}
                     </Badge>
                     <Badge variant="outline" className="border-purple-500/50 text-purple-400">
-                      {gameTypeLabels[tournament.gameType]} {gameTypeIcons[tournament.gameType]}
+                      {gameTypeLabels[tournament.gameType]}
                     </Badge>
                   </div>
 
@@ -574,7 +574,7 @@ export default function TournamentDetailPage() {
                   </Card>
 
                   {/* 玩家成绩显示 */}
-                  {address && tournament.results.some(r => r.playerAddress === address) && (
+                  {address && tournament.results.length > 0 && tournament.results.some(r => r.playerAddress === address) && (
                     <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 p-6">
                       <h3 className="text-xl font-bold text-white mb-4">Your Result</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -586,13 +586,13 @@ export default function TournamentDetailPage() {
                         </div>
                         <div className="bg-blue-500/10 rounded-lg p-4 text-center">
                           <div className="text-xl font-bold text-blue-400">
-                            {new Date(tournament.results.find(r => r.playerAddress === address)?.timestamp || 0).toLocaleString()}
+                            {new Date(tournament.results.find(r => r.playerAddress === address)?.timestamp || Date.now()).toLocaleString()}
                           </div>
                           <div className="text-sm text-gray-400 mt-1">Submitted</div>
                         </div>
                         <div className="bg-green-500/10 rounded-lg p-4 text-center">
                           <div className="text-xl font-bold text-green-400">
-                            #{tournament.results.sort((a, b) => b.score - a.score).findIndex(r => r.playerAddress === address)! + 1}
+                            #{(tournament.results.sort((a, b) => b.score - a.score).findIndex(r => r.playerAddress === address) ?? 0) + 1}
                           </div>
                           <div className="text-sm text-gray-400 mt-1">Rank</div>
                         </div>

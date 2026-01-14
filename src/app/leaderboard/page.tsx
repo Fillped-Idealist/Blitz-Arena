@@ -11,7 +11,6 @@ import {
   Users,
   Calendar,
   ArrowRight,
-  Filter,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,14 +27,14 @@ type LeaderboardEntry = {
   gameType?: string;
 };
 
-// 游戏类型配置
+// 游戏类型配置（无图标）
 const GAME_TYPES = [
-  { id: 'all', label: 'All Games', icon: '🎮' },
-  { id: '1', label: 'Number Guess', icon: '🔢' },
-  { id: '2', label: 'Rock Paper Scissors', icon: '✊✋✌️' },
-  { id: '3', label: 'Quick Click', icon: '🎯' },
-  { id: '4', label: 'Cycle Rift', icon: '🌀' },
-  { id: '5', label: 'Infinite Match', icon: '🧩' },
+  { id: 'all', label: 'All Games' },
+  { id: '1', label: 'Number Guess' },
+  { id: '2', label: 'Rock Paper Scissors' },
+  { id: '3', label: 'Quick Click' },
+  { id: '4', label: 'Cycle Rift' },
+  { id: '5', label: 'Infinite Match' },
 ];
 
 // 时间范围配置
@@ -129,71 +128,58 @@ export default function LeaderboardPage() {
           </p>
         </motion.div>
 
-        {/* Filters */}
+        {/* Filters - GitHub Style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-12"
+          className="mb-8"
         >
-          <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden">
-            <div className="p-8">
-              <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-                {/* Game Type Filter */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Filter className="w-5 h-5 text-blue-400" />
-                    <span className="text-base font-semibold text-white">Game Type</span>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {GAME_TYPES.map((game) => (
-                      <Button
-                        key={game.id}
-                        size="default"
-                        variant={selectedGameType === game.id ? 'default' : 'outline'}
-                        onClick={() => setSelectedGameType(game.id)}
-                        className={`h-10 px-4 transition-all duration-200 ${
-                          selectedGameType === game.id
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-transparent shadow-lg shadow-blue-500/25'
-                            : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        <span className="mr-2">{game.icon}</span>
-                        {game.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="hidden lg:block w-px bg-white/10" />
-
-                {/* Time Range Filter */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Calendar className="w-5 h-5 text-purple-400" />
-                    <span className="text-base font-semibold text-white">Time Range</span>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {TIME_RANGES.map((range) => (
-                      <Button
-                        key={range.id}
-                        size="default"
-                        variant={selectedTimeRange === range.id ? 'default' : 'outline'}
-                        onClick={() => setSelectedTimeRange(range.id as 'all' | 'week' | 'month')}
-                        className={`h-10 px-4 transition-all duration-200 ${
-                          selectedTimeRange === range.id
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent shadow-lg shadow-purple-500/25'
-                            : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        {range.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Game Type Filter */}
+            <div className="flex-1 max-w-xs">
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Filter by game type
+              </label>
+              <select
+                value={selectedGameType}
+                onChange={(e) => setSelectedGameType(e.target.value)}
+                className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer hover:bg-white/10 transition-colors"
+              >
+                {GAME_TYPES.map((game) => (
+                  <option
+                    key={game.id}
+                    value={game.id}
+                    className="bg-gray-900 text-white"
+                  >
+                    {game.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          </Card>
+
+            {/* Time Range Filter */}
+            <div className="flex-1 max-w-xs">
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Filter by time range
+              </label>
+              <select
+                value={selectedTimeRange}
+                onChange={(e) => setSelectedTimeRange(e.target.value as 'all' | 'week' | 'month')}
+                className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer hover:bg-white/10 transition-colors"
+              >
+                {TIME_RANGES.map((range) => (
+                  <option
+                    key={range.id}
+                    value={range.id}
+                    className="bg-gray-900 text-white"
+                  >
+                    {range.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </motion.div>
 
         {/* Top 3 Podium */}
@@ -269,7 +255,6 @@ export default function LeaderboardPage() {
                         <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                           <span className="text-sm text-gray-400">Best Game</span>
                           <span className="text-lg font-bold text-white">
-                            {GAME_TYPES.find(g => g.id === player.gameType)?.icon}{' '}
                             {GAME_TYPES.find(g => g.id === player.gameType)?.label}
                           </span>
                         </div>

@@ -110,7 +110,7 @@ export default function TournamentsPage() {
     const startTime = Date.now() + startTimeOffset * 60 * 1000;
     const diff = startTime - Date.now();
 
-    if (diff <= 0) return "Now";
+    if (diff <= 0) return "Started";
 
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -288,7 +288,7 @@ export default function TournamentsPage() {
                           : 'border-white/20 text-gray-300'
                       } mb-4`}
                     >
-                      {game.gameTypeIcon} {game.gameTypeLabel}
+                      {game.gameTypeLabel}
                     </Badge>
                   </div>
 

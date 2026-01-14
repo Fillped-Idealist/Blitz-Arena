@@ -131,17 +131,74 @@ const GAME_TYPES = {
   '5': { label: 'Infinite Match', icon: '🧩' }
 };
 
+// 更新比赛状态（根据时间）
+function updateTournamentStatus(tournament: Tournament): Tournament {
+  const now = Date.now();
+  const startTime = tournament.createdAt + tournament.startTimeOffset * 60 * 1000;
+  const endTime = startTime + tournament.duration * 60 * 1000;
+
+  // 已取消的比赛不更新状态
+  if (tournament.status === 'Canceled') {
+    return tournament;
+  }
+
+  // 比赛已结束
+  if (now >= endTime) {
+    if (tournament.status !== 'Ended') {
+      tournament.status = 'Ended';
+      tournament.statusColor = 'bg-gray-500';
+    }
+    return tournament;
+  }
+
+  // 比赛进行中
+  if (now >= startTime && tournament.status !== 'Ongoing' && tournament.status !== 'Ended') {
+    tournament.status = 'Ongoing';
+    tournament.statusColor = 'bg-green-500';
+    return tournament;
+  }
+
+  // 比赛未开始但已满员
+  if (tournament.currentPlayers >= tournament.maxPlayers && tournament.status !== 'Full' && tournament.status !== 'Ongoing' && tournament.status !== 'Ended') {
+    tournament.status = 'Full';
+    tournament.statusColor = 'bg-red-500';
+    return tournament;
+  }
+
+  // 比赛开放报名
+  if (tournament.status === 'Ended') {
+    // 不应该执行到这里，但作为兜底
+    tournament.status = 'Open';
+    tournament.statusColor = 'bg-blue-500';
+  }
+
+  return tournament;
+}
+
 // 获取所有比赛
 export function getAllTournaments(): Tournament[] {
   if (typeof window === 'undefined') return INITIAL_TOURNAMENTS;
 
   try {
     const stored = localStorage.getItem('tournaments');
+    let tournaments: Tournament[];
     if (!stored) {
       localStorage.setItem('tournaments', JSON.stringify(INITIAL_TOURNAMENTS));
-      return INITIAL_TOURNAMENTS;
+      tournaments = [...INITIAL_TOURNAMENTS];
+    } else {
+      tournaments = JSON.parse(stored);
     }
-    return JSON.parse(stored);
+
+    // 更新所有比赛状态
+    const updatedTournaments = tournaments.map(updateTournamentStatus);
+
+    // 如果状态有变化，保存回localStorage
+    const hasChanges = tournaments.some((t, i) => t.status !== updatedTournaments[i].status);
+    if (hasChanges) {
+      localStorage.setItem('tournaments', JSON.stringify(updatedTournaments));
+    }
+
+    return updatedTournaments;
   } catch (error) {
     console.error('Failed to load tournaments:', error);
     return INITIAL_TOURNAMENTS;
@@ -307,8 +364,12 @@ export function getLeaderboardData(options?: {
       ? 7 * 24 * 60 * 60 * 1000 // 7天
       : 30 * 24 * 60 * 60 * 1000; // 30天
 
+    // 只保留有结果在时间范围内的比赛
     filteredTournaments = filteredTournaments.filter(t =>
-      t.results.some(r => r.timestamp > now - timeLimit)
+      t.results && t.results.some(r => {
+        const timeDiff = now - r.timestamp;
+        return timeDiff < timeLimit && timeDiff >= 0;
+      })
     );
   }
 
@@ -316,6 +377,8 @@ export function getLeaderboardData(options?: {
 
   // 统计所有玩家数据
   filteredTournaments.forEach(tournament => {
+    if (!tournament.results || tournament.results.length === 0) return;
+
     tournament.results.forEach((result, index) => {
       // 时间范围过滤
       if (timeRange !== 'all') {
@@ -324,7 +387,8 @@ export function getLeaderboardData(options?: {
           ? 7 * 24 * 60 * 60 * 1000
           : 30 * 24 * 60 * 60 * 1000;
 
-        if (result.timestamp <= now - timeLimit) return;
+        const timeDiff = now - result.timestamp;
+        if (timeDiff >= timeLimit || timeDiff < 0) return;
       }
 
       const player = result.playerAddress;
@@ -333,7 +397,8 @@ export function getLeaderboardData(options?: {
       stats.gameType = tournament.gameType;
 
       // 简单计算奖金：第一名拿50%，前3名按比例分配
-      const prizePerResult = Math.floor(parseInt(tournament.prize) * 0.5 / Math.max(1, tournament.results.length));
+      const totalParticipants = Math.max(1, tournament.results.length);
+      const prizePerResult = Math.floor(parseInt(tournament.prize || '0') * 0.5 / totalParticipants);
       stats.prizes += prizePerResult;
 
       if (index === 0) {
@@ -374,12 +439,15 @@ export function getUserStats(userAddress: string) {
   let wins = 0;
 
   tournaments.forEach(tournament => {
+    if (!tournament.results || tournament.results.length === 0) return;
+
     tournament.results.forEach((result, index) => {
       if (result.playerAddress === userAddress) {
         if (index === 0) {
           wins += 1;
         }
-        totalPrizes += Math.floor(parseInt(tournament.prize) * 0.5 / tournament.results.length);
+        const totalParticipants = Math.max(1, tournament.results.length);
+        totalPrizes += Math.floor(parseInt(tournament.prize || '0') * 0.5 / totalParticipants);
       }
     });
   });
