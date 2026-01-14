@@ -26,7 +26,7 @@ import RockPaperScissorsGame, { GameResult as RPSResult } from '@/components/gam
 import QuickClickGame, { GameResult as QCResult } from '@/components/games/QuickClickGame';
 import RoguelikeSurvivalGame, { GameResult as RLSResult } from '@/components/games/RoguelikeSurvivalGame';
 import InfiniteMatchGame, { GameResult as IMResult } from '@/components/games/InfiniteMatchGame';
-import { Loader2, Gamepad2 } from 'lucide-react';
+import { Loader2, Gamepad2, Flame, Skull, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function TournamentDetailPage() {
   const params = useParams();
@@ -301,6 +301,49 @@ export default function TournamentDetailPage() {
               animate={{ opacity: 1, y: 0 }}
               className="mb-8"
             >
+              {/* Status Banner */}
+              {tournament.status === 'Ended' || tournament.status === 'Canceled' ? (
+                <div className="mb-6 bg-gradient-to-r from-gray-600 to-gray-700 border border-gray-500/30 rounded-xl p-4 flex items-center gap-3">
+                  <Skull className="w-6 h-6 text-white flex-shrink-0" />
+                  <div>
+                    <h3 className="text-white font-bold text-lg">{tournament.status === 'Canceled' ? 'Tournament Canceled' : 'Tournament Ended'}</h3>
+                    <p className="text-gray-300 text-sm">
+                      {tournament.status === 'Canceled' ? 'This tournament has been canceled by the organizer.' : 'The competition period has ended. Check the leaderboard for final results.'}
+                    </p>
+                  </div>
+                </div>
+              ) : tournament.status === 'Ongoing' ? (
+                <div className="mb-6 bg-gradient-to-r from-green-600 to-emerald-600 border border-green-500/30 rounded-xl p-4 flex items-center gap-3">
+                  <Flame className="w-6 h-6 text-white flex-shrink-0 animate-pulse" />
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Tournament In Progress</h3>
+                    <p className="text-green-100 text-sm">
+                      The competition period is active. Submit your best score before time runs out!
+                    </p>
+                  </div>
+                </div>
+              ) : tournament.status === 'Full' ? (
+                <div className="mb-6 bg-gradient-to-r from-red-600 to-orange-600 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
+                  <AlertCircle className="w-6 h-6 text-white flex-shrink-0" />
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Tournament Full</h3>
+                    <p className="text-red-100 text-sm">
+                      All player slots have been filled. The tournament will start soon.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 border border-blue-500/30 rounded-xl p-4 flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-white flex-shrink-0" />
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Open for Registration</h3>
+                    <p className="text-blue-100 text-sm">
+                      Join now to secure your spot in this exciting tournament!
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col md:flex-row items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
@@ -312,11 +355,15 @@ export default function TournamentDetailPage() {
                     </Badge>
                   </div>
 
-                  <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                  <h1 className={`text-4xl md:text-5xl font-bold mb-4 ${
+                    tournament.status === 'Ended' || tournament.status === 'Canceled' ? 'text-gray-400' : 'text-white'
+                  }`}>
                     {tournament.title}
                   </h1>
 
-                  <p className="text-lg text-gray-400 max-w-3xl">
+                  <p className={`text-lg max-w-3xl ${
+                    tournament.status === 'Ended' || tournament.status === 'Canceled' ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
                     {tournament.description || 'Join this exciting blockchain gaming tournament!'}
                   </p>
                 </div>
@@ -345,9 +392,10 @@ export default function TournamentDetailPage() {
                   </motion.div>
                 )}
 
-                {hasJoined && (
-                  <Badge className="bg-green-500/20 text-green-400 text-lg py-2 px-4">
-                    ✓ Joined
+                {hasJoined && tournament.status !== 'Ended' && tournament.status !== 'Canceled' && (
+                  <Badge className="bg-green-500/20 text-green-400 text-lg py-2 px-4 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    Joined
                   </Badge>
                 )}
               </div>
@@ -396,18 +444,54 @@ export default function TournamentDetailPage() {
                       </div>
                     </Card>
 
-                    <Card className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20 p-6">
+                    <Card className={`p-6 ${
+                      tournament.status === 'Ended' || tournament.status === 'Canceled'
+                        ? 'bg-gradient-to-br from-gray-500/10 to-gray-600/10 border-gray-500/20'
+                        : tournament.status === 'Ongoing'
+                        ? 'bg-gradient-to-br from-green-500/10 to-emerald-600/10 border-green-500/20'
+                        : tournament.status === 'Full'
+                        ? 'bg-gradient-to-br from-red-500/10 to-orange-600/10 border-red-500/20'
+                        : 'bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20'
+                    }`}>
                       <h3 className="text-xl font-bold text-white mb-4">Status</h3>
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-white font-medium">{tournament.status}</span>
+                        <div className="flex items-center gap-3">
+                          {tournament.status === 'Ended' || tournament.status === 'Canceled' ? (
+                            <Skull className="w-5 h-5 text-gray-400" />
+                          ) : tournament.status === 'Ongoing' ? (
+                            <Flame className="w-5 h-5 text-green-400 animate-pulse" />
+                          ) : tournament.status === 'Full' ? (
+                            <AlertCircle className="w-5 h-5 text-red-400" />
+                          ) : (
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                          )}
+                          <span className={`font-medium ${
+                            tournament.status === 'Ended' || tournament.status === 'Canceled'
+                              ? 'text-gray-400'
+                              : 'text-white'
+                          }`}>{statusLabels[tournament.status]}</span>
                         </div>
-                        <div className="text-sm text-gray-400 mt-4">
-                          Tournament ID: <span className="text-white font-mono">{tournament.id}</span>
+                        <div className={`text-sm mt-4 ${
+                          tournament.status === 'Ended' || tournament.status === 'Canceled'
+                            ? 'text-gray-500'
+                            : 'text-gray-400'
+                        }`}>
+                          Tournament ID: <span className={`font-mono ${
+                            tournament.status === 'Ended' || tournament.status === 'Canceled'
+                              ? 'text-gray-400'
+                              : 'text-white'
+                          }`}>{tournament.id}</span>
                         </div>
-                        <div className="text-sm text-gray-400">
-                          Created: <span className="text-white">{new Date(tournament.createdAt).toLocaleString()}</span>
+                        <div className={`text-sm ${
+                          tournament.status === 'Ended' || tournament.status === 'Canceled'
+                            ? 'text-gray-500'
+                            : 'text-gray-400'
+                        }`}>
+                          Created: <span className={`${
+                            tournament.status === 'Ended' || tournament.status === 'Canceled'
+                              ? 'text-gray-400'
+                              : 'text-white'
+                          }`}>{new Date(tournament.createdAt).toLocaleString()}</span>
                         </div>
                       </div>
                     </Card>

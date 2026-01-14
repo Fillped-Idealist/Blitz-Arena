@@ -16,7 +16,7 @@ export interface Tournament {
   minPlayers: number;
   maxPlayers: number;
   currentPlayers: number;
-  status: 'Open' | 'Full' | 'Ongoing' | 'Ended';
+  status: 'Open' | 'Full' | 'Ongoing' | 'Ended' | 'Canceled';
   statusColor: string;
   startTimeOffset: number; // 距离现在多少分钟开始
   duration: number; // 比赛持续时间（分钟）

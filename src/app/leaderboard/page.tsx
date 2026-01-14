@@ -92,18 +92,18 @@ export default function LeaderboardPage() {
 
   // Get rank color
   const getRankColor = (rank: number) => {
-    if (rank === 1) return "from-yellow-500/20 to-amber-500/20 border-yellow-500/30";
-    if (rank === 2) return "from-gray-400/20 to-gray-300/20 border-gray-400/30";
-    if (rank === 3) return "from-amber-700/20 to-orange-600/20 border-amber-700/30";
+    if (rank === 1) return "from-yellow-500/20 to-amber-600/20 border-yellow-500/50 shadow-yellow-500/20";
+    if (rank === 2) return "from-gray-400/20 to-gray-300/20 border-gray-400/50 shadow-gray-400/20";
+    if (rank === 3) return "from-amber-700/20 to-orange-600/20 border-amber-700/50 shadow-amber-700/20";
     return "from-white/5 to-white/[0.02] border-white/10";
   };
 
   // Get rank badge color
   const getRankBadgeColor = (rank: number) => {
-    if (rank === 1) return "bg-yellow-500";
-    if (rank === 2) return "bg-gray-400";
-    if (rank === 3) return "bg-amber-700";
-    return "bg-blue-500";
+    if (rank === 1) return "bg-gradient-to-br from-yellow-500 to-amber-500";
+    if (rank === 2) return "bg-gradient-to-br from-gray-400 to-gray-300";
+    if (rank === 3) return "bg-gradient-to-br from-amber-700 to-orange-600";
+    return "bg-gradient-to-br from-blue-600 to-purple-600";
   };
 
   return (
@@ -134,58 +134,62 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-8"
+          className="mb-12"
         >
-          <Card className="bg-white/5 border-white/10 p-6">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Game Type Filter */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-400">Game Type</span>
+          <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden">
+            <div className="p-8">
+              <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+                {/* Game Type Filter */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Filter className="w-5 h-5 text-blue-400" />
+                    <span className="text-base font-semibold text-white">Game Type</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {GAME_TYPES.map((game) => (
+                      <Button
+                        key={game.id}
+                        size="default"
+                        variant={selectedGameType === game.id ? 'default' : 'outline'}
+                        onClick={() => setSelectedGameType(game.id)}
+                        className={`h-10 px-4 transition-all duration-200 ${
+                          selectedGameType === game.id
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-transparent shadow-lg shadow-blue-500/25'
+                            : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="mr-2">{game.icon}</span>
+                        {game.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {GAME_TYPES.map((game) => (
-                    <Button
-                      key={game.id}
-                      size="sm"
-                      variant={selectedGameType === game.id ? 'default' : 'outline'}
-                      onClick={() => setSelectedGameType(game.id)}
-                      className={`${
-                        selectedGameType === game.id
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white'
-                      }`}
-                    >
-                      <span className="mr-2">{game.icon}</span>
-                      {game.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
 
-              {/* Time Range Filter */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-400">Time Range</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {TIME_RANGES.map((range) => (
-                    <Button
-                      key={range.id}
-                      size="sm"
-                      variant={selectedTimeRange === range.id ? 'default' : 'outline'}
-                      onClick={() => setSelectedTimeRange(range.id as 'all' | 'week' | 'month')}
-                      className={`${
-                        selectedTimeRange === range.id
-                          ? 'bg-purple-600 text-white border-purple-600'
-                          : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white'
-                      }`}
-                    >
-                      {range.label}
-                    </Button>
-                  ))}
+                <div className="hidden lg:block w-px bg-white/10" />
+
+                {/* Time Range Filter */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Calendar className="w-5 h-5 text-purple-400" />
+                    <span className="text-base font-semibold text-white">Time Range</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {TIME_RANGES.map((range) => (
+                      <Button
+                        key={range.id}
+                        size="default"
+                        variant={selectedTimeRange === range.id ? 'default' : 'outline'}
+                        onClick={() => setSelectedTimeRange(range.id as 'all' | 'week' | 'month')}
+                        className={`h-10 px-4 transition-all duration-200 ${
+                          selectedTimeRange === range.id
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent shadow-lg shadow-purple-500/25'
+                            : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {range.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -197,7 +201,7 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid md:grid-cols-3 gap-6 mb-12"
+          className="grid md:grid-cols-3 gap-8 mb-12"
         >
           {topThree.map((player, index) => {
             const rank = index + 1;
@@ -207,17 +211,17 @@ export default function LeaderboardPage() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`relative ${rank === 1 ? 'md:-mt-8' : ''}`}
+                className={`relative ${rank === 1 ? 'md:-mt-4' : ''}`}
               >
                 <Card
-                  className={`bg-gradient-to-br ${getRankColor(rank)} backdrop-blur-sm border overflow-hidden h-full`}
+                  className={`bg-gradient-to-br ${getRankColor(rank)} backdrop-blur-sm border-2 overflow-hidden h-full hover:scale-105 transition-transform duration-300`}
                 >
-                  <div className="p-6">
+                  <div className="p-8">
                     {/* Rank */}
-                    <div className="flex items-center justify-center mb-4">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center mb-6">
+                      <div className="flex items-center gap-3">
                         {getRankIcon(rank)}
-                        <span className={`text-3xl font-bold ${
+                        <span className={`text-4xl font-bold ${
                           rank === 1 ? 'text-yellow-400' :
                           rank === 2 ? 'text-gray-300' :
                           'text-amber-600'
@@ -228,43 +232,43 @@ export default function LeaderboardPage() {
                     </div>
 
                     {/* Avatar Placeholder */}
-                    <div className="flex justify-center mb-4">
-                      <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${
-                        rank === 1 ? 'from-yellow-500 to-amber-500' :
-                        rank === 2 ? 'from-gray-400 to-gray-300' :
-                        'from-amber-700 to-orange-600'
-                      } flex items-center justify-center`}>
-                        <span className="text-2xl font-bold text-white">
+                    <div className="flex justify-center mb-6">
+                      <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${
+                        rank === 1 ? 'from-yellow-500 to-amber-500 shadow-lg shadow-yellow-500/30' :
+                        rank === 2 ? 'from-gray-400 to-gray-300 shadow-lg shadow-gray-400/30' :
+                        'from-amber-700 to-orange-600 shadow-lg shadow-amber-700/30'
+                      } flex items-center justify-center transition-transform hover:scale-110 duration-300`}>
+                        <span className="text-3xl font-bold text-white">
                           {player.address.slice(2, 4)}
                         </span>
                       </div>
                     </div>
 
                     {/* Address */}
-                    <div className="text-center mb-4">
-                      <div className="text-lg font-bold text-white mb-1">
+                    <div className="text-center mb-6">
+                      <div className="text-xl font-bold text-white mb-2">
                         {player.address}
                       </div>
                     </div>
 
                     {/* Stats */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Total Prizes</span>
-                        <span className="font-bold text-white">{player.totalPrizes}</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                        <span className="text-sm text-gray-400">Total Prizes</span>
+                        <span className="text-lg font-bold text-white">{player.totalPrizes}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Tournaments</span>
-                        <span className="font-bold text-white">{player.tournaments}</span>
+                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                        <span className="text-sm text-gray-400">Tournaments</span>
+                        <span className="text-lg font-bold text-white">{player.tournaments}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Wins</span>
-                        <span className="font-bold text-white">{player.wins}</span>
+                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                        <span className="text-sm text-gray-400">Wins</span>
+                        <span className="text-lg font-bold text-white">{player.wins}</span>
                       </div>
                       {player.gameType && selectedGameType === 'all' && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-400">Best Game</span>
-                          <span className="font-bold text-white">
+                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                          <span className="text-sm text-gray-400">Best Game</span>
+                          <span className="text-lg font-bold text-white">
                             {GAME_TYPES.find(g => g.id === player.gameType)?.icon}{' '}
                             {GAME_TYPES.find(g => g.id === player.gameType)?.label}
                           </span>
@@ -285,9 +289,9 @@ export default function LeaderboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10 overflow-hidden">
+            <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden">
               <div className="p-6 border-b border-white/10">
-                <h2 className="text-xl font-bold text-white">
+                <h2 className="text-2xl font-bold text-white">
                   Rankings {topThree.length + 1} - {leaderboard.length}
                 </h2>
               </div>
@@ -299,18 +303,18 @@ export default function LeaderboardPage() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + index * 0.05 }}
-                    className="flex items-center gap-4 p-4 hover:bg-white/5 transition-colors"
+                    className="flex items-center gap-4 p-6 hover:bg-white/5 transition-all duration-200 hover:scale-[1.01]"
                   >
                     {/* Rank */}
-                    <div className="w-12 flex justify-center">
-                      <Badge className={`${getRankBadgeColor(player.rank)} text-white border-none w-8 h-8 flex items-center justify-center`}>
+                    <div className="w-14 flex justify-center">
+                      <Badge className={`${getRankBadgeColor(player.rank)} text-white border-none w-10 h-10 flex items-center justify-center text-sm font-bold shadow-lg`}>
                         #{player.rank}
                       </Badge>
                     </div>
 
                     {/* Address */}
                     <div className="flex-1">
-                      <div className="font-medium text-white">
+                      <div className="font-bold text-white text-base">
                         {player.address}
                       </div>
                     </div>
@@ -318,16 +322,16 @@ export default function LeaderboardPage() {
                     {/* Stats */}
                     <div className="flex items-center gap-8">
                       <div className="text-center">
-                        <div className="text-xs text-gray-400 mb-1">Prizes</div>
-                        <div className="font-bold text-white">{player.totalPrizes}</div>
+                        <div className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Prizes</div>
+                        <div className="font-bold text-white text-lg">{player.totalPrizes}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs text-gray-400 mb-1">Tournaments</div>
-                        <div className="font-bold text-white">{player.tournaments}</div>
+                        <div className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Tournaments</div>
+                        <div className="font-bold text-white text-lg">{player.tournaments}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs text-gray-400 mb-1">Wins</div>
-                        <div className="font-bold text-white">{player.wins}</div>
+                        <div className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Wins</div>
+                        <div className="font-bold text-white text-lg">{player.wins}</div>
                       </div>
                     </div>
                   </motion.div>

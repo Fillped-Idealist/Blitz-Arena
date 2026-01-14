@@ -15,6 +15,9 @@ import {
   Plus,
   Loader2,
   CheckCircle2,
+  Flame,
+  Skull,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,129 +196,208 @@ export default function TournamentsPage() {
 
         {/* Tournament Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredGames.map((game, index) => (
-            <motion.div
-              key={game.id}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              whileHover={{ y: -5 }}
-            >
-              <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden hover:border-white/20 transition-all duration-300 group h-full flex flex-col">
-                {/* Status Badge */}
-                <div className="p-6 pb-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <Badge
-                      className={`${game.statusColor} text-white border-none`}
-                    >
-                      {game.status}
-                    </Badge>
-                    <div className="flex items-center text-sm text-gray-400">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {getTimeRemaining(game.startTimeOffset)}
-                    </div>
-                  </div>
+          {filteredGames.map((game, index) => {
+            // Determine card style based on status
+            const isEnded = game.status === 'Ended' || game.status === 'Canceled';
+            const isOngoing = game.status === 'Ongoing';
+            const isFull = game.status === 'Full';
 
-                  {/* Title and Description - Clickable */}
-                  <Link href={`/tournament/${game.id}`}>
-                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors cursor-pointer">
-                      {game.title}
-                    </h3>
-                  </Link>
-                  <p className="text-gray-400 text-sm mb-4">
-                    {game.description}
-                  </p>
-
-                  {/* Game Type */}
-                  <Badge
-                    variant="outline"
-                    className="border-white/20 text-gray-300 mb-4"
-                  >
-                    {game.gameTypeIcon} {game.gameTypeLabel}
-                  </Badge>
-                </div>
-
-                {/* Stats */}
-                <div className="px-6 pb-4 flex-1">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Trophy className="w-4 h-4 text-yellow-400" />
-                        <span className="text-xs text-gray-400">Prize Pool</span>
-                      </div>
-                      <div className="text-lg font-bold text-white">
-                        {game.prize} tokens
-                      </div>
+            return (
+              <motion.div
+                key={game.id}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -5 }}
+              >
+                <Card
+                  className={`backdrop-blur-sm overflow-hidden hover:border-white/20 transition-all duration-300 group h-full flex flex-col relative ${
+                    isEnded
+                      ? 'bg-gradient-to-br from-gray-500/5 to-gray-600/[0.02] border-gray-500/20 opacity-75'
+                      : isOngoing
+                      ? 'bg-gradient-to-br from-green-500/10 to-emerald-600/10 border-green-500/30 shadow-lg shadow-green-500/10'
+                      : isFull
+                      ? 'bg-gradient-to-br from-red-500/10 to-orange-600/10 border-red-500/30'
+                      : 'bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10'
+                  }`}
+                >
+                  {/* Status Banner */}
+                  {isEnded && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-gray-600 to-gray-700 py-2 px-4 flex items-center justify-center gap-2">
+                      <Skull className="w-4 h-4 text-white" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Ended</span>
                     </div>
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Users className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs text-gray-400">Players</span>
-                      </div>
-                      <div className="text-lg font-bold text-white">
-                        {game.currentPlayers}/{game.maxPlayers}
-                      </div>
+                  )}
+                  {isOngoing && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-600 to-emerald-600 py-2 px-4 flex items-center justify-center gap-2">
+                      <Flame className="w-4 h-4 text-white animate-pulse" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">In Progress</span>
                     </div>
-                  </div>
-                </div>
+                  )}
+                  {isFull && game.status !== 'Ended' && game.status !== 'Ongoing' && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 to-orange-600 py-2 px-4 flex items-center justify-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-white" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Full</span>
+                    </div>
+                  )}
 
-                {/* Footer */}
-                <div className="p-6 pt-0 border-t border-white/10 mt-auto space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-purple-400" />
-                      <span className="text-sm text-gray-400">Entry Fee:</span>
-                      <span className="text-white font-semibold">
-                        {game.entryFee} tokens
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {formatTime(game.startTimeOffset)}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => handleJoin(game.id, game.entryFee)}
-                      disabled={
-                        joining === game.id ||
-                        game.status === "Full" ||
-                        game.status === "Ongoing" ||
-                        game.participants.includes(address || "")
-                      }
-                    >
-                      {joining === game.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          <span>Processing...</span>
-                        </>
-                      ) : game.status === "Full" ? (
-                        "Full"
-                      ) : game.status === "Ongoing" ? (
-                        "In Progress"
-                      ) : game.participants.includes(address || "") ? (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Joined</span>
-                        </div>
-                      ) : (
-                        "Join"
-                      )}
-                    </Button>
-                    <Link href={`/tournament/${game.id}`} className="flex-1">
-                      <Button
-                        variant="outline"
-                        className="w-full border-white/20 text-white hover:bg-white/10"
+                  {/* Status Badge */}
+                  <div className={`p-6 pb-4 ${isEnded || isOngoing || isFull ? 'pt-10' : ''}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <Badge
+                        className={`${
+                          isEnded
+                            ? 'bg-gray-600 text-white border-none'
+                            : isOngoing
+                            ? 'bg-green-600 text-white border-none'
+                            : isFull
+                            ? 'bg-red-600 text-white border-none'
+                            : game.statusColor
+                        } text-white border-none`}
                       >
-                        Details
-                      </Button>
+                        {game.status}
+                      </Badge>
+                      <div className={`flex items-center text-sm ${
+                        isEnded ? 'text-gray-500' : 'text-gray-400'
+                      }`}>
+                        <Clock className="w-4 h-4 mr-1" />
+                        {isEnded ? 'Completed' : getTimeRemaining(game.startTimeOffset)}
+                      </div>
+                    </div>
+
+                    {/* Title and Description - Clickable */}
+                    <Link href={`/tournament/${game.id}`}>
+                      <h3 className={`text-xl font-bold mb-2 group-hover:text-blue-400 transition-colors cursor-pointer ${
+                        isEnded ? 'text-gray-400' : 'text-white'
+                      }`}>
+                        {game.title}
+                      </h3>
                     </Link>
+                    <p className={`text-sm mb-4 ${
+                      isEnded ? 'text-gray-500' : 'text-gray-400'
+                    }`}>
+                      {game.description}
+                    </p>
+
+                    {/* Game Type */}
+                    <Badge
+                      variant="outline"
+                      className={`${
+                        isEnded
+                          ? 'border-gray-600/30 text-gray-400'
+                          : 'border-white/20 text-gray-300'
+                      } mb-4`}
+                    >
+                      {game.gameTypeIcon} {game.gameTypeLabel}
+                    </Badge>
                   </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+
+                  {/* Stats */}
+                  <div className="px-6 pb-4 flex-1">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Trophy className={`w-4 h-4 ${
+                            isEnded ? 'text-gray-500' : 'text-yellow-400'
+                          }`} />
+                          <span className="text-xs text-gray-400">Prize Pool</span>
+                        </div>
+                        <div className={`text-lg font-bold ${
+                          isEnded ? 'text-gray-400' : 'text-white'
+                        }`}>
+                          {game.prize} tokens
+                        </div>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Users className={`w-4 h-4 ${
+                            isEnded ? 'text-gray-500' : 'text-blue-400'
+                          }`} />
+                          <span className="text-xs text-gray-400">Players</span>
+                        </div>
+                        <div className={`text-lg font-bold ${
+                          isEnded ? 'text-gray-400' : 'text-white'
+                        }`}>
+                          {game.currentPlayers}/{game.maxPlayers}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-6 pt-0 border-t border-white/10 mt-auto space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className={`w-4 h-4 ${
+                          isEnded ? 'text-gray-500' : 'text-purple-400'
+                        }`} />
+                        <span className={`text-sm ${
+                          isEnded ? 'text-gray-500' : 'text-gray-400'
+                        }`}>Entry Fee:</span>
+                        <span className={`font-semibold ${
+                          isEnded ? 'text-gray-400' : 'text-white'
+                        }`}>
+                          {game.entryFee} tokens
+                        </span>
+                      </div>
+                      <div className={`text-sm ${
+                        isEnded ? 'text-gray-500' : 'text-gray-400'
+                      }`}>
+                        {formatTime(game.startTimeOffset)}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        className={`flex-1 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isEnded || isOngoing || isFull
+                            ? 'bg-gray-700 hover:bg-gray-800 text-white'
+                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                        }`}
+                        onClick={() => handleJoin(game.id, game.entryFee)}
+                        disabled={
+                          joining === game.id ||
+                          game.status === "Full" ||
+                          game.status === "Ongoing" ||
+                          game.participants.includes(address || "")
+                        }
+                      >
+                        {joining === game.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <span>Processing...</span>
+                          </>
+                        ) : game.status === "Full" ? (
+                          "Full"
+                        ) : game.status === "Ongoing" ? (
+                          "In Progress"
+                        ) : game.participants.includes(address || "") ? (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Joined</span>
+                          </div>
+                        ) : (
+                          "Join"
+                        )}
+                      </Button>
+                      <Link href={`/tournament/${game.id}`} className="flex-1">
+                        <Button
+                          variant="outline"
+                          className={`w-full ${
+                            isEnded
+                              ? 'border-gray-600/30 text-gray-400 hover:bg-gray-600/10'
+                              : 'border-white/20 text-white hover:bg-white/10'
+                          }`}
+                        >
+                          Details
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Empty State */}
