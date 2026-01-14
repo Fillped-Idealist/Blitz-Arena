@@ -705,85 +705,42 @@ export default function TournamentDetailPage() {
                     <Card className="bg-white/5 backdrop-blur-sm border-white/10 overflow-hidden">
                       <div className="p-6 border-b border-white/10">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-xl font-bold text-white">Full Leaderboard</h3>
+                          <h3 className="text-xl font-bold text-white">Leaderboard</h3>
                           <Badge className="bg-blue-500/20 text-blue-400">
                             {tournament.results.length} Participants
                           </Badge>
                         </div>
                       </div>
 
-                      {/* Top 3 Podium */}
-                      {tournament.results.length >= 3 && (
-                        <div className="grid grid-cols-3 gap-4 p-6 border-b border-white/10">
-                          {tournament.results
-                            .sort((a, b) => b.score - a.score)
-                            .slice(0, 3)
-                            .map((result, index) => {
-                              const rank = index + 1;
-                              const isCurrentPlayer = result.playerAddress === address;
-                              return (
-                                <div
-                                  key={result.playerAddress}
-                                  className={`text-center p-4 rounded-xl bg-gradient-to-br ${
-                                    rank === 1
-                                      ? 'from-yellow-500/20 to-amber-600/20 border border-yellow-500/30'
-                                      : rank === 2
-                                      ? 'from-gray-400/20 to-gray-300/20 border border-gray-400/30'
-                                      : 'from-amber-700/20 to-orange-600/20 border border-amber-700/30'
-                                  } ${isCurrentPlayer ? 'ring-2 ring-blue-500' : ''}`}
-                                >
-                                  <div className="text-2xl font-bold mb-2">
-                                    {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
-                                  </div>
-                                  <div className="font-mono text-sm text-white mb-2 break-all">
-                                    {result.playerAddress.slice(0, 8)}...
-                                  </div>
-                                  <div className="text-3xl font-bold text-white">
-                                    {result.score}
-                                  </div>
-                                  {isCurrentPlayer && (
-                                    <Badge className="mt-2 bg-blue-500 text-white text-xs">
-                                      You
-                                    </Badge>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-
-                      {/* All Participants List */}
+                      {/* Leaderboard List */}
                       <div className="max-h-96 overflow-y-auto">
                         {tournament.results
                           .sort((a, b) => b.score - a.score)
                           .map((result, index) => {
                             const rank = index + 1;
                             const isCurrentPlayer = result.playerAddress === address;
-                            const isTop3 = rank <= 3;
 
                             return (
                               <div
                                 key={result.playerAddress}
                                 className={`flex items-center gap-4 p-4 hover:bg-white/5 transition-colors ${
                                   isCurrentPlayer ? 'bg-blue-500/10' : ''
-                                } ${isTop3 ? 'hidden' : ''}`}
+                                }`}
                               >
                                 <div className="w-12 text-center">
-                                  <Badge className={
-                                    isCurrentPlayer
-                                      ? 'bg-blue-500 text-white border-none'
-                                      : 'bg-white/10 text-white border-none'
-                                  }>
+                                  <span className={`text-lg font-bold ${
+                                    rank === 1 ? 'text-yellow-400' :
+                                    rank === 2 ? 'text-gray-300' :
+                                    rank === 3 ? 'text-amber-600' :
+                                    'text-gray-400'
+                                  }`}>
                                     #{rank}
-                                  </Badge>
+                                  </span>
                                 </div>
 
                                 <div className="flex-1">
                                   <div className="font-mono text-sm text-white">
-                                    {result.playerAddress.slice(0, 8)}...{result.playerAddress.slice(-4)}
-                                  </div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    {new Date(result.timestamp).toLocaleString()}
+                                    {result.playerAddress.slice(0, 6)}...{result.playerAddress.slice(-4)}
                                   </div>
                                 </div>
 
@@ -793,7 +750,7 @@ export default function TournamentDetailPage() {
                                   </div>
                                   {isCurrentPlayer && (
                                     <Badge className="mt-1 bg-blue-500 text-white text-xs">
-                                      Your Score
+                                      You
                                     </Badge>
                                   )}
                                 </div>

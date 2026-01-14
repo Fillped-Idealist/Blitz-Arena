@@ -42,6 +42,7 @@ export interface Tournament {
   duration: number; // 比赛持续时间（分钟）
   creatorAddress: string;
   createdAt: number;
+  distributionType: string; // "0"=Winner Takes All, "1"=Average Split, "2"=Top 3 Ranked
   participants: string[]; // 参与者地址列表
   results: {
     playerAddress: string;
@@ -71,6 +72,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     duration: 1440, // 24 hours
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
+    distributionType: '0', // Winner Takes All
     participants: [],
     results: []
   },
@@ -93,6 +95,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     duration: 720, // 12 hours
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
+    distributionType: '1', // Average Split
     participants: [],
     results: []
   },
@@ -115,6 +118,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     duration: 2880, // 48 hours
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
+    distributionType: '2', // Top 3 Ranked
     participants: [],
     results: []
   },
@@ -137,6 +141,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     duration: 480, // 8 hours
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
+    distributionType: '0', // Winner Takes All
     participants: [],
     results: []
   }
@@ -292,6 +297,7 @@ export function createTournament(data: {
     duration: data.gameDuration,
     creatorAddress: data.creatorAddress,
     createdAt: Date.now(),
+    distributionType: data.distributionType,
     participants: [],
     results: []
   };
@@ -572,14 +578,12 @@ export function recordJoinFee(tournamentId: string, playerAddress: string, entry
   }
 }
 
-// 计算奖金池（报名费总额 - 10%平台手续费）
+// 计算奖金池（使用 prizePool 字段，已扣除手续费）
 function calculatePrizePool(tournament: Tournament): number {
-  const totalEntryFees = parseFloat(tournament.entryFee) * tournament.currentPlayers;
-  const platformFee = totalEntryFees * 0.1;
-  return Math.floor(totalEntryFees - platformFee);
+  return parseFloat(tournament.prize);
 }
 
-// 记录奖金发放（简化版：平分奖金池）
+// 记录奖金发放
 export function recordPrizePayout(tournamentId: string, winnerAddress: string, prize: string): void {
   addTransaction({
     type: 'prize_payout',
@@ -664,16 +668,44 @@ export function distributePrizes(tournamentId: string): void {
   const prizePool = calculatePrizePool(tournament);
   const sortedResults = [...tournament.results].sort((a, b) => b.score - a.score);
 
-  // 简化的奖金分配：所有参与者平分奖金池（可扩展为更复杂的分配方式）
-  const prizePerPlayer = Math.floor(prizePool / sortedResults.length);
+  // 根据分配类型分配奖金
+  switch (tournament.distributionType) {
+    case '0': // Winner Takes All - 100% 奖金池给第一名
+      if (sortedResults.length > 0 && prizePool > 0) {
+        recordPrizePayout(tournamentId, sortedResults[0].playerAddress, prizePool.toString());
+        console.log(`Winner Takes All: Distributed ${prizePool} tokens to ${sortedResults[0].playerAddress}`);
+      }
+      break;
 
-  sortedResults.forEach((result, index) => {
-    if (prizePerPlayer > 0) {
-      recordPrizePayout(tournamentId, result.playerAddress, prizePerPlayer.toString());
-    }
-  });
+    case '1': // Average Split - 所有参与者平分
+      const prizePerPlayer = Math.floor(prizePool / sortedResults.length);
+      sortedResults.forEach((result) => {
+        if (prizePerPlayer > 0) {
+          recordPrizePayout(tournamentId, result.playerAddress, prizePerPlayer.toString());
+        }
+      });
+      console.log(`Average Split: Distributed ${prizePool} tokens to ${sortedResults.length} participants (${prizePerPlayer} each)`);
+      break;
 
-  console.log(`Distributed ${prizePool} tokens to ${sortedResults.length} participants`);
+    case '2': // Top 3 Ranked - 60% / 30% / 10% 分配
+      const prizes = [
+        Math.floor(prizePool * 0.6), // 第一名 60%
+        Math.floor(prizePool * 0.3), // 第二名 30%
+        Math.floor(prizePool * 0.1)  // 第三名 10%
+      ];
+
+      sortedResults.slice(0, 3).forEach((result, index) => {
+        if (prizes[index] > 0) {
+          recordPrizePayout(tournamentId, result.playerAddress, prizes[index].toString());
+        }
+      });
+      console.log(`Top 3 Ranked: Distributed ${prizePool} tokens (${prizes.join(' / ')})`);
+      break;
+
+    default:
+      console.error(`Unknown distribution type: ${tournament.distributionType}`);
+      break;
+  }
 }
 
 // 处理比赛取消时的退款
