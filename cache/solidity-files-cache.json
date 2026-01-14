@@ -2,7 +2,7 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/workspace/projects/contracts/GameFactory.sol": {
-      "lastModificationDate": 1767960275306,
+      "lastModificationDate": 1768375639064,
       "contentHash": "1d658b41955380981e64da2c4bb7ba30",
       "sourceName": "contracts/GameFactory.sol",
       "solcConfig": {
@@ -43,7 +43,7 @@
       ]
     },
     "/workspace/projects/contracts/GameInstance.sol": {
-      "lastModificationDate": 1767962382401,
+      "lastModificationDate": 1768375639065,
       "contentHash": "0deb7e500ed8abebeb80554150ced11e",
       "sourceName": "contracts/GameInstance.sol",
       "solcConfig": {
@@ -84,8 +84,8 @@
       ]
     },
     "/workspace/projects/contracts/Types.sol": {
-      "lastModificationDate": 1767962799021,
-      "contentHash": "c9ed74d21a5434f4a177369923daa630",
+      "lastModificationDate": 1768375639066,
+      "contentHash": "123124b5168139f41dc4ee1be627392b",
       "sourceName": "contracts/Types.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -497,8 +497,8 @@
       ]
     },
     "/workspace/projects/contracts/GameRegistry.sol": {
-      "lastModificationDate": 1767962218591,
-      "contentHash": "9f2f13057c869445d43f81a783ea2c7e",
+      "lastModificationDate": 1768375639065,
+      "contentHash": "13135503fdaa362b4681afada6a9c75b",
       "sourceName": "contracts/GameRegistry.sol",
       "solcConfig": {
         "version": "0.8.24",

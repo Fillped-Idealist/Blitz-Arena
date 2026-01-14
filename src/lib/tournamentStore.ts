@@ -1,6 +1,15 @@
 'use client';
 
 import { toast } from 'sonner';
+import {
+  addTokenReward,
+  TOURNAMENT_PARTICIPATION_REWARD,
+  TOURNAMENT_RANK_REWARDS,
+  checkAndUnlockGameAchievement,
+  getAllAchievements,
+  getUserAchievements,
+  unlockAchievement
+} from './socialStore';
 
 // 交易类型
 export type TransactionType =
@@ -354,6 +363,17 @@ export function joinTournament(tournamentId: string, playerAddress: string): boo
   }
 
   saveTournaments(tournaments);
+
+  // 发放参与比赛奖励：3 BLZ
+  addTokenReward(
+    playerAddress,
+    TOURNAMENT_PARTICIPATION_REWARD,
+    `Tournament participation reward: ${TOURNAMENT_PARTICIPATION_REWARD} BLZ`
+  );
+
+  // 解锁成就：首次参加比赛
+  unlockAchievement(playerAddress, 'first_tournament');
+
   return true;
 }
 
@@ -391,6 +411,43 @@ export function submitGameResult(
   });
 
   saveTournaments(tournaments);
+
+  // 计算排名
+  const sortedResults = [...tournament.results].sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return a.timestamp - b.timestamp;
+  });
+
+  const rank = sortedResults.findIndex(r => r.playerAddress === playerAddress) + 1;
+
+  // 发放前三名额外奖励
+  if (rank === 1) {
+    addTokenReward(
+      playerAddress,
+      TOURNAMENT_RANK_REWARDS[1],
+      `1st place reward: ${TOURNAMENT_RANK_REWARDS[1]} BLZ`
+    );
+    // 解锁冠军成就
+    unlockAchievement(playerAddress, 'tournament_winner');
+  } else if (rank === 2) {
+    addTokenReward(
+      playerAddress,
+      TOURNAMENT_RANK_REWARDS[2],
+      `2nd place reward: ${TOURNAMENT_RANK_REWARDS[2]} BLZ`
+    );
+  } else if (rank === 3) {
+    addTokenReward(
+      playerAddress,
+      TOURNAMENT_RANK_REWARDS[3],
+      `3rd place reward: ${TOURNAMENT_RANK_REWARDS[3]} BLZ`
+    );
+  }
+
+  // 检查游戏成就
+  checkAndUnlockGameAchievement(playerAddress, score, tournament.results.length);
+
   return true;
 }
 
