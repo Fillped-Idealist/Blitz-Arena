@@ -113,46 +113,54 @@ export function useCreateGame() {
     distributionType: PrizeDistributionType;
     rankPrizes: number[]; // BPS values (0-10000)
   }) => {
-    if (!supported) {
-      throw new Error('Unsupported network');
+    try {
+      if (!supported) {
+        throw new Error('Unsupported network. Please switch to Hardhat or Mantle Sepolia Testnet');
+      }
+
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      // 计算总金额 (奖池 + 10% 平台费)
+      const prizePoolAmount = parseUnits(config.prizePool, 18);
+      const platformFee = (prizePoolAmount * BigInt(1000)) / BigInt(10000); // 10% fee
+      const totalAmount = prizePoolAmount + platformFee;
+
+      // 准备配置参数
+      const gameConfig = {
+        title: config.title,
+        description: config.description,
+        gameType: config.gameType,
+        feeTokenAddress: addresses.PRIZE_TOKEN as `0x${string}`,
+        entryFee: parseUnits(config.entryFee, 18),
+        minPlayers: BigInt(config.minPlayers),
+        maxPlayers: BigInt(config.maxPlayers),
+        registrationEndTime: BigInt(config.registrationEndTime),
+        gameStartTime: BigInt(config.gameStartTime),
+        prizeTokenAddress: addresses.PRIZE_TOKEN as `0x${string}`,
+        prizePool: prizePoolAmount,
+        distributionType: config.distributionType,
+        rankPrizes: config.rankPrizes.map((p) => BigInt(p)),
+      };
+
+      toast.info('Creating tournament...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: addresses.GAME_FACTORY as `0x${string}`,
+        abi: GAME_FACTORY_ABI,
+        functionName: 'createGame',
+        args: [gameConfig],
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to create tournament', {
+        description: errorMessage,
+      });
+      throw err;
     }
-
-    if (!address) {
-      throw new Error('Wallet not connected');
-    }
-
-    // 计算总金额 (奖池 + 10% 平台费)
-    const prizePoolAmount = parseUnits(config.prizePool, 18);
-    const platformFee = (prizePoolAmount * BigInt(1000)) / BigInt(10000); // 10% fee
-    const totalAmount = prizePoolAmount + platformFee;
-
-    // 准备配置参数
-    const gameConfig = {
-      title: config.title,
-      description: config.description,
-      gameType: config.gameType,
-      feeTokenAddress: addresses.PRIZE_TOKEN as `0x${string}`,
-      entryFee: parseUnits(config.entryFee, 18),
-      minPlayers: BigInt(config.minPlayers),
-      maxPlayers: BigInt(config.maxPlayers),
-      registrationEndTime: BigInt(config.registrationEndTime),
-      gameStartTime: BigInt(config.gameStartTime),
-      prizeTokenAddress: addresses.PRIZE_TOKEN as `0x${string}`,
-      prizePool: prizePoolAmount,
-      distributionType: config.distributionType,
-      rankPrizes: config.rankPrizes.map((p) => BigInt(p)),
-    };
-
-    toast.info('Creating tournament...', {
-      description: 'Please approve the transaction in your wallet',
-    });
-
-    writeContract({
-      address: addresses.GAME_FACTORY as `0x${string}`,
-      abi: GAME_FACTORY_ABI,
-      functionName: 'createGame',
-      args: [gameConfig],
-    });
   };
 
   return {
@@ -357,6 +365,7 @@ export function useGameInstance(gameAddress: `0x${string}` | null) {
  * 报名比赛的 hook
  */
 export function useJoinGame() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -364,19 +373,31 @@ export function useJoinGame() {
   });
 
   const joinGame = async (gameAddress: `0x${string}`, entryFee: string) => {
-    toast.info('Joining tournament...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    // 先授权代币
-    // 注意：这里需要先调用 approve 函数授权 GameInstance 使用代币
-    // 简化版假设已授权，实际需要先 approve
+      toast.info('Joining tournament...', {
+        description: 'Please approve the transaction in your wallet',
+      });
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'joinGame',
-    });
+      // 先授权代币
+      // 注意：这里需要先调用 approve 函数授权 GameInstance 使用代币
+      // 简化版假设已授权，实际需要先 approve
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'joinGame',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to join tournament', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
@@ -393,6 +414,7 @@ export function useJoinGame() {
  * 提交分数的 hook
  */
 export function useSubmitScore() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -400,16 +422,32 @@ export function useSubmitScore() {
   });
 
   const submitScore = async (gameAddress: `0x${string}`, score: number) => {
-    toast.info('Submitting score...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'submitScore',
-      args: [BigInt(score)],
-    });
+      if (score < 0) {
+        throw new Error('Invalid score. Score must be a positive number');
+      }
+
+      toast.info('Submitting score...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'submitScore',
+        args: [BigInt(score)],
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to submit score', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
@@ -546,6 +584,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
  * 领取奖金的 hook
  */
 export function useClaimPrize() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -553,15 +592,27 @@ export function useClaimPrize() {
   });
 
   const claimPrize = async (gameAddress: `0x${string}`) => {
-    toast.info('Claiming prize...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'claimPrize',
-    });
+      toast.info('Claiming prize...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'claimPrize',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to claim prize', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
@@ -730,9 +781,24 @@ export function useUserGames(userAddress?: `0x${string}`) {
                   address: gameAddr,
                   abi: GAME_INSTANCE_ABI,
                   functionName: 'players',
-                }) as unknown as Promise<Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }>>;
+                }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
 
-                const playersArray = await players;
+                // 获取用户在比赛中的游戏结果（包含提交时间）
+                const gameResult = await publicClient.readContract({
+                  address: gameAddr,
+                  abi: GAME_INSTANCE_ABI,
+                  functionName: 'gameResults',
+                  args: [userAddr],
+                }) as unknown as {
+                  gameType: bigint;
+                  player: `0x${string}`;
+                  score: bigint;
+                  timestamp: bigint;
+                  gameHash: `0x${string}`;
+                  metadata: bigint[];
+                } | undefined;
+
+                const submittedAt = gameResult?.timestamp;
 
                 return {
                   address: gameAddr,
@@ -741,11 +807,12 @@ export function useUserGames(userAddress?: `0x${string}`) {
                   gameType: gameType as unknown as bigint,
                   entryFee: entryFee as unknown as bigint,
                   prizePool: prizePool as unknown as bigint,
-                  players: playersArray?.length || 0,
+                  players: players?.length || 0,
                   isJoined: true,
+                  submittedAt,
                 };
               }
-              return null as GameData | null;
+              return null as (GameData & { submittedAt?: bigint }) | null;
             } catch (error) {
               console.error(`Failed to check game ${gameAddr}:`, error);
               return null;
@@ -943,6 +1010,7 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
  * 开始比赛的 hook
  */
 export function useStartGame() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -950,15 +1018,27 @@ export function useStartGame() {
   });
 
   const startGame = async (gameAddress: `0x${string}`) => {
-    toast.info('Starting game...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'startGame',
-    });
+      toast.info('Starting game...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'startGame',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to start game', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
@@ -975,6 +1055,7 @@ export function useStartGame() {
  * 设置比赛获胜者的 hook
  */
 export function useSetWinners() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -982,16 +1063,32 @@ export function useSetWinners() {
   });
 
   const setWinners = async (gameAddress: `0x${string}`, winners: `0x${string}`[]) => {
-    toast.info('Setting winners...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'setWinners',
-      args: [winners],
-    });
+      if (!winners || winners.length === 0) {
+        throw new Error('Winners list is empty. Please select at least one winner');
+      }
+
+      toast.info('Setting winners...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'setWinners',
+        args: [winners],
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to set winners', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
@@ -1008,6 +1105,7 @@ export function useSetWinners() {
  * 分配奖金的 hook
  */
 export function useDistributePrize() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -1015,15 +1113,27 @@ export function useDistributePrize() {
   });
 
   const distributePrize = async (gameAddress: `0x${string}`) => {
-    toast.info('Distributing prizes...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'distributePrize',
-    });
+      toast.info('Distributing prizes...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'distributePrize',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to distribute prizes', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
@@ -1040,6 +1150,7 @@ export function useDistributePrize() {
  * 取消比赛的 hook
  */
 export function useCancelGame() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -1047,15 +1158,27 @@ export function useCancelGame() {
   });
 
   const cancelGame = async (gameAddress: `0x${string}`) => {
-    toast.info('Cancelling game...', {
-      description: 'Please approve the transaction in your wallet',
-    });
+    try {
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
 
-    writeContract({
-      address: gameAddress,
-      abi: GAME_INSTANCE_ABI,
-      functionName: 'cancelGame',
-    });
+      toast.info('Cancelling game...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'cancelGame',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to cancel game', {
+        description: errorMessage,
+      });
+      throw err;
+    }
   };
 
   return {
