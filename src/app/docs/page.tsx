@@ -19,6 +19,7 @@ import {
   TrendingUp,
   MessageSquare,
   Hash,
+  Award,
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Card } from '@/components/ui/card';
@@ -1211,6 +1212,392 @@ function Rewards({ activeSubsection }: { activeSubsection: string }) {
                   <Badge className="bg-blue-500 text-white border-none">Exclusive Badges</Badge>
                 </div>
               </div>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubsection === 'blz-token' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-yellow-500 to-orange-600 border-none text-white">
+              Token
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              BLZ Token
+            </h1>
+            <p className="text-lg text-gray-400">
+              The native utility token of Blitz Arena platform.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Coins className="w-5 h-5 text-yellow-400" />
+                What is BLZ?
+              </h3>
+              <p className="text-gray-400 mb-4">
+                BLZ is the native utility token used throughout the Blitz Arena platform. It serves multiple purposes including rewarding players, accessing special features, and powering the ecosystem.
+              </p>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>ERC-20 Standard:</strong> Built on Ethereum for seamless integration</li>
+                <li>• <strong>Decimals:</strong> 18 decimal places for precise calculations</li>
+                <li>• <strong>Symbol:</strong> BLZ</li>
+                <li>• <strong>Chain:</strong> Deployed on Hardhat (test) and Mantle Sepolia</li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Token Uses</h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <Trophy className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <strong>Tournament Rewards</strong>
+                    <p className="text-gray-400 text-sm">Earn BLZ by winning tournaments and competing in competitions</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <TrendingUp className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <strong>Level Progression</strong>
+                    <p className="text-gray-400 text-sm">Convert BLZ to experience points to advance your level</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Award className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <strong>Achievement Rewards</strong>
+                    <p className="text-gray-400 text-sm">Receive BLZ tokens when unlocking achievements</p>
+                  </div>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Earning BLZ</h3>
+              <div className="space-y-3">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Participate in Tournaments:</strong> +3 BLZ
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Earn 3 BLZ tokens for participating in any tournament
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Win Tournaments:</strong> 20 / 10 / 5 BLZ
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Additional bonus rewards: 1st place gets 20 BLZ, 2nd place 10 BLZ, 3rd place 5 BLZ
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Create Tournament:</strong> +5 BLZ
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Receive 5 BLZ for creating a new tournament
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Unlock Achievements:</strong> 3 - 10 BLZ
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Various achievements reward different amounts of BLZ tokens
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                1 BLZ = 1 EXP
+              </h3>
+              <p className="text-gray-400">
+                Your BLZ tokens are automatically converted to experience points. Each BLZ token you earn gives you 1 experience point, which contributes to your level progression.
+              </p>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubsection === 'leveling-system' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-blue-500 to-purple-600 border-none text-white">
+              Progression
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Leveling System
+            </h1>
+            <p className="text-lg text-gray-400">
+              Progress through levels by earning experience points.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+                How Leveling Works
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Your level is determined by your total experience points (EXP). Earn EXP through tournament participation, winning, and unlocking achievements.
+              </p>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <Coins className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <strong>EXP Source</strong>
+                    <p className="text-gray-400 text-sm">1 BLZ token = 1 experience point</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <strong>Auto-Conversion</strong>
+                    <p className="text-gray-400 text-sm">BLZ tokens are automatically converted to EXP when earned</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <strong>On-Chain Storage</strong>
+                    <p className="text-gray-400 text-sm">All level data is stored on the blockchain</p>
+                  </div>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Level Requirements</h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Progressive Difficulty</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Each level requires more EXP than the previous one. The requirement increases by 1.5x per level.
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Base Requirement</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Level 1 requires 100 EXP, Level 2 requires 150 EXP, and so on.
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Formula</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    EXP for Level N = 100 × (1.5)<sup>N-1</sup>
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Level Progression Example</h3>
+              <div className="grid gap-3 text-sm">
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 1</span>
+                  <span className="text-blue-400 font-mono">100 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 2</span>
+                  <span className="text-blue-400 font-mono">150 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 3</span>
+                  <span className="text-blue-400 font-mono">225 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 4</span>
+                  <span className="text-blue-400 font-mono">338 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 5</span>
+                  <span className="text-blue-400 font-mono">507 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 10</span>
+                  <span className="text-purple-400 font-mono">~3,800 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 20</span>
+                  <span className="text-purple-400 font-mono">~145,000 EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <span className="text-gray-300">Level 50</span>
+                  <span className="text-yellow-400 font-mono">~22M EXP</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                  <span className="text-white font-bold">Level 100 (MAX)</span>
+                  <span className="text-yellow-400 font-mono">~3.3B EXP</span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-purple-400" />
+                Maximum Level
+              </h3>
+              <div className="space-y-3">
+                <p className="text-gray-400">
+                  The maximum level is <strong>100</strong>. Once you reach level 100, you cannot gain additional levels, but you can continue earning BLZ tokens and participating in tournaments.
+                </p>
+                <ul className="space-y-2 text-gray-300 text-sm">
+                  <li>• Level 100 requires approximately 3.3 billion EXP</li>
+                  <li>• Level 100 players receive special badges and recognition</li>
+                  <li>• BLZ tokens continue to accumulate even at max level</li>
+                </ul>
+              </div>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubsection === 'achievements' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-purple-500 to-pink-600 border-none text-white">
+              Milestones
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Achievements
+            </h1>
+            <p className="text-lg text-gray-400">
+              Unlock achievements to earn rewards and showcase your skills.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Award className="w-5 h-5 text-purple-400" />
+                What Are Achievements?
+              </h3>
+              <p className="text-gray-400 mb-4">
+                Achievements are milestones that recognize your accomplishments on Blitz Arena. Unlocking achievements awards you with BLZ tokens and showcases your dedication.
+              </p>
+              <ul className="space-y-2 text-gray-300">
+                <li>• <strong>Automatic:</strong> Achievements are automatically unlocked when you meet the criteria</li>
+                <li>• <strong>One-Time:</strong> Each achievement can only be unlocked once</li>
+                <li>• <strong>On-Chain:</strong> All achievements are recorded on the blockchain</li>
+                <li>• <strong>Public:</strong> Your achievements are visible on your profile</li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Game Achievements</h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">First Tournament</h4>
+                    <Badge className="bg-yellow-500 text-white border-none">+3 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Join your first tournament</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">Score Master</h4>
+                    <Badge className="bg-yellow-500 text-white border-none">+5 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Submit a score in a tournament</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">Champion</h4>
+                    <Badge className="bg-purple-500 text-white border-none">+10 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Win your first tournament</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">Tournament Veteran</h4>
+                    <Badge className="bg-purple-500 text-white border-none">+15 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Participate in 10 tournaments</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Social Achievements</h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">First Friend</h4>
+                    <Badge className="bg-blue-500 text-white border-none">+3 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Add your first friend</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">Social Butterfly</h4>
+                    <Badge className="bg-blue-500 text-white border-none">+10 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Add 10 friends</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-bold">Community Star</h4>
+                    <Badge className="bg-pink-500 text-white border-none">+15 BLZ</Badge>
+                  </div>
+                  <p className="text-gray-400 text-sm">Receive 50 likes on your profile</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-yellow-400" />
+                Achievement Rewards
+              </h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <Coins className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <strong>BLZ Tokens</strong>
+                    <p className="text-gray-400 text-sm">Each achievement awards BLZ tokens (3-15 BLZ)</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <TrendingUp className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <strong>Experience Points</strong>
+                    <p className="text-gray-400 text-sm">BLZ rewards are automatically converted to EXP</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Trophy className="w-5 h-5 text-purple-400 mt-0.5" />
+                  <div>
+                    <strong>Profile Showcase</strong>
+                    <p className="text-gray-400 text-sm">Unlocked achievements are displayed on your profile</p>
+                  </div>
+                </li>
+              </ul>
             </Card>
           </div>
         </motion.div>
