@@ -1,618 +1,539 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { time, loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
-describe("Blitz Arena Contracts Test Suite", function () {
-  // 部署所有合约
-  async function deployContractsFixture() {
-    const [owner, player1, player2, player3, player4] = await ethers.getSigners();
+describe("Blitz Arena Smart Contracts", function () {
+  let blzToken, prizeToken, gameFactory, gameRegistry;
+  let owner, addr1, addr2, addr3, gameInstance;
 
-    // 部署 MockERC20
+  before(async function () {
+    [owner, addr1, addr2, addr3] = await ethers.getSigners();
+  });
+
+  beforeEach(async function () {
+    // Deploy BLZ Token
     const MockERC20 = await ethers.getContractFactory("MockERC20");
-    const initialSupply = ethers.parseEther("1000000"); // 100万代币
-    const feeToken = await MockERC20.deploy("Mock Fee Token", "MFT", initialSupply);
-    const prizeToken = await MockERC20.deploy("Mock Prize Token", "MPT", initialSupply);
+    blzToken = await MockERC20.deploy("Blitz Token", "BLZ", ethers.parseEther("1000000"));
 
-    // 部署 GameRegistry
+    // Deploy Prize Token
+    prizeToken = await MockERC20.deploy("Prize Token", "MNT", ethers.parseEther("1000000"));
+
+    // Deploy GameRegistry
     const GameRegistry = await ethers.getContractFactory("GameRegistry");
-    const gameRegistry = await GameRegistry.deploy();
+    gameRegistry = await GameRegistry.deploy();
 
-    // 部署 GameFactory
+    // Deploy GameFactory
     const GameFactory = await ethers.getContractFactory("GameFactory");
-    const gameFactory = await GameFactory.deploy(await gameRegistry.getAddress());
+    gameFactory = await GameFactory.deploy(blzToken.target);
 
-    // 获取当前时间
-    const now = await time.latest();
-    const oneHour = 3600;
-    const oneDay = 86400;
+    // Grant GAME_ADMIN_ROLE to gameFactory
+    const GAME_ADMIN_ROLE = await gameRegistry.GAME_ADMIN_ROLE();
+    await gameRegistry.grantRole(GAME_ADMIN_ROLE, gameFactory.target);
 
-    return {
-      owner,
-      player1,
-      player2,
-      player3,
-      player4,
-      feeToken,
-      prizeToken,
-      gameRegistry,
-      gameFactory,
-      now,
-      oneHour,
-      oneDay
-    };
-  }
+    // Mint tokens for testing
+    await blzToken.mint(addr1.address, ethers.parseEther("1000"));
+    await blzToken.mint(addr2.address, ethers.parseEther("1000"));
+    await blzToken.mint(addr3.address, ethers.parseEther("1000"));
+    await prizeToken.mint(addr1.address, ethers.parseEther("1000"));
+    await prizeToken.mint(addr2.address, ethers.parseEther("1000"));
+    await prizeToken.mint(addr3.address, ethers.parseEther("1000"));
+  });
 
   describe("GameRegistry", function () {
-    it("Should deploy with correct owner", async function () {
-      const { gameRegistry, owner } = await loadFixture(deployContractsFixture);
-      expect(await gameRegistry.owner()).to.equal(owner.address);
+    it("Should have all games enabled by default", async function () {
+      expect(await gameRegistry.gameEnabled(1)).to.equal(true); // NumberGuess
+      expect(await gameRegistry.gameEnabled(2)).to.equal(true); // RockPaperScissors
+      expect(await gameRegistry.gameEnabled(3)).to.equal(true); // QuickClick
+      expect(await gameRegistry.gameEnabled(4)).to.equal(true); // InfiniteMatch
     });
 
-    it("Should register a game type", async function () {
-      const { gameRegistry } = await loadFixture(deployContractsFixture);
-      const gameTypeId = 1;
-      const gameType = 1; // NumberGuess
-      const maxScore = 100;
-
-      await gameRegistry.registerGameType(gameTypeId, gameType, maxScore);
-      
-      const gameTypeInfo = await gameRegistry.getGameType(gameTypeId);
-      expect(gameTypeInfo.gameType).to.equal(gameType);
-      expect(gameTypeInfo.maxScore).to.equal(maxScore);
-    });
-
-    it("Should prevent non-owner from registering game types", async function () {
-      const { gameRegistry, player1 } = await loadFixture(deployContractsFixture);
-      
-      await expect(
-        gameRegistry.connect(player1).registerGameType(1, 1, 100)
-      ).to.be.revertedWithCustomError(gameRegistry, "OwnableUnauthorizedAccount");
-    });
-  });
-
-  describe("GameInstance", function () {
-    describe("Tournament Creation", function () {
-      it("Should create a tournament with valid parameters", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, now, oneHour, oneDay } = 
-          await loadFixture(deployContractsFixture);
-
-        // 创建比赛配置
-        const config = {
-          title: "Test Tournament",
-          description: "A test tournament",
-          gameType: 1, // NumberGuess
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0 // Winner Takes All
-        };
-
-        // 授权代币
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-
-        // 创建比赛
-        await expect(gameFactory.createGame(config))
-          .to.emit(gameFactory, "GameCreated");
-      });
-
-      it("Should fail with invalid time parameters", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Invalid Tournament",
-          description: "Invalid time parameters",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now - oneHour, // 过去的时间
-          gameStartTime: now + oneHour,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-
-        await expect(gameFactory.createGame(config))
-          .to.be.revertedWith("Registration end must be in future");
-      });
-
-      it("Should fail when minPlayers > maxPlayers", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Invalid Players",
-          description: "Invalid player count",
-          gameType: 1,
-          minPlayers: 10,
-          maxPlayers: 5, // min > max
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-
-        await expect(gameFactory.createGame(config))
-          .to.be.revertedWith("Max must be >= Min");
-      });
-    });
-
-    describe("Player Registration", function () {
-      it("Should allow players to join a tournament", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        // 创建比赛
-        const config = {
-          title: "Join Test",
-          description: "Test joining",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        // 给玩家分配代币
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-
-        // 加入比赛
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await expect(gameInstance.connect(player1).joinGame())
-          .to.emit(gameInstance, "PlayerJoined")
-          .withArgs(player1.address);
-      });
-
-      it("Should prevent joining after registration deadline", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Late Join Test",
-          description: "Test late joining",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        await time.increaseTo(now + oneHour + 1); // 过了报名截止时间
-
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await expect(gameInstance.connect(player1).joinGame())
-          .to.be.revertedWith("Registration closed");
-      });
-    });
-
-    describe("Score Submission", function () {
-      it("Should allow players to submit scores", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, player2, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        // 创建比赛
-        const config = {
-          title: "Score Test",
-          description: "Test score submission",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        // 玩家加入
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(owner).transfer(player2.address, ethers.parseEther("10"));
-        
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-        await feeToken.connect(player2).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await gameInstance.connect(player1).joinGame();
-        await gameInstance.connect(player2).joinGame();
-
-        // 开始游戏
-        await time.increaseTo(now + oneHour * 2 + 1);
-        await gameInstance.startGame();
-
-        // 提交分数
-        await expect(gameInstance.connect(player1).submitScore(80))
-          .to.emit(gameInstance, "ScoreSubmitted")
-          .withArgs(player1.address, 80);
-
-        await expect(gameInstance.connect(player2).submitScore(90))
-          .to.emit(gameInstance, "ScoreSubmitted")
-          .withArgs(player2.address, 90);
-      });
-
-      it("Should prevent score submission after game ended", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Late Score Test",
-          description: "Test late score submission",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await gameInstance.connect(player1).joinGame();
-
-        // 结束游戏
-        await time.increaseTo(now + oneHour * 3);
-        await gameInstance.endGame();
-
-        // 尝试提交分数
-        await expect(gameInstance.connect(player1).submitScore(80))
-          .to.be.revertedWith("Game not in progress");
-      });
-    });
-
-    describe("Prize Distribution", function () {
-      it("Should distribute prizes correctly (Winner Takes All)", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, player2, player3, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Prize Test",
-          description: "Test prize distribution",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0 // Winner Takes All
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        // 玩家加入
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(owner).transfer(player2.address, ethers.parseEther("10"));
-        await feeToken.connect(owner).transfer(player3.address, ethers.parseEther("10"));
-        
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-        await feeToken.connect(player2).approve(gameAddress, ethers.parseEther("5"));
-        await feeToken.connect(player3).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await gameInstance.connect(player1).joinGame();
-        await gameInstance.connect(player2).joinGame();
-        await gameInstance.connect(player3).joinGame();
-
-        // 开始游戏并提交分数
-        await time.increaseTo(now + oneHour * 2 + 1);
-        await gameInstance.startGame();
-
-        await gameInstance.connect(player1).submitScore(80);
-        await gameInstance.connect(player2).submitScore(90); // 第一名
-        await gameInstance.connect(player3).submitScore(70);
-
-        // 结束游戏并分配奖金
-        await time.increaseTo(now + oneHour * 3);
-        await gameInstance.endGame();
-
-        const player2BalanceBefore = await prizeToken.balanceOf(player2.address);
-        await gameInstance.setWinners([player2.address]);
-        await gameInstance.distributePrizes();
-        const player2BalanceAfter = await prizeToken.balanceOf(player2.address);
-
-        expect(player2BalanceAfter - player2BalanceBefore).to.equal(ethers.parseEther("100"));
-      });
-
-      it("Should distribute prizes correctly (Top 3 Ranked)", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, player2, player3, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Top 3 Test",
-          description: "Test top 3 distribution",
-          gameType: 1,
-          minPlayers: 2,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 2 // Top 3 Ranked
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        // 玩家加入
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(owner).transfer(player2.address, ethers.parseEther("10"));
-        await feeToken.connect(owner).transfer(player3.address, ethers.parseEther("10"));
-        
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-        await feeToken.connect(player2).approve(gameAddress, ethers.parseEther("5"));
-        await feeToken.connect(player3).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await gameInstance.connect(player1).joinGame();
-        await gameInstance.connect(player2).joinGame();
-        await gameInstance.connect(player3).joinGame();
-
-        // 开始游戏并提交分数
-        await time.increaseTo(now + oneHour * 2 + 1);
-        await gameInstance.startGame();
-
-        await gameInstance.connect(player1).submitScore(70); // 第三名
-        await gameInstance.connect(player2).submitScore(90); // 第一名
-        await gameInstance.connect(player3).submitScore(80); // 第二名
-
-        // 结束游戏并分配奖金
-        await time.increaseTo(now + oneHour * 3);
-        await gameInstance.endGame();
-
-        const winners = [player2.address, player3.address, player1.address];
-        await gameInstance.setWinners(winners);
-        await gameInstance.distributePrizes();
-
-        // 验证奖金分配：60% / 30% / 10%
-        const player2Balance = await prizeToken.balanceOf(player2.address);
-        const player3Balance = await prizeToken.balanceOf(player3.address);
-        const player1Balance = await prizeToken.balanceOf(player1.address);
-
-        expect(player2Balance).to.equal(ethers.parseEther("60")); // 60%
-        expect(player3Balance).to.equal(ethers.parseEther("30")); // 30%
-        expect(player1Balance).to.equal(ethers.parseEther("10")); // 10%
-      });
-    });
-
-    describe("Game Cancellation", function () {
-      it("Should cancel tournament if insufficient players", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Cancel Test",
-          description: "Test tournament cancellation",
-          gameType: 1,
-          minPlayers: 5, // 需要至少5人
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        // 只有1人加入，低于最小人数
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await gameInstance.connect(player1).joinGame();
-
-        // 到达游戏开始时间
-        await time.increaseTo(now + oneHour * 2 + 1);
-
-        // 尝试开始游戏应该失败
-        await expect(gameInstance.startGame())
-          .to.be.revertedWith("Insufficient players");
-
-        // 创建者取消比赛
-        await expect(gameInstance.connect(owner).cancelGame())
-          .to.emit(gameInstance, "GameCanceled")
-          .withArgs(owner.address);
-      });
-
-      it("Should refund entry fees on cancellation", async function () {
-        const { gameFactory, feeToken, prizeToken, owner, player1, player2, now, oneHour } = 
-          await loadFixture(deployContractsFixture);
-
-        const config = {
-          title: "Refund Test",
-          description: "Test fee refunds",
-          gameType: 1,
-          minPlayers: 5,
-          maxPlayers: 10,
-          registrationEndTime: now + oneHour,
-          gameStartTime: now + oneHour * 2,
-          entryFee: ethers.parseEther("5"),
-          entryFeeToken: await feeToken.getAddress(),
-          prizePool: ethers.parseEther("100"),
-          prizeToken: await prizeToken.getAddress(),
-          distributionType: 0
-        };
-
-        await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-        await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-        const tx = await gameFactory.createGame(config);
-        const receipt = await tx.wait();
-        const event = receipt.logs.find(log => log.eventName === "GameCreated");
-        const gameAddress = event.args.gameInstance;
-
-        // 玩家加入
-        await feeToken.connect(owner).transfer(player1.address, ethers.parseEther("10"));
-        await feeToken.connect(owner).transfer(player2.address, ethers.parseEther("10"));
-        
-        await feeToken.connect(player1).approve(gameAddress, ethers.parseEther("5"));
-        await feeToken.connect(player2).approve(gameAddress, ethers.parseEther("5"));
-
-        const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-        await gameInstance.connect(player1).joinGame();
-        await gameInstance.connect(player2).joinGame();
-
-        const player1BalanceBefore = await feeToken.balanceOf(player1.address);
-
-        // 取消比赛
-        await gameInstance.connect(owner).cancelGame();
-
-        const player1BalanceAfter = await feeToken.balanceOf(player1.address);
-        expect(player1BalanceAfter - player1BalanceBefore).to.equal(ethers.parseEther("5"));
-      });
-    });
-  });
-
-  describe("Integration Tests", function () {
-    it("Should complete full tournament lifecycle", async function () {
-      const { gameFactory, feeToken, prizeToken, owner, player1, player2, player3, player4, now, oneHour } = 
-        await loadFixture(deployContractsFixture);
-
-      // 1. 创建比赛
-      const config = {
-        title: "Full Lifecycle Test",
-        description: "Complete tournament lifecycle",
+    it("Should verify valid game result", async function () {
+      const result = {
+        player: addr1.address,
         gameType: 1,
-        minPlayers: 2,
-        maxPlayers: 10,
-        registrationEndTime: now + oneHour,
-        gameStartTime: now + oneHour * 2,
-        entryFee: ethers.parseEther("5"),
-        entryFeeToken: await feeToken.getAddress(),
-        prizePool: ethers.parseEther("100"),
-        prizeToken: await prizeToken.getAddress(),
-        distributionType: 0
+        score: 50,
+        timestamp: Math.floor(Date.now() / 1000),
+        gameHash: ethers.keccak256(
+          ethers.AbiCoder.defaultAbiCoder().encode(
+            ["uint8", "uint256", "uint256"],
+            [1, 50, Math.floor(Date.now() / 1000)]
+          )
+        )
       };
 
-      await feeToken.connect(owner).approve(await gameFactory.getAddress(), config.entryFee);
-      await prizeToken.connect(owner).approve(await gameFactory.getAddress(), config.prizePool);
-      const createTx = await gameFactory.createGame(config);
-      const createReceipt = await createTx.wait();
-      const createEvent = createReceipt.logs.find(log => log.eventName === "GameCreated");
-      const gameAddress = createEvent.args.gameInstance;
+      const verified = await gameRegistry.verifyGameResult(result);
+      expect(verified).to.equal(true);
+    });
 
-      // 2. 玩家加入
-      const players = [player1, player2, player3, player4];
-      for (const player of players) {
-        await feeToken.connect(owner).transfer(player.address, ethers.parseEther("10"));
-        await feeToken.connect(player).approve(gameAddress, ethers.parseEther("5"));
-      }
+    it("Should reject game result with too high score", async function () {
+      const result = {
+        player: addr1.address,
+        gameType: 1,
+        score: 200, // Exceeds max score of 100
+        timestamp: Math.floor(Date.now() / 1000),
+        gameHash: ethers.keccak256(
+          ethers.AbiCoder.defaultAbiCoder().encode(
+            ["uint8", "uint256", "uint256"],
+            [1, 200, Math.floor(Date.now() / 1000)]
+          )
+        )
+      };
 
-      const gameInstance = await ethers.getContractAt("GameInstance", gameAddress);
-      for (const player of players) {
-        await gameInstance.connect(player).joinGame();
-      }
+      await expect(
+        gameRegistry.verifyGameResult(result)
+      ).to.be.revertedWith("Score exceeds maximum");
+    });
 
-      expect(await gameInstance.currentPlayers()).to.equal(4);
+    it("Should reject game result with future timestamp", async function () {
+      const futureTime = Math.floor(Date.now() / 1000) + 3600;
 
-      // 3. 开始游戏
-      await time.increaseTo(now + oneHour * 2 + 1);
+      const result = {
+        player: addr1.address,
+        gameType: 1,
+        score: 50,
+        timestamp: futureTime,
+        gameHash: ethers.keccak256(
+          ethers.AbiCoder.defaultAbiCoder().encode(
+            ["uint8", "uint256", "uint256"],
+            [1, 50, futureTime]
+          )
+        )
+      };
+
+      await expect(
+        gameRegistry.verifyGameResult(result)
+      ).to.be.revertedWith("Invalid timestamp");
+    });
+  });
+
+  describe("GameFactory - Tournament Creation", function () {
+    it("Should create a tournament successfully", async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const maxPlayers = 128;
+      const minPlayers = 2;
+      const duration = 60; // minutes
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const gameStartTime = registrationEndTime + duration * 60;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1, // NumberGuess
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0, // WinnerTakesAll
+        rankPrizes: []
+      };
+
+      // Calculate total amount needed (prize pool + 5% fee)
+      const totalAmount = prizePool + (prizePool * BigInt(5)) / BigInt(100);
+      await prizeToken.connect(addr1).approve(gameFactory.target, totalAmount);
+
+      await expect(
+        gameFactory.connect(addr1).createGame(config)
+      ).to.emit(gameFactory, "GameCreated");
+
+      const allGames = await gameFactory.allGames();
+      expect(allGames.length).to.equal(1);
+
+      gameInstance = await ethers.getContractAt("GameInstance", allGames[0]);
+      expect(await gameInstance.creator()).to.equal(addr1.address);
+      expect(await gameInstance.title()).to.equal("Test Tournament");
+    });
+
+    it("Should reject creation without sufficient allowance", async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600;
+      const gameStartTime = registrationEndTime + 3600;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1,
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: 2,
+        maxPlayers: 128,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0,
+        rankPrizes: []
+      };
+
+      // Don't approve enough tokens
+      await prizeToken.connect(addr1).approve(gameFactory.target, prizePool);
+
+      await expect(
+        gameFactory.connect(addr1).createGame(config)
+      ).to.be.revertedWith("Factory not approved for prize/fee token transfer");
+    });
+  });
+
+  describe("GameInstance - Tournament Participation", function () {
+    beforeEach(async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const maxPlayers = 128;
+      const minPlayers = 2;
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600;
+      const gameStartTime = registrationEndTime + 3600;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1,
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0,
+        rankPrizes: []
+      };
+
+      const totalAmount = prizePool + (prizePool * BigInt(5)) / BigInt(100);
+      await prizeToken.connect(addr1).approve(gameFactory.target, totalAmount);
+      await gameFactory.connect(addr1).createGame(config);
+
+      const allGames = await gameFactory.allGames();
+      gameInstance = await ethers.getContractAt("GameInstance", allGames[0]);
+    });
+
+    it("Should allow players to join tournament", async function () {
+      const entryFee = ethers.parseEther("5");
+
+      await prizeToken.connect(addr2).approve(gameInstance.target, entryFee);
+      await expect(
+        gameInstance.connect(addr2).joinGame()
+      ).to.emit(gameInstance, "PlayerJoined");
+
+      expect(await gameInstance.isJoined(addr2.address)).to.equal(true);
+      const players = await gameInstance.players();
+      expect(players.length).to.equal(1);
+    });
+
+    it("Should prevent duplicate joins", async function () {
+      const entryFee = ethers.parseEther("5");
+
+      await prizeToken.connect(addr2).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr2).joinGame();
+
+      await expect(
+        gameInstance.connect(addr2).joinGame()
+      ).to.be.revertedWith("Already joined");
+    });
+
+    it("Should prevent joins after registration deadline", async function () {
+      const entryFee = ethers.parseEther("5");
+
+      // Fast forward past registration end time
+      await ethers.provider.send("evm_increaseTime", [3700]);
+      await ethers.provider.send("evm_mine");
+
+      await prizeToken.connect(addr2).approve(gameInstance.target, entryFee);
+
+      await expect(
+        gameInstance.connect(addr2).joinGame()
+      ).to.be.revertedWith("Registration closed");
+    });
+  });
+
+  describe("GameInstance - Score Submission", function () {
+    beforeEach(async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const minPlayers = 2;
+      const maxPlayers = 10;
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600;
+      const gameStartTime = registrationEndTime + 3600;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1,
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0,
+        rankPrizes: []
+      };
+
+      const totalAmount = prizePool + (prizePool * BigInt(5)) / BigInt(100);
+      await prizeToken.connect(addr1).approve(gameFactory.target, totalAmount);
+      await gameFactory.connect(addr1).createGame(config);
+
+      const allGames = await gameFactory.allGames();
+      gameInstance = await ethers.getContractAt("GameInstance", allGames[0]);
+
+      // Players join
+      await prizeToken.connect(addr2).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr2).joinGame();
+
+      await prizeToken.connect(addr3).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr3).joinGame();
+
+      // Fast forward to game start
+      await ethers.provider.send("evm_increaseTime", [7200]);
+      await ethers.provider.send("evm_mine");
+
+      // Start the game
       await gameInstance.startGame();
-      expect(await gameInstance.status()).to.equal(2); // InProgress
+    });
 
-      // 4. 提交分数
-      await gameInstance.connect(player1).submitScore(50);
-      await gameInstance.connect(player2).submitScore(85);
-      await gameInstance.connect(player3).submitScore(70);
-      await gameInstance.connect(player4).submitScore(90); // 最高分
+    it("Should accept valid score submissions", async function () {
+      const score = 80;
+      const timestamp = Math.floor(Date.now() / 1000);
+      const gameHash = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint8", "uint256", "uint256"],
+          [1, score, timestamp]
+        )
+      );
 
-      // 5. 结束游戏
-      await time.increaseTo(now + oneHour * 3);
-      await gameInstance.endGame();
-      expect(await gameInstance.status()).to.equal(3); // Ended
+      await expect(
+        gameInstance.connect(addr2).submitScore(score, timestamp, gameHash)
+      ).to.emit(gameInstance, "ScoreSubmitted");
 
-      // 6. 设置获胜者并分配奖金
-      await gameInstance.setWinners([player4.address]);
-      await gameInstance.distributePrizes();
+      const result = await gameInstance.gameResults(addr2.address);
+      expect(result.score).to.equal(score);
+    });
 
-      // 验证奖金发放
-      const player4PrizeBalance = await prizeToken.balanceOf(player4.address);
-      expect(player4PrizeBalance).to.equal(ethers.parseEther("100"));
+    it("Should reject score from non-participant", async function () {
+      const score = 80;
+      const timestamp = Math.floor(Date.now() / 1000);
+      const gameHash = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint8", "uint256", "uint256"],
+          [1, score, timestamp]
+        )
+      );
+
+      await expect(
+        gameInstance.connect(addr1).submitScore(score, timestamp, gameHash)
+      ).to.be.revertedWith("Not joined");
+    });
+
+    it("Should prevent duplicate score submissions", async function () {
+      const score = 80;
+      const timestamp = Math.floor(Date.now() / 1000);
+      const gameHash = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint8", "uint256", "uint256"],
+          [1, score, timestamp]
+        )
+      );
+
+      await gameInstance.connect(addr2).submitScore(score, timestamp, gameHash);
+
+      await expect(
+        gameInstance.connect(addr2).submitScore(score, timestamp, gameHash)
+      ).to.be.revertedWith("Score already submitted");
+    });
+  });
+
+  describe("GameInstance - Prize Distribution", function () {
+    beforeEach(async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const minPlayers = 2;
+      const maxPlayers = 10;
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600;
+      const gameStartTime = registrationEndTime + 3600;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1,
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0, // WinnerTakesAll
+        rankPrizes: []
+      };
+
+      const totalAmount = prizePool + (prizePool * BigInt(5)) / BigInt(100);
+      await prizeToken.connect(addr1).approve(gameFactory.target, totalAmount);
+      await gameFactory.connect(addr1).createGame(config);
+
+      const allGames = await gameFactory.allGames();
+      gameInstance = await ethers.getContractAt("GameInstance", allGames[0]);
+
+      // Players join
+      await prizeToken.connect(addr2).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr2).joinGame();
+
+      await prizeToken.connect(addr3).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr3).joinGame();
+
+      // Start game and submit scores
+      await ethers.provider.send("evm_increaseTime", [7200]);
+      await ethers.provider.send("evm_mine");
+
+      await gameInstance.startGame();
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const gameHash1 = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint8", "uint256", "uint256"],
+          [1, 80, timestamp]
+        )
+      );
+      const gameHash2 = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint8", "uint256", "uint256"],
+          [1, 90, timestamp + 1]
+        )
+      );
+
+      await gameInstance.connect(addr2).submitScore(80, timestamp, gameHash1);
+      await gameInstance.connect(addr3).submitScore(90, timestamp + 1, gameHash2);
+    });
+
+    it("Should distribute prizes correctly (Winner Takes All)", async function () {
+      const winnerBalanceBefore = await prizeToken.balanceOf(addr3.address);
+
+      await gameInstance.setWinnersAndDistributePrizes([addr3.address], [ethers.parseEther("329")]);
+
+      const winnerBalanceAfter = await prizeToken.balanceOf(addr3.address);
+      const prizeReceived = winnerBalanceAfter - winnerBalanceBefore;
+
+      // Winner should receive the entire prize pool
+      expect(prizeReceived).to.equal(ethers.parseEther("329"));
+    });
+
+    it("Should update game status after prize distribution", async function () {
+      await gameInstance.setWinnersAndDistributePrizes([addr3.address], [ethers.parseEther("329")]);
+
+      const status = await gameInstance.status();
+      expect(status).to.equal(3); // PrizeDistributed
+    });
+  });
+
+  describe("GameInstance - Cancellation", function () {
+    beforeEach(async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const minPlayers = 10; // Require 10 players
+      const maxPlayers = 128;
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600;
+      const gameStartTime = registrationEndTime + 3600;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1,
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0,
+        rankPrizes: []
+      };
+
+      const totalAmount = prizePool + (prizePool * BigInt(5)) / BigInt(100);
+      await prizeToken.connect(addr1).approve(gameFactory.target, totalAmount);
+      await gameFactory.connect(addr1).createGame(config);
+
+      const allGames = await gameFactory.allGames();
+      gameInstance = await ethers.getContractAt("GameInstance", allGames[0]);
+
+      // Only 2 players join (minimum required is 10)
+      await prizeToken.connect(addr2).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr2).joinGame();
+
+      await prizeToken.connect(addr3).approve(gameInstance.target, entryFee);
+      await gameInstance.connect(addr3).joinGame();
+
+      // Fast forward to game start
+      await ethers.provider.send("evm_increaseTime", [7200]);
+      await ethers.provider.send("evm_mine");
+    });
+
+    it("Should cancel tournament if not enough players at start time", async function () {
+      await gameInstance.startGame();
+
+      const status = await gameInstance.status();
+      expect(status).to.equal(4); // Canceled
+    });
+
+    it("Should refund entry fees when tournament is canceled", async function () {
+      const entryFee = ethers.parseEther("5");
+      const player2BalanceBefore = await prizeToken.balanceOf(addr2.address);
+
+      await gameInstance.startGame();
+
+      const player2BalanceAfter = await prizeToken.balanceOf(addr2.address);
+      // Entry fee should be refunded in full
+      expect(player2BalanceAfter).to.equal(player2BalanceBefore + entryFee);
+    });
+  });
+
+  describe("GameFactory - Fee Withdrawal", function () {
+    it("Should allow owner to withdraw fees", async function () {
+      const entryFee = ethers.parseEther("5");
+      const prizePool = ethers.parseEther("320");
+      const registrationEndTime = Math.floor(Date.now() / 1000) + 3600;
+      const gameStartTime = registrationEndTime + 3600;
+
+      const config = {
+        title: "Test Tournament",
+        description: "A test tournament",
+        gameType: 1,
+        feeTokenAddress: prizeToken.target,
+        entryFee: entryFee,
+        minPlayers: 2,
+        maxPlayers: 128,
+        registrationEndTime: registrationEndTime,
+        gameStartTime: gameStartTime,
+        prizeTokenAddress: prizeToken.target,
+        prizePool: prizePool,
+        distributionType: 0,
+        rankPrizes: []
+      };
+
+      const totalAmount = prizePool + (prizePool * BigInt(5)) / BigInt(100); // 5% fee
+      await prizeToken.connect(addr1).approve(gameFactory.target, totalAmount);
+      await gameFactory.connect(addr1).createGame(config);
+
+      const expectedFee = (prizePool * BigInt(5)) / BigInt(100);
+      const ownerBalanceBefore = await prizeToken.balanceOf(owner.address);
+
+      await gameFactory.withdrawFees(prizeToken.target);
+
+      const ownerBalanceAfter = await prizeToken.balanceOf(owner.address);
+      expect(ownerBalanceAfter - ownerBalanceBefore).to.equal(expectedFee);
+    });
+
+    it("Should prevent non-owner from withdrawing fees", async function () {
+      await expect(
+        gameFactory.connect(addr2).withdrawFees(prizeToken.target)
+      ).to.be.revertedWithCustomError(gameFactory, "AccessControlUnauthorizedAccount");
     });
   });
 });

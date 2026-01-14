@@ -201,7 +201,7 @@ export default function ProfilePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid md:grid-cols-6 gap-6 mb-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
           <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20 p-6">
             <div className="flex items-center gap-3 mb-2">
@@ -227,18 +227,6 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-yellow-500/20 rounded-lg">
-                <Medal className="w-5 h-5 text-yellow-400" />
-              </div>
-              <span className="text-sm text-gray-400">Wins</span>
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {stats.wins}
-            </div>
-          </Card>
-
           <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-purple-500/20 rounded-lg">
@@ -252,56 +240,65 @@ export default function ProfilePage() {
                 : "0%"}
             </div>
           </Card>
-
-          <Card className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border-violet-500/20 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-violet-500/20 rounded-lg">
-                <Zap className="w-5 h-5 text-violet-400" />
-              </div>
-              <span className="text-sm text-gray-400">BLZ Balance</span>
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {tokenBalance.balance}
-            </div>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-pink-500/10 to-rose-500/10 border-pink-500/20 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-pink-500/20 rounded-lg">
-                <Award className="w-5 h-5 text-pink-400" />
-              </div>
-              <span className="text-sm text-gray-400">Level</span>
-            </div>
-            <div className="text-3xl font-bold text-white">
-              {userLevel.level}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">
-              {userLevel.experience} / {userLevel.nextLevelExp} EXP
-            </div>
-          </Card>
         </motion.div>
 
-        {/* Experience Bar */}
+        {/* Experience Bar with Level and Balance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="mb-8"
         >
-          <Card className="bg-white/5 border-white/10 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">Experience Progress</span>
-              <span className="text-sm font-medium text-white">
-                {userLevel.level} / 100
-              </span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(userLevel.experience / userLevel.nextLevelExp) * 100}%` }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-violet-500 to-pink-500 rounded-full"
-              />
+          <Card className="bg-white/5 border-white/10 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Level */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl font-bold text-white">{userLevel.level}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm text-gray-400 mb-1">Level</div>
+                  <div className="text-lg font-bold text-white">
+                    {userLevel.experience} / {userLevel.nextLevelExp} EXP
+                  </div>
+                </div>
+              </div>
+
+              {/* Experience Progress Bar */}
+              <div className="md:col-span-2 flex flex-col justify-center">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-white">
+                    Experience Progress
+                  </span>
+                  <span className="text-sm text-gray-400">
+                    {userLevel.level} / 100
+                  </span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(userLevel.experience / userLevel.nextLevelExp) * 100}%` }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full bg-gradient-to-r from-violet-500 to-pink-500 rounded-full"
+                  />
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  {userLevel.nextLevelExp - userLevel.experience} EXP to next level
+                </div>
+              </div>
+
+              {/* Token Balance */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-8 h-8 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm text-gray-400 mb-1">BLZ Balance</div>
+                  <div className="text-lg font-bold text-white">
+                    {tokenBalance.balance} BLZ
+                  </div>
+                </div>
+              </div>
             </div>
           </Card>
         </motion.div>
@@ -487,13 +484,11 @@ export default function ProfilePage() {
                           : 'bg-white/5 border-white/10 opacity-50'
                         }`}
                       >
-                        <div className="text-4xl mb-3">{achievement.icon}</div>
                         <h4 className="text-lg font-bold text-white mb-2">{achievement.name}</h4>
                         <p className="text-sm text-gray-400 mb-3">{achievement.description}</p>
                         <div className="flex items-center gap-2">
                           {unlocked ? (
                             <Badge className="bg-green-500/20 text-green-400">
-                              <Award className="w-3 h-3 mr-1" />
                               Unlocked
                             </Badge>
                           ) : (

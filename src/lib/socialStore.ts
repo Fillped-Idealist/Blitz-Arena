@@ -5,14 +5,15 @@ import { toast } from 'sonner';
 // ==================== 消息系统 ====================
 
 // 消息类型
-export type MessageType = 'friend_request' | 'message' | 'system';
+export type MessageType = 'friend_request' | 'message' | 'system' | 'tournament_chat';
 
 // 消息数据
 export interface Message {
   id: string;
   type: MessageType;
   fromAddress: string;
-  toAddress: string;
+  toAddress?: string; // 好友聊天：接收者地址；比赛聊天：可选
+  tournamentId?: string; // 比赛聊天：比赛ID
   content: string;
   timestamp: number;
   read: boolean;
@@ -107,6 +108,15 @@ const USER_ACHIEVEMENTS_KEY = 'social_user_achievements';
 const USER_LEVELS_KEY = 'social_user_levels';
 const TOKEN_BALANCES_KEY = 'social_token_balances';
 const TOKEN_TRANSACTIONS_KEY = 'social_token_transactions';
+const TOURNAMENT_CHATS_KEY = 'social_tournament_chats'; // 比赛聊天室
+
+// ==================== 比赛聊天室数据结构 ====================
+
+export interface TournamentChat {
+  tournamentId: string;
+  createdAt: number;
+  lastActivity: number; // 最后活动时间，用于清理
+}
 
 // ==================== 消息系统函数 ====================
 
@@ -753,3 +763,133 @@ export const WEEKLY_TASK_REWARDS = {
 };
 
 // 成就系统奖励：已在成就定义中
+
+// ==================== 比赛聊天室函数 ====================
+
+export function getAllTournamentChats(): TournamentChat[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(TOURNAMENT_CHATS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Failed to load tournament chats:', error);
+    return [];
+  }
+}
+
+function saveTournamentChats(chats: TournamentChat[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(TOURNAMENT_CHATS_KEY, JSON.stringify(chats));
+  } catch (error) {
+    console.error('Failed to save tournament chats:', error);
+  }
+}
+
+// 创建比赛聊天室
+export function createTournamentChat(tournamentId: string): TournamentChat {
+  const chats = getAllTournamentChats();
+
+  const newChat: TournamentChat = {
+    tournamentId,
+    createdAt: Date.now(),
+    lastActivity: Date.now(),
+  };
+
+  chats.push(newChat);
+  saveTournamentChats(chats);
+
+  // 发送系统消息
+  sendTournamentMessage(
+    '0x0000000000000000000000000000000000000000',
+    tournamentId,
+    'Chat room created'
+  );
+
+  return newChat;
+}
+
+// 发送比赛消息
+export function sendTournamentMessage(
+  fromAddress: string,
+  tournamentId: string,
+  content: string
+): Message {
+  const messages = getAllMessages();
+
+  const newMessage: Message = {
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
+    type: 'tournament_chat',
+    fromAddress,
+    tournamentId,
+    content,
+    timestamp: Date.now(),
+    read: true, // 聊天室消息默认为已读
+  };
+
+  messages.push(newMessage);
+  saveMessages(messages);
+
+  // 更新聊天室最后活动时间
+  updateTournamentChatActivity(tournamentId);
+
+  return newMessage;
+}
+
+// 获取比赛聊天消息
+export function getTournamentMessages(tournamentId: string): Message[] {
+  const messages = getAllMessages();
+  return messages
+    .filter(m => m.type === 'tournament_chat' && m.tournamentId === tournamentId)
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+// 更新聊天室活动时间
+export function updateTournamentChatActivity(tournamentId: string): void {
+  const chats = getAllTournamentChats();
+  const chat = chats.find(c => c.tournamentId === tournamentId);
+
+  if (chat) {
+    chat.lastActivity = Date.now();
+    saveTournamentChats(chats);
+  }
+}
+
+// 检查聊天室是否存在
+export function tournamentChatExists(tournamentId: string): boolean {
+  const chats = getAllTournamentChats();
+  return chats.some(c => c.tournamentId === tournamentId);
+}
+
+// 清理过期的聊天室（比赛结束后24小时）
+export function cleanupOldTournamentChats(): void {
+  const chats = getAllTournamentChats();
+  const now = Date.now();
+  const cleanupThreshold = 24 * 60 * 60 * 1000; // 24小时
+
+  const activeChats = chats.filter(c => now - c.lastActivity < cleanupThreshold);
+
+  if (activeChats.length !== chats.length) {
+    saveTournamentChats(activeChats);
+
+    // 清理相关消息
+    const messages = getAllMessages();
+    const activeTournamentIds = activeChats.map(c => c.tournamentId);
+    const filteredMessages = messages.filter(
+      m => m.type !== 'tournament_chat' || (m.tournamentId && activeTournamentIds.includes(m.tournamentId))
+    );
+    saveMessages(filteredMessages);
+  }
+}
+
+// 删除特定聊天室
+export function deleteTournamentChat(tournamentId: string): void {
+  const chats = getAllTournamentChats();
+  const filtered = chats.filter(c => c.tournamentId !== tournamentId);
+  saveTournamentChats(filtered);
+
+  // 清理相关消息
+  const messages = getAllMessages();
+  const filteredMessages = messages.filter(m => m.tournamentId !== tournamentId);
+  saveMessages(filteredMessages);
+}

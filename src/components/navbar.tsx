@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Users, Zap, Gamepad2, User, BookOpen } from "lucide-react";
+import { Trophy, Users, Zap, Gamepad2, User, BookOpen, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
@@ -22,7 +22,7 @@ export function Navbar() {
 
   const navItems = [
     { href: "/tournaments", label: "Tournaments", icon: Trophy },
-    { href: "/create", label: "Create Game", icon: Zap },
+    { href: "/chat", label: "Chat", icon: MessageSquare },
     { href: "/leaderboard", label: "Leaderboard", icon: Users },
     { href: "/docs", label: "Docs", icon: BookOpen },
     { href: "/profile", label: "Profile", icon: User },
