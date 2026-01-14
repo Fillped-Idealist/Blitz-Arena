@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import {
   Clock,
 } from "lucide-react";
 import { GameStatus } from "@/hooks/useGameContract";
+import { useUserLevel, formatUserLevelData } from "@/hooks/useUserLevel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -26,8 +27,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Navbar } from "@/components/navbar";
 import { useUserGames, GameType } from "@/hooks/useGameContract";
 import {
-  getUserTokenBalance,
-  getUserLevelData,
   getAllAchievements,
   getUserAchievements,
   getUserFriends,
@@ -38,6 +37,8 @@ import {
   sendFriendRequest,
 } from "@/lib/socialStore";
 import { formatUnits } from "viem";
+import { ERC20_ABI } from "@/lib/contracts";
+import { getContractAddresses } from "@/lib/chainConfig";
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
@@ -46,9 +47,22 @@ export default function ProfilePage() {
   // 使用合约获取用户比赛数据
   const { userGames, loading: gamesLoading } = useUserGames();
 
-  // 社交和代币数据（保持使用 localStorage，因为社交数据应该存储在链下）
-  const [tokenBalance, setTokenBalance] = useState({ balance: 0, totalEarned: 0, totalSpent: 0 });
-  const [userLevel, setUserLevel] = useState({ level: 1, experience: 0, nextLevelExp: 100 });
+  // 从链上获取用户等级数据
+  const { userData, isLoading: levelLoading } = useUserLevel();
+
+  // 从链上获取 BLZ 代币余额
+  const addresses = getContractAddresses(31337);
+  const { data: tokenBalanceRaw } = useReadContract({
+    address: addresses.BLZ_TOKEN as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  // 社交数据（保持使用 localStorage，因为社交数据应该存储在链下）
   const [achievements, setAchievements] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
   const [likes, setLikes] = useState(0);
@@ -58,14 +72,16 @@ export default function ProfilePage() {
   useEffect(() => {
     setIsMounted(true);
     if (address) {
-      setTokenBalance(getUserTokenBalance(address));
-      setUserLevel(getUserLevelData(address));
       setAchievements(getUserAchievements(address));
       setFriends(getUserFriends(address));
       setLikes(getProfileLikes(address));
       setPendingRequests(getPendingFriendRequests(address));
     }
   }, [address]);
+
+  // 格式化用户等级数据
+  const levelData = formatUserLevelData(userData);
+  const tokenBalance = tokenBalanceRaw ? Number(formatUnits(tokenBalanceRaw as bigint, 18)) : 0;
 
   // 从比赛数据计算统计数据
   const stats = {
@@ -244,12 +260,12 @@ export default function ProfilePage() {
               {/* Level */}
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl font-bold text-white">{userLevel.level}</span>
+                  <span className="text-2xl font-bold text-white">{levelData.level}</span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-gray-400 mb-1">Level</div>
                   <div className="text-lg font-bold text-white">
-                    {userLevel.experience} / {userLevel.nextLevelExp} EXP
+                    {levelData.experience} / {levelData.expForNextLevel} EXP
                   </div>
                 </div>
               </div>
@@ -261,19 +277,19 @@ export default function ProfilePage() {
                     Experience Progress
                   </span>
                   <span className="text-sm text-gray-400">
-                    {userLevel.level} / 100
+                    {levelData.level} / 100
                   </span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${(userLevel.experience / userLevel.nextLevelExp) * 100}%` }}
+                    animate={{ width: `${levelData.progress}%` }}
                     transition={{ duration: 0.5 }}
                     className="h-full bg-gradient-to-r from-violet-500 to-pink-500 rounded-full"
                   />
                 </div>
                 <div className="text-xs text-gray-400 mt-2">
-                  {userLevel.nextLevelExp - userLevel.experience} EXP to next level
+                  {levelData.expForNextLevel - levelData.experience} EXP to next level
                 </div>
               </div>
 
@@ -285,7 +301,7 @@ export default function ProfilePage() {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-gray-400 mb-1">BLZ Balance</div>
                   <div className="text-lg font-bold text-white">
-                    {tokenBalance.balance} BLZ
+                    {tokenBalance.toFixed(2)} BLZ
                   </div>
                 </div>
               </div>
@@ -614,10 +630,10 @@ export default function ProfilePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-3xl font-bold text-violet-400">
-                          {tokenBalance.balance} BLZ
+                          {tokenBalance.toFixed(2)} BLZ
                         </div>
                         <div className="text-sm text-gray-400 mt-1">
-                          Earned: {tokenBalance.totalEarned} | Spent: {tokenBalance.totalSpent}
+                          BLZ tokens from blockchain
                         </div>
                       </div>
                       <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-pink-500 rounded-2xl flex items-center justify-center">
@@ -630,25 +646,25 @@ export default function ProfilePage() {
                     <h4 className="text-lg font-bold text-white mb-4">Level Progress</h4>
                     <div className="flex items-center gap-4">
                       <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-pink-500 rounded-2xl flex items-center justify-center">
-                        <span className="text-3xl font-bold text-white">{userLevel.level}</span>
+                        <span className="text-3xl font-bold text-white">{levelData.level}</span>
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-gray-400">Experience</span>
                           <span className="text-sm font-medium text-white">
-                            {userLevel.experience} / {userLevel.nextLevelExp}
+                            {levelData.experience} / {levelData.expForNextLevel}
                           </span>
                         </div>
                         <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
-                            animate={{ width: `${(userLevel.experience / userLevel.nextLevelExp) * 100}%` }}
+                            animate={{ width: `${levelData.progress}%` }}
                             transition={{ duration: 0.5 }}
                             className="h-full bg-gradient-to-r from-violet-500 to-pink-500 rounded-full"
                           />
                         </div>
                         <div className="text-xs text-gray-400 mt-2">
-                          {userLevel.nextLevelExp - userLevel.experience} EXP to next level
+                          {levelData.expForNextLevel - levelData.experience} EXP to next level
                         </div>
                       </div>
                     </div>

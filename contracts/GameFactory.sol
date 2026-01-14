@@ -6,12 +6,14 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Types} from "./Types.sol"; // 引入公共类型库
 import {GameInstance} from "./GameInstance.sol";
+import {UserLevelManager} from "./UserLevelManager.sol";
 
 
 contract GameFactory is AccessControl {
 
     // immutable
     address immutable BLZ_TOKEN_ADDRESS;
+    address immutable LEVEL_MANAGER_ADDRESS;
 
     address[] public allGames;   // 所有比赛实例
 
@@ -26,8 +28,9 @@ contract GameFactory is AccessControl {
 
 
     // 构造函数：设置初始 Owner
-    constructor(address blitzTokenAddress) {
+    constructor(address blitzTokenAddress, address levelManagerAddress) {
         BLZ_TOKEN_ADDRESS = blitzTokenAddress;
+        LEVEL_MANAGER_ADDRESS = levelManagerAddress;
         // 设置合约部署者为 Owner 和 DEFAULT_ADMIN_ROLE
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(OWNER_ROLE, msg.sender);
@@ -57,12 +60,12 @@ contract GameFactory is AccessControl {
         ), "Transfer failed");
 
         // 4. 部署新比赛实例 (全量部署模式)
-        GameInstance newGame = new GameInstance(); 
+        GameInstance newGame = new GameInstance();
         gameInstance = address(newGame);
 
         // 5. 初始化比赛实例
         config.feeTokenAddress = BLZ_TOKEN_ADDRESS;
-        newGame.initialize(config, msg.sender);
+        newGame.initialize(config, msg.sender, LEVEL_MANAGER_ADDRESS);
         
         // 6. 将初始奖池金额转入新部署的 GameInstance 合约
         // 费用 (creatorFee) 留在 Factory 合约中，等待 Factory Owner 提取。
@@ -78,6 +81,11 @@ contract GameFactory is AccessControl {
         }
         allGames.push(gameInstance);
         gamesByCreator[msg.sender].push(gameInstance);
+
+        // 给创建者增加经验和解锁成就（通过 UserLevelManager）
+        UserLevelManager levelManager = UserLevelManager(LEVEL_MANAGER_ADDRESS);
+        // 创建比赛奖励：5 BLZ 代币 = 5 经验
+        levelManager.addExp(msg.sender, 5 * 10**18);
 
         emit GameCreated(gameInstance, msg.sender);
         

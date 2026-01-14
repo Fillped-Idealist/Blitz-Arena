@@ -6,6 +6,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Types} from "./Types.sol"; // 引入公共类型库
 import {GameRegistry} from "./GameRegistry.sol";
+import {UserLevelManager} from "./UserLevelManager.sol";
 
 /// @title GameInstance (合并版 V3)
 contract GameInstance is AccessControl {
@@ -15,8 +16,9 @@ contract GameInstance is AccessControl {
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
     bool private initialized;
 
-    // Game Registry 地址
+    // Game Registry 和 Level Manager 地址
     address public gameRegistry;
+    address public levelManager;
 
     // ====== 比赛基础数据（由 initialize 设置） ======
     address public creator;
@@ -65,10 +67,13 @@ contract GameInstance is AccessControl {
 
 
     /// @notice 初始化函数
-    function initialize(Types.GameConfig memory config, address _creator) external {
+    function initialize(Types.GameConfig memory config, address _creator, address _levelManager) external {
         // ... (基础检查保持不变)
         require(!initialized, "Already initialized");
         initialized = true;
+
+        // 设置 levelManager 地址
+        levelManager = _levelManager;
 
         // 时间检查
         require(config.registrationEndTime > block.timestamp, "Reg end must be in future");
@@ -146,6 +151,11 @@ contract GameInstance is AccessControl {
         players.push(Types.PlayerInfo(msg.sender, 0));
         playerEntryFees[msg.sender] = entryFee;
         isJoined[msg.sender] = true; // 标记玩家已加入
+
+        // 给参与者增加经验（通过 UserLevelManager）
+        if (levelManager != address(0)) {
+            UserLevelManager(levelManager).addExp(msg.sender, 3 * 10**18); // 3 BLZ = 3 经验
+        }
 
         emit PlayerJoined(msg.sender);
     }
@@ -304,12 +314,18 @@ contract GameInstance is AccessControl {
         uint totalPrizePool = prizePool;
         prizePool = 0; // 清空奖池
 
-        // 假设 totalRecipients 是需要获得奖励的人数，根据分配模式而定
+        UserLevelManager levelMgr = UserLevelManager(levelManager);
+
         // ... (WinnerTakesAll 逻辑)
         if (distributionType == Types.PrizeDistributionType.WinnerTakesAll) {
             // 赢者通吃：所有奖金给第一名 (winners[0])
             prizeToClaimsAmount[winners[0]] += totalPrizePool;
-            
+
+            // 给第一名额外经验奖励
+            if (levelManager != address(0)) {
+                levelMgr.addExp(winners[0], 20 * 10**18); // 20 BLZ = 20 经验
+            }
+
         } else if (distributionType == Types.PrizeDistributionType.AverageSplit) {
             // 平均分配：奖池平均分配给所有**参赛者** (players)
             uint playerLength = players.length;
@@ -320,9 +336,8 @@ contract GameInstance is AccessControl {
                 uint amount = averageAmount;
                 prizeToClaimsAmount[players[i].player] += amount; // 记录可领取金额
             }
-            
-            require(IERC20(prizeToken).transfer(creator, remainder), "Refund failed");
 
+            require(IERC20(prizeToken).transfer(creator, remainder), "Refund failed");
 
         } else if (distributionType == Types.PrizeDistributionType.CustomRanked) {
             
@@ -351,6 +366,17 @@ contract GameInstance is AccessControl {
                 uint prizeAmount = (totalPrizePool * bps) / 10000;
                 
                 prizeToClaimsAmount[winners[i]] += prizeAmount; // 记录可领取金额
+
+                // 给排名前3的玩家额外经验奖励
+                if (levelManager != address(0)) {
+                    if (i == 0) {
+                        levelMgr.addExp(winners[i], 20 * 10**18); // 第一名：20 经验
+                    } else if (i == 1) {
+                        levelMgr.addExp(winners[i], 10 * 10**18); // 第二名：10 经验
+                    } else if (i == 2) {
+                        levelMgr.addExp(winners[i], 5 * 10**18); // 第三名：5 经验
+                    }
+                }
             }
         }
         

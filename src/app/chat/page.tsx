@@ -27,6 +27,9 @@ import { UserCard } from "@/components/UserCard";
 import {
   getUserFriends,
   sendFriendRequest,
+  getPendingFriendRequests,
+  acceptFriendRequest,
+  rejectFriendRequest,
 } from "@/lib/socialStore";
 import {
   getAllTournaments,
@@ -60,12 +63,14 @@ export default function ChatPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [conversation, setConversation] = useState<any[]>([]);
   const [tournamentMessages, setTournamentMessages] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [newFriendAddress, setNewFriendAddress] = useState("");
   const [showUserCard, setShowUserCard] = useState(false);
   const [selectedUserAddress, setSelectedUserAddress] = useState<string | null>(null);
+  const [showFriendRequests, setShowFriendRequests] = useState(false);
 
   // Ref for auto-scroll
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -116,6 +121,7 @@ export default function ChatPage() {
   const loadData = () => {
     setFriends(getUserFriends(address!));
     setTournaments(getAllTournaments());
+    setPendingRequests(getPendingFriendRequests(address!));
   };
 
   const scrollToBottom = () => {
@@ -321,6 +327,68 @@ export default function ChatPage() {
                       Add Friend
                     </Button>
                   </div>
+
+                  {/* Friend Requests */}
+                  {pendingRequests.length > 0 && (
+                    <div className="mb-4 px-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-400">
+                          Friend Requests ({pendingRequests.length})
+                        </span>
+                        <button
+                          onClick={() => setShowFriendRequests(!showFriendRequests)}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                        >
+                          {showFriendRequests ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+
+                      {showFriendRequests && (
+                        <div className="space-y-2">
+                          {pendingRequests.map((request) => (
+                            <div
+                              key={request.id}
+                              className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                                    <Users className="w-4 h-4 text-white" />
+                                  </div>
+                                  <span className="text-sm text-white">
+                                    {request.requester.slice(0, 6)}...{request.requester.slice(-4)}
+                                  </span>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      acceptFriendRequest(request.id);
+                                      loadData();
+                                    }}
+                                    className="h-7 px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+                                  >
+                                    ✓
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      rejectFriendRequest(request.id);
+                                      loadData();
+                                    }}
+                                    className="h-7 px-2 text-red-400 hover:text-red-300"
+                                  >
+                                    ✕
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {friends.length === 0 ? (
                     <div className="text-center py-12 px-4">

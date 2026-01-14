@@ -22,6 +22,20 @@ async function main() {
   const deployerBalance = await blzToken.balanceOf(deployer.address);
   console.log("Deployer BLZ balance:", hre.ethers.formatEther(deployerBalance));
 
+  // 部署 UserLevelManager 合约
+  console.log("\n1.5. Deploying UserLevelManager...");
+  const UserLevelManager = await hre.ethers.getContractFactory("UserLevelManager");
+  const levelManager = await UserLevelManager.deploy(blzTokenAddress);
+  await levelManager.waitForDeployment();
+  const levelManagerAddress = await levelManager.getAddress();
+  console.log("UserLevelManager deployed to:", levelManagerAddress);
+
+  // 给 UserLevelManager 合约添加一些代币用于奖励
+  console.log("Adding BLZ tokens to UserLevelManager for rewards...");
+  await blzToken.transfer(levelManagerAddress, hre.ethers.parseEther("10000"));
+  const levelManagerBalance = await blzToken.balanceOf(levelManagerAddress);
+  console.log("UserLevelManager BLZ balance:", hre.ethers.formatEther(levelManagerBalance));
+
   // 部署 GameRegistry 合约
   console.log("\n2. Deploying GameRegistry...");
   const GameRegistry = await hre.ethers.getContractFactory("GameRegistry");
@@ -30,10 +44,10 @@ async function main() {
   const gameRegistryAddress = await gameRegistry.getAddress();
   console.log("GameRegistry deployed to:", gameRegistryAddress);
 
-  // 部署 GameFactory 合约
+  // 部署 GameFactory 合约（传入 blzToken 和 levelManager）
   console.log("\n3. Deploying GameFactory...");
   const GameFactory = await hre.ethers.getContractFactory("GameFactory");
-  const factory = await GameFactory.deploy(blzTokenAddress);
+  const factory = await GameFactory.deploy(blzTokenAddress, levelManagerAddress);
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
   console.log("GameFactory deployed to:", factoryAddress);
@@ -48,6 +62,7 @@ async function main() {
   console.log("\n=== Deployment Summary ===");
   console.log("BLZ Token:", blzTokenAddress);
   console.log("Prize Token:", prizeTokenAddress);
+  console.log("UserLevelManager:", levelManagerAddress);
   console.log("GameRegistry:", gameRegistryAddress);
   console.log("GameFactory:", factoryAddress);
   console.log("\n⚠️  IMPORTANT:");
@@ -60,6 +75,7 @@ async function main() {
     chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
     blzToken: blzTokenAddress,
     prizeToken: prizeTokenAddress,
+    userLevelManager: levelManagerAddress,
     gameRegistry: gameRegistryAddress,
     gameFactory: factoryAddress,
     deployer: deployer.address,
