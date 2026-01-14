@@ -31,6 +31,7 @@ export const CONTRACT_ADDRESSES = {
     PRIZE_TOKEN: '',
     GAME_REGISTRY: '',
     GAME_FACTORY: '',
+    USER_LEVEL_MANAGER: '',
   },
 } as const;
 
