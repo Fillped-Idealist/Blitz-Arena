@@ -166,7 +166,7 @@ export function useLeaderboard(options?: {
     };
 
     fetchLeaderboard();
-  }, [allGames, publicClient, options]);
+  }, [allGames, publicClient, options?.gameType, options?.timeRange]);
 
   return { leaderboard, loading, error, refetch: () => {} };
 }
