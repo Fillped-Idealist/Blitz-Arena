@@ -4,29 +4,23 @@
 
 ## 部署信息
 
-### 智能合约
-- **GameRegistry**: `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512`
-- **GameInstance** (测试比赛): `0x5FbDB2315678afecb367f032d93F642f64180aa3`
-- **BLZ Token** (报名费): `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0`
-- **Prize Token** (奖金): `0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9`
+### 智能合约（本地Hardhat网络）
+- **BLZ Token**: `0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6`
+- **Prize Token**: `0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82`
+- **GameRegistry**: `0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e`
+- **GameFactory**: `0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0`
+- **UserLevelManager**: `0x8A791620dd6260079BF849Dc5567aDC3F2FdC318`
 
 ### 网络配置
 - **网络**: Hardhat Local
 - **Chain ID**: 31337
 - **RPC URL**: http://localhost:8545
 
-### 测试比赛
-- **比赛标题**: 数字挑战赛
-- **游戏类型**: 猜数字游戏 (NumberGuess)
-- **比赛状态**: 进行中 (Ongoing)
-- **前端URL**: http://localhost:5000/tournament/0x5FbDB2315678afecb367f032d93F642f64180aa3
-
-### 测试账户
-- **地址**: `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`
-- **私钥**: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
-- **余额**:
-  - BLZ: ~1000 (足够支付报名费)
-  - ETH: 10000 (足够支付Gas)
+### 新增功能
+- **UserLevelManager合约**: 管理用户等级、经验值和成就系统
+- **链上数据存储**: 所有等级和成就数据存储在区块链上
+- **BLZ Token激励**: 参与比赛、获胜、创建比赛、解锁成就都会获得BLZ代币奖励
+- **经验系统**: 1 BLZ = 1 EXP，等级需求每级递增1.5倍，最高100级
 
 ## 如何测试
 
@@ -50,18 +44,23 @@
    ```
 3. 点击"导入"
 
-### 3. 访问比赛页面
+### 4. 创建或加入比赛
 
-在浏览器中打开：
-```
-http://localhost:5000/tournament/0x5FbDB2315678afecb367f032d93F642f64180aa3
-```
+**创建比赛：**
+1. 访问 http://localhost:5000/profile 或点击 Profile 页面
+2. 找到 "Create Tournament" 部分
+3. 填写比赛信息（标题、描述、游戏类型、报名费、最小/最大玩家数等）
+4. 选择奖金分配方式
+5. 确认MetaMask交易
+6. 比赛创建成功后，可以在比赛列表中查看
 
-### 4. 连接钱包
-
-1. 点击页面上的"连接钱包"按钮
-2. 选择MetaMask
-3. 确认连接
+**加入比赛：**
+1. 访问 http://localhost:5000/tournaments
+2. 浏览可用比赛列表
+3. 选择想要参加的比赛
+4. 点击 "Join" 按钮
+5. 确认MetaMask交易（支付报名费）
+6. 等待比赛开始
 
 ### 5. 玩游戏并提交成绩
 
@@ -79,6 +78,12 @@ http://localhost:5000/tournament/0x5FbDB2315678afecb367f032d93F642f64180aa3
 - 游戏类型
 - "已上链"标记
 
+### 7. 体验等级和成就系统
+
+- **查看等级**: 访问 http://localhost:5000/profile 查看你的当前等级、经验值和进度
+- **解锁成就**: 参加比赛、获胜、添加好友等会自动解锁成就并获得BLZ代币奖励
+- **代币激励**: 所有活动都会获得BLZ代币，可用于支付比赛报名费
+
 ## 已解决的技术问题
 
 ### 1. 依赖缺失错误
@@ -88,20 +93,14 @@ http://localhost:5000/tournament/0x5FbDB2315678afecb367f032d93F642f64180aa3
 ### 2. 合约部署和配置
 - **部署**:
   - GameRegistry合约
-  - GameInstance合约
+  - GameFactory合约
+  - UserLevelManager合约（新增，用于管理等级和成就）
   - Mock ERC20代币（BLZ和PRIZE）
 - **配置**:
-  - GameInstance初始化为猜数字游戏
-  - 设置GameRegistry地址（用于验证游戏结果）
+  - GameFactory初始化时设置UserLevelManager地址
+  - UserLevelManager初始化BLZ代币地址
+  - 所有合约通过角色系统进行权限控制
 
-### 3. 测试比赛创建
-- 创建测试比赛（数字挑战赛）
-- 设置比赛参数：
-  - 最小玩家数: 1（便于测试）
-  - 报名费: 10 BLZ
-  - 奖池: 1000 PRIZE
-  - 游戏类型: NumberGuess
-- 启动比赛（状态变为Ongoing）
 
 ## 可用的游戏
 
@@ -162,7 +161,9 @@ useSubmitGameResult Hook
     ↓
 GameRegistry (验证游戏结果)
     ↓
-GameInstance (存储游戏结果)
+GameInstance (存储游戏结果，触发奖励)
+    ↓
+UserLevelManager (授予EXP和BLZ代币奖励)
     ↓
 区块链 (Hardhat Local)
 ```

@@ -13,6 +13,7 @@ A production-grade blockchain gaming tournament platform featuring modern UI/UX 
 - **GameFactory**: Factory pattern for creating tournament instances
 - **GameInstance**: Complete tournament lifecycle management
 - **GameRegistry**: Game type registration, result verification, and anti-cheat mechanisms
+- **UserLevelManager**: On-chain level, experience, and achievement management
 - **Types.sol**: Shared type definitions for consistency
 - **MockERC20**: Test token for local development
 
@@ -49,27 +50,33 @@ Blitz Arena uses the BLZ token as the platform's native utility token:
 - **All data stored off-chain**: All social data uses localStorage for zero gas cost
 
 ### 🏆 Achievement System
-7 pre-defined achievements across game and social categories:
+7 pre-defined achievements across game and social categories, stored on-chain:
 
 **Game Achievements:**
-- "First Victory" - Win your first tournament (Reward: 10 BLZ)
-- "Speed Demon" - Complete a game in under 30 seconds (Reward: 5 BLZ)
-- "Perfectionist" - Complete a game with 100% accuracy (Reward: 15 BLZ)
+- "First Tournament" - Join your first tournament (Reward: 3 BLZ)
+- "Score Master" - Submit a score in a tournament (Reward: 5 BLZ)
+- "Champion" - Win your first tournament (Reward: 10 BLZ)
+- "Tournament Veteran" - Participate in 10 tournaments (Reward: 15 BLZ)
 
 **Social Achievements:**
-- "Social Butterfly" - Make 10 friends (Reward: 5 BLZ)
-- "Popular" - Receive 50 profile likes (Reward: 10 BLZ)
+- "First Friend" - Add your first friend (Reward: 3 BLZ)
+- "Social Butterfly" - Add 10 friends (Reward: 10 BLZ)
+- "Community Star" - Receive 50 profile likes (Reward: 15 BLZ)
 
-**Special Achievements:**
-- "Veteran" - Participate in 50 tournaments (Reward: 20 BLZ)
-- "Champion" - Win 10 tournaments (Reward: 25 BLZ)
+**On-Chain Storage:**
+- All achievements are recorded on the blockchain via UserLevelManager contract
+- Achievement unlock events emit BLZ token rewards
+- Achievement status is publicly verifiable
 
-### 📊 Level & Experience System
+### 📊 Level & Experience System (On-Chain)
 - **Level Range**: 1 to 100
 - **Experience Calculation**: 1 BLZ = 1 EXP
-- **Level Requirements**: Formula: `nextLevelExp = currentLevelExp * 1.5`
+- **Level Requirements**: Formula: `EXP for Level N = 100 × 1.5^(N-1)`
 - **Level Benefits**: Higher levels show gaming experience and dedication
 - **Progression**: Participate in tournaments, win games, unlock achievements to earn EXP
+- **UserLevelManager Contract**: Manages all level data on-chain with secure role-based access
+- **Maximum Level**: Level 100 requires ~3.3 billion EXP
+- **Automatic Level Up**: Experience automatically advances your level when thresholds are met
 
 ### 🏅 Leaderboard
 - **Real-time Rankings**: View top players across all games
@@ -155,10 +162,13 @@ Blitz Arena uses the BLZ token as the platform's native utility token:
 
 8. **Documentation** (`/docs`)
    - Complete platform documentation
-   - BLZ token system explanation
+   - Getting started guide
    - Game rules and scoring
-   - Social system guide
+   - BLZ token system explanation
+   - Leveling system details (on-chain)
    - Achievement system overview
+   - Social system guide (friends, chat, profile likes)
+   - FAQ section
 
 ### User Experience
 - **Loading States**: Skeleton screens and spinners
@@ -213,6 +223,8 @@ The application will be available at **http://localhost:5000**
 │   ├── Types.sol          # Shared type definitions
 │   ├── GameFactory.sol    # Factory contract
 │   ├── GameInstance.sol   # Tournament instance
+│   ├── GameRegistry.sol   # Game validation and anti-cheat
+│   ├── UserLevelManager.sol # Level, experience, and achievements
 │   └── MockERC20.sol      # Test token
 ├── scripts/               # Deployment scripts
 │   └── deploy.js         # Contract deployment
@@ -353,7 +365,32 @@ The application will be available at **http://localhost:5000**
   - Paginated tournament queries
   - Tournament count for pagination
 
-#### 4. GameInstance.sol
+#### 4. UserLevelManager.sol
+- **User Level Management**:
+  - Track user experience (total BLZ earned)
+  - Calculate current level based on cumulative EXP
+  - Store next level requirements
+  - Maximum level cap at 100
+- **Achievement System**:
+  - Define achievement rewards (name, description, BLZ amount)
+  - Track unlocked achievements per user
+  - Emit achievement unlock events
+- **Token Rewards**:
+  - Grant BLZ tokens for achievements
+  - Grant EXP for tournament participation
+  - Grant EXP bonuses for winners (1st: 20, 2nd: 10, 3rd: 5)
+  - Grant EXP for tournament creation (5 EXP)
+- **Access Control**:
+  - ADMIN_ROLE: Manage achievements and settings
+  - GAME_ROLE: GameFactory and GameInstance can grant rewards
+
+**Key Features:**
+- 1 BLZ = 1 EXP automatic conversion
+- Progressive level requirements (1.5x multiplier per level)
+- Achievement rewards range from 3 to 15 BLZ
+- All data stored on-chain for transparency
+
+#### 5. GameInstance.sol
 - **Tournament Lifecycle**:
   - Initialize with configuration
   - Player registration (with entry fee payment)
@@ -413,9 +450,11 @@ npx tsc --noEmit
 ### Deploy to Local Network
 
 Contracts are already deployed to the local Hardhat network:
-- **BLZ Token**: `0x5FbDB2315678afecb367f032d93F642f64180aa3`
-- **Prize Token**: `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0`
-- **GameFactory**: `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512`
+- **BLZ Token**: `0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6`
+- **Prize Token**: `0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82`
+- **GameRegistry**: `0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e`
+- **GameFactory**: `0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0`
+- **UserLevelManager**: `0x8A791620dd6260079BF849Dc5567aDC3F2FdC318`
 
 ### Deploy to Mantle Testnet
 
