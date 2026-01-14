@@ -66,24 +66,27 @@ contract GameFactory is AccessControl {
         // 5. 初始化比赛实例
         config.feeTokenAddress = BLZ_TOKEN_ADDRESS;
         newGame.initialize(config, msg.sender, LEVEL_MANAGER_ADDRESS);
-        
+
         // 6. 将初始奖池金额转入新部署的 GameInstance 合约
         // 费用 (creatorFee) 留在 Factory 合约中，等待 Factory Owner 提取。
         if (totalPrizePool > 0) {
             // Factory 将奖池部分转给新的 GameInstance 合约
             require(IERC20(config.prizeTokenAddress).transfer(gameInstance, totalPrizePool), "Transfer failed");
         }
-        
-        
-        // 7. 记录
+
+        // 7. 授予 GameInstance GAME_ROLE 权限（用于调用addExp）
+        UserLevelManager levelManager = UserLevelManager(LEVEL_MANAGER_ADDRESS);
+        bytes32 GAME_ROLE = keccak256("GAME_ROLE");
+        levelManager.grantRole(GAME_ROLE, gameInstance);
+
+        // 8. 记录
         if (creatorFee > 0) {
             feeBalances[config.prizeTokenAddress] += creatorFee; // <--- 关键：记录费用
         }
         allGames.push(gameInstance);
         gamesByCreator[msg.sender].push(gameInstance);
 
-        // 给创建者增加经验和解锁成就（通过 UserLevelManager）
-        UserLevelManager levelManager = UserLevelManager(LEVEL_MANAGER_ADDRESS);
+        // 9. 给创建者增加经验（通过 UserLevelManager）
         // 创建比赛奖励：5 BLZ 代币 = 5 经验
         levelManager.addExp(msg.sender, 5 * 10**18);
 

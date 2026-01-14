@@ -52,6 +52,12 @@ async function main() {
   const factoryAddress = await factory.getAddress();
   console.log("GameFactory deployed to:", factoryAddress);
 
+  // 授予 GameFactory GAME_ROLE 权限
+  console.log("Granting GAME_ROLE to GameFactory...");
+  const GAME_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("GAME_ROLE"));
+  await levelManager.grantRole(GAME_ROLE, factoryAddress);
+  console.log("GAME_ROLE granted to GameFactory");
+
   // 部署 Mock Prize Token 用于测试
   console.log("\n4. Deploying Mock Prize Token...");
   const prizeToken = await MockToken.deploy("Prize Token", "PRIZE", hre.ethers.parseEther("1000000"));

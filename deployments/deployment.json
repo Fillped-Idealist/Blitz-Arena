@@ -1,11 +1,11 @@
 {
   "network": "localhost",
   "chainId": "31337",
-  "blzToken": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
-  "prizeToken": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
-  "userLevelManager": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
-  "gameRegistry": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
-  "gameFactory": "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
+  "blzToken": "0xa82fF9aFd8f496c3d6ac40E2a0F282E47488CFc9",
+  "prizeToken": "0x70e0bA845a1A0F2DA3359C97E0285013525FFC49",
+  "userLevelManager": "0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8",
+  "gameRegistry": "0xf5059a5D33d5853360D16C683c16e67980206f36",
+  "gameFactory": "0x95401dc811bb5740090279Ba06cfA8fcF6113778",
   "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "timestamp": "2026-01-14T15:18:48.961Z"
+  "timestamp": "2026-01-14T16:54:14.696Z"
 }

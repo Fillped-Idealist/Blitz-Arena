@@ -212,9 +212,35 @@ contract GameInstance is AccessControl {
         
         // 1. 检查时间是否已过（允许延迟启动）
         require(block.timestamp >= registrationEndTime, "Registration is not over yet"); 
-        // 2. 检查最小人数
-        require(players.length >= minPlayers, "Not enough players to start"); 
-        
+
+        // 2. 检查最小人数，如果不足则自动取消并退款
+        if (players.length < minPlayers) {
+            // 自动取消比赛
+            uint totalRefundAmount = prizePool;
+            prizePool = 0;
+            status = Types.GameStatus.Canceled;
+
+            // 退还奖池给创建者
+            if (totalRefundAmount > 0) {
+                require(IERC20(prizeToken).transfer(creator, totalRefundAmount), "Prize refund failed");
+            }
+
+            // 退还所有玩家的报名费
+            for (uint i = 0; i < players.length; i++) {
+                address player = players[i].player;
+                uint feeAmount = playerEntryFees[player];
+                if (feeAmount > 0) {
+                    playerEntryFees[player] = 0;
+                    require(IERC20(feeToken).transfer(player, feeAmount), "Entry fee refund failed");
+                    emit PlayerUnregistered(player, feeAmount);
+                }
+            }
+
+            emit GameCanceled(creator, totalRefundAmount);
+            return;
+        }
+
+        // 3. 开始比赛
         status = Types.GameStatus.Ongoing;
         emit GameStarted();
     }

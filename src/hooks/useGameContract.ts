@@ -66,7 +66,7 @@ export function useGameFactory() {
   const { data: allGames, refetch: refetchGames } = useReadContract({
     address: addresses.GAME_FACTORY as `0x${string}`,
     abi: GAME_FACTORY_ABI,
-    functionName: 'allGames',
+    functionName: 'getAllGames',
   });
 
   const { data: totalGames, refetch: refetchTotalGames } = useReadContract({
@@ -680,7 +680,7 @@ export function useUserGames(userAddress?: `0x${string}`) {
         const allGames = await publicClient.readContract({
           address: addresses.GAME_FACTORY,
           abi: GAME_FACTORY_ABI,
-          functionName: 'allGames',
+          functionName: 'getAllGames',
         }) as unknown as `0x${string}`[];
 
         // 批量检查用户是否参与了每个游戏

@@ -32,6 +32,19 @@ export const GAME_FACTORY_ABI = [
   },
   {
     "inputs": [],
+    "name": "getAllGames",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "allGames",
     "outputs": [
       {
