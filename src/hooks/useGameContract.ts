@@ -1,6 +1,7 @@
 "use client";
 
-import { useAccount, useChainId, useReadContract, useWriteContract, useSimulateContract, useWaitForTransactionReceipt } from "wagmi";
+import { useState, useEffect } from "react";
+import { useAccount, useChainId, useReadContract, useWriteContract, useSimulateContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { parseUnits, formatUnits } from 'viem';
 import { toast } from 'sonner';
 import {
@@ -423,6 +424,126 @@ export function useSubmitScore() {
 }
 
 /**
+ * 批量获取游戏数据的 hook
+ */
+export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
+  const publicClient = usePublicClient();
+  const [gamesData, setGamesData] = useState<GameData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!gameAddresses || gameAddresses.length === 0 || !publicClient) {
+      setGamesData([]);
+      setLoading(false);
+      return;
+    }
+
+    const fetchGames = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const results = await Promise.allSettled(
+          gameAddresses.map(async (address) => {
+            try {
+              // 获取游戏数据
+              const [status, title, gameType, entryFee, prizePool, minPlayers, maxPlayers, registrationEndTime, gameStartTime] =
+                await Promise.all([
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'status',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'title',
+                  }) as unknown as Promise<string>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'gameType',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'entryFee',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'prizePool',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'minPlayers',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'maxPlayers',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'registrationEndTime',
+                  }) as unknown as Promise<bigint>,
+                  publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'gameStartTime',
+                  }) as unknown as Promise<bigint>,
+                ]);
+
+              // 获取玩家数量
+              const players = await publicClient.readContract({
+                address,
+                abi: GAME_INSTANCE_ABI,
+                functionName: 'players',
+              }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+
+              return {
+                address,
+                title,
+                status: status as bigint,
+                gameType: gameType as bigint,
+                entryFee: entryFee as bigint,
+                prizePool: prizePool as bigint,
+                minPlayers: minPlayers as bigint,
+                maxPlayers: maxPlayers as bigint,
+                registrationEndTime: registrationEndTime as bigint,
+                gameStartTime: gameStartTime as bigint,
+                players: players?.length || 0,
+              };
+            } catch (error) {
+              console.error(`Failed to fetch game ${address}:`, error);
+              throw error;
+            }
+          })
+        );
+
+        const successfulGames = results
+          .filter((result): result is PromiseFulfilledResult<GameData> => result.status === 'fulfilled')
+          .map(result => result.value);
+
+        setGamesData(successfulGames);
+      } catch (error) {
+        console.error('Error fetching games batch:', error);
+        setError(error as Error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGames();
+  }, [gameAddresses, publicClient]);
+
+  return { gamesData, loading, error, refetch: () => {} };
+}
+
+/**
  * 领取奖金的 hook
  */
 export function useClaimPrize() {
@@ -511,3 +632,20 @@ export function useERC20(tokenAddress: `0x${string}`) {
     isSuccess,
   };
 }
+
+// 添加 GameData 类型定义
+interface GameData {
+  address: `0x${string}`;
+  title: string;
+  status: bigint;
+  gameType: bigint;
+  entryFee: bigint;
+  prizePool: bigint;
+  minPlayers: bigint;
+  maxPlayers: bigint;
+  registrationEndTime: bigint;
+  gameStartTime: bigint;
+  players: number;
+  isJoined?: boolean;
+}
+
