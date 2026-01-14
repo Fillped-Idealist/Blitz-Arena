@@ -26,7 +26,7 @@ import RockPaperScissorsGame, { GameResult as RPSResult } from '@/components/gam
 import QuickClickGame, { GameResult as QCResult } from '@/components/games/QuickClickGame';
 import RoguelikeSurvivalGame, { GameResult as RLSResult } from '@/components/games/RoguelikeSurvivalGame';
 import InfiniteMatchGame, { GameResult as IMResult } from '@/components/games/InfiniteMatchGame';
-import { Loader2, Gamepad2, Flame, Skull, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Gamepad2, Flame, Skull, AlertCircle, CheckCircle, Trophy } from 'lucide-react';
 
 export default function TournamentDetailPage() {
   const params = useParams();
@@ -700,32 +700,132 @@ export default function TournamentDetailPage() {
                     </div>
                   )}
 
-                  {/* Leaderboard Preview */}
+                  {/* Full Leaderboard */}
                   {tournament.results.length > 0 && (
                     <Card className="bg-white/5 backdrop-blur-sm border-white/10 overflow-hidden">
                       <div className="p-6 border-b border-white/10">
-                        <h3 className="text-xl font-bold text-white">Current Leaderboard</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-bold text-white">Full Leaderboard</h3>
+                          <Badge className="bg-blue-500/20 text-blue-400">
+                            {tournament.results.length} Participants
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="divide-y divide-white/10">
+
+                      {/* Top 3 Podium */}
+                      {tournament.results.length >= 3 && (
+                        <div className="grid grid-cols-3 gap-4 p-6 border-b border-white/10">
+                          {tournament.results
+                            .sort((a, b) => b.score - a.score)
+                            .slice(0, 3)
+                            .map((result, index) => {
+                              const rank = index + 1;
+                              const isCurrentPlayer = result.playerAddress === address;
+                              return (
+                                <div
+                                  key={result.playerAddress}
+                                  className={`text-center p-4 rounded-xl bg-gradient-to-br ${
+                                    rank === 1
+                                      ? 'from-yellow-500/20 to-amber-600/20 border border-yellow-500/30'
+                                      : rank === 2
+                                      ? 'from-gray-400/20 to-gray-300/20 border border-gray-400/30'
+                                      : 'from-amber-700/20 to-orange-600/20 border border-amber-700/30'
+                                  } ${isCurrentPlayer ? 'ring-2 ring-blue-500' : ''}`}
+                                >
+                                  <div className="text-2xl font-bold mb-2">
+                                    {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+                                  </div>
+                                  <div className="font-mono text-sm text-white mb-2 break-all">
+                                    {result.playerAddress.slice(0, 8)}...
+                                  </div>
+                                  <div className="text-3xl font-bold text-white">
+                                    {result.score}
+                                  </div>
+                                  {isCurrentPlayer && (
+                                    <Badge className="mt-2 bg-blue-500 text-white text-xs">
+                                      You
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+
+                      {/* All Participants List */}
+                      <div className="max-h-96 overflow-y-auto">
                         {tournament.results
                           .sort((a, b) => b.score - a.score)
-                          .slice(0, 10)
-                          .map((result, index) => (
-                            <div key={result.playerAddress} className="flex items-center gap-4 p-4 hover:bg-white/5">
-                              <div className="w-8 text-center">
-                                <Badge className={`${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-700' : 'bg-blue-500'} text-white border-none`}>
-                                  #{index + 1}
-                                </Badge>
+                          .map((result, index) => {
+                            const rank = index + 1;
+                            const isCurrentPlayer = result.playerAddress === address;
+                            const isTop3 = rank <= 3;
+
+                            return (
+                              <div
+                                key={result.playerAddress}
+                                className={`flex items-center gap-4 p-4 hover:bg-white/5 transition-colors ${
+                                  isCurrentPlayer ? 'bg-blue-500/10' : ''
+                                } ${isTop3 ? 'hidden' : ''}`}
+                              >
+                                <div className="w-12 text-center">
+                                  <Badge className={
+                                    isCurrentPlayer
+                                      ? 'bg-blue-500 text-white border-none'
+                                      : 'bg-white/10 text-white border-none'
+                                  }>
+                                    #{rank}
+                                  </Badge>
+                                </div>
+
+                                <div className="flex-1">
+                                  <div className="font-mono text-sm text-white">
+                                    {result.playerAddress.slice(0, 8)}...{result.playerAddress.slice(-4)}
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {new Date(result.timestamp).toLocaleString()}
+                                  </div>
+                                </div>
+
+                                <div className="text-right">
+                                  <div className="text-xl font-bold text-white">
+                                    {result.score}
+                                  </div>
+                                  {isCurrentPlayer && (
+                                    <Badge className="mt-1 bg-blue-500 text-white text-xs">
+                                      Your Score
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex-1 font-mono text-sm text-white">
-                                {result.playerAddress.slice(0, 6)}...{result.playerAddress.slice(-4)}
-                              </div>
-                              <div className="text-xl font-bold text-white">
-                                {result.score}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                       </div>
+
+                      {/* Empty State */}
+                      {tournament.results.length === 0 && (
+                        <div className="p-12 text-center">
+                          <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                          <h3 className="text-xl font-bold text-white mb-2">No Scores Yet</h3>
+                          <p className="text-gray-400">
+                            Be the first to submit a score and claim the top spot!
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* No Results Placeholder */}
+                  {tournament.results.length === 0 && (
+                    <Card className="bg-white/5 backdrop-blur-sm border-white/10 p-12 text-center">
+                      <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                      <h3 className="text-xl font-bold text-white mb-2">No Scores Yet</h3>
+                      <p className="text-gray-400">
+                        {hasJoined
+                          ? "You've joined this tournament. Start the game and submit your score to appear on the leaderboard!"
+                          : "Join this tournament and submit your score to compete for prizes!"
+                        }
+                      </p>
                     </Card>
                   )}
                 </motion.div>

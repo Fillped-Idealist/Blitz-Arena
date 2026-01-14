@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CustomSelect } from "@/components/ui/custom-select";
 import { Navbar } from "@/components/navbar";
 import { getLeaderboardData } from "@/lib/tournamentStore";
 
@@ -29,19 +30,19 @@ type LeaderboardEntry = {
 
 // 游戏类型配置（无图标）
 const GAME_TYPES = [
-  { id: 'all', label: 'All Games' },
-  { id: '1', label: 'Number Guess' },
-  { id: '2', label: 'Rock Paper Scissors' },
-  { id: '3', label: 'Quick Click' },
-  { id: '4', label: 'Cycle Rift' },
-  { id: '5', label: 'Infinite Match' },
+  { value: 'all', label: 'All Games' },
+  { value: '1', label: 'Number Guess' },
+  { value: '2', label: 'Rock Paper Scissors' },
+  { value: '3', label: 'Quick Click' },
+  { value: '4', label: 'Cycle Rift' },
+  { value: '5', label: 'Infinite Match' },
 ];
 
 // 时间范围配置
 const TIME_RANGES = [
-  { id: 'all', label: 'All Time' },
-  { id: 'week', label: 'This Week' },
-  { id: 'month', label: 'This Month' },
+  { value: 'all', label: 'All Time' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
 ];
 
 export default function LeaderboardPage() {
@@ -141,21 +142,13 @@ export default function LeaderboardPage() {
               <label className="block text-sm font-medium text-gray-400 mb-2">
                 Filter by game type
               </label>
-              <select
+              <CustomSelect
+                options={GAME_TYPES}
                 value={selectedGameType}
-                onChange={(e) => setSelectedGameType(e.target.value)}
-                className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer hover:bg-white/10 transition-colors"
-              >
-                {GAME_TYPES.map((game) => (
-                  <option
-                    key={game.id}
-                    value={game.id}
-                    className="bg-gray-900 text-white"
-                  >
-                    {game.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setSelectedGameType(value as 'all' | '1' | '2' | '3' | '4' | '5')}
+                placeholder="All Games"
+                className="w-full"
+              />
             </div>
 
             {/* Time Range Filter */}
@@ -163,21 +156,13 @@ export default function LeaderboardPage() {
               <label className="block text-sm font-medium text-gray-400 mb-2">
                 Filter by time range
               </label>
-              <select
+              <CustomSelect
+                options={TIME_RANGES}
                 value={selectedTimeRange}
-                onChange={(e) => setSelectedTimeRange(e.target.value as 'all' | 'week' | 'month')}
-                className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer hover:bg-white/10 transition-colors"
-              >
-                {TIME_RANGES.map((range) => (
-                  <option
-                    key={range.id}
-                    value={range.id}
-                    className="bg-gray-900 text-white"
-                  >
-                    {range.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setSelectedTimeRange(value as 'all' | 'week' | 'month')}
+                placeholder="All Time"
+                className="w-full"
+              />
             </div>
           </div>
         </motion.div>
@@ -255,7 +240,7 @@ export default function LeaderboardPage() {
                         <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                           <span className="text-sm text-gray-400">Best Game</span>
                           <span className="text-lg font-bold text-white">
-                            {GAME_TYPES.find(g => g.id === player.gameType)?.label}
+                            {GAME_TYPES.find(g => g.value === player.gameType)?.label}
                           </span>
                         </div>
                       )}

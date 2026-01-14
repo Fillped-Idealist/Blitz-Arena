@@ -2,6 +2,26 @@
 
 import { toast } from 'sonner';
 
+// 交易类型
+export type TransactionType =
+  | 'join_fee'         // 报名费支付
+  | 'prize_payout'     // 奖金发放
+  | 'refund'           // 退款
+  | 'platform_fee'     // 平台手续费
+  | 'cancel_refund';   // 取消比赛退款
+
+// 交易记录
+export interface Transaction {
+  id: string;
+  type: TransactionType;
+  fromAddress: string | null; // null 表示平台发放
+  toAddress: string | null;   // null 表示平台收取
+  amount: string;              // 代币数量
+  timestamp: number;
+  tournamentId?: string;       // 关联的比赛ID
+  description: string;
+}
+
 // 比赛数据类型
 export interface Tournament {
   id: string;
@@ -151,10 +171,18 @@ function updateTournamentStatus(tournament: Tournament): Tournament {
     return tournament;
   }
 
-  // 比赛进行中
+  // 比赛进行中 - 需要检查最小人数
   if (now >= startTime && tournament.status !== 'Ongoing' && tournament.status !== 'Ended') {
-    tournament.status = 'Ongoing';
-    tournament.statusColor = 'bg-green-500';
+    // 检查是否达到最小人数
+    if (tournament.currentPlayers < tournament.minPlayers) {
+      // 人数不足，取消比赛
+      tournament.status = 'Canceled';
+      tournament.statusColor = 'bg-gray-500';
+    } else {
+      // 人数达标，比赛开始
+      tournament.status = 'Ongoing';
+      tournament.statusColor = 'bg-green-500';
+    }
     return tournament;
   }
 
@@ -191,6 +219,18 @@ export function getAllTournaments(): Tournament[] {
 
     // 更新所有比赛状态
     const updatedTournaments = tournaments.map(updateTournamentStatus);
+
+    // 处理新取消的比赛退款
+    tournaments.forEach((oldTournament, i) => {
+      const newTournament = updatedTournaments[i];
+      if (oldTournament.status !== 'Canceled' && newTournament.status === 'Canceled') {
+        // 比赛被取消了，处理退款
+        if (newTournament.participants.length > 0) {
+          processCancelRefunds(newTournament.id);
+          toast.error(`Tournament "${newTournament.title}" has been canceled due to insufficient players (${newTournament.currentPlayers}/${newTournament.minPlayers})`);
+        }
+      }
+    });
 
     // 如果状态有变化，保存回localStorage
     const hasChanges = tournaments.some((t, i) => t.status !== updatedTournaments[i].status);
@@ -286,6 +326,9 @@ export function joinTournament(tournamentId: string, playerAddress: string): boo
     toast.error('You have already joined this tournament');
     return false;
   }
+
+  // 记录报名费支付
+  recordJoinFee(tournamentId, playerAddress, tournament.entryFee);
 
   tournament.currentPlayers += 1;
   tournament.participants.push(playerAddress);
@@ -458,4 +501,195 @@ export function getUserStats(userAddress: string) {
     wins,
     averageScore: 0 // 可以根据实际结果计算
   };
+}
+
+// ==================== 资金管理系统 ====================
+
+const TRANSACTIONS_KEY = 'tournament_transactions';
+
+// 获取所有交易记录
+export function getAllTransactions(): Transaction[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const stored = localStorage.getItem(TRANSACTIONS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Failed to load transactions:', error);
+    return [];
+  }
+}
+
+// 保存交易记录
+function saveTransactions(transactions: Transaction[]): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+  } catch (error) {
+    console.error('Failed to save transactions:', error);
+  }
+}
+
+// 添加交易记录
+export function addTransaction(transaction: Omit<Transaction, 'id' | 'timestamp'>): Transaction {
+  const transactions = getAllTransactions();
+
+  const newTransaction: Transaction = {
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
+    timestamp: Date.now(),
+    ...transaction
+  };
+
+  transactions.unshift(newTransaction); // 最新的在前面
+  saveTransactions(transactions);
+
+  return newTransaction;
+}
+
+// 记录报名费支付
+export function recordJoinFee(tournamentId: string, playerAddress: string, entryFee: string): void {
+  addTransaction({
+    type: 'join_fee',
+    fromAddress: playerAddress,
+    toAddress: null, // 平台收取
+    amount: entryFee,
+    tournamentId,
+    description: `Tournament join fee: ${entryFee} tokens`
+  });
+
+  // 平台收取10%手续费
+  const platformFee = (parseFloat(entryFee) * 0.1).toString();
+  if (parseFloat(platformFee) > 0) {
+    addTransaction({
+      type: 'platform_fee',
+      fromAddress: playerAddress,
+      toAddress: null,
+      amount: platformFee,
+      tournamentId,
+      description: `Platform fee (10%): ${platformFee} tokens`
+    });
+  }
+}
+
+// 计算奖金池（报名费总额 - 10%平台手续费）
+function calculatePrizePool(tournament: Tournament): number {
+  const totalEntryFees = parseFloat(tournament.entryFee) * tournament.currentPlayers;
+  const platformFee = totalEntryFees * 0.1;
+  return Math.floor(totalEntryFees - platformFee);
+}
+
+// 记录奖金发放（简化版：平分奖金池）
+export function recordPrizePayout(tournamentId: string, winnerAddress: string, prize: string): void {
+  addTransaction({
+    type: 'prize_payout',
+    fromAddress: null, // 平台发放
+    toAddress: winnerAddress,
+    amount: prize,
+    tournamentId,
+    description: `Tournament prize payout: ${prize} tokens`
+  });
+}
+
+// 记录比赛取消退款
+export function recordCancelRefund(tournamentId: string, playerAddress: string, refundAmount: string): void {
+  addTransaction({
+    type: 'cancel_refund',
+    fromAddress: null, // 平台发放
+    toAddress: playerAddress,
+    amount: refundAmount,
+    tournamentId,
+    description: `Tournament canceled refund: ${refundAmount} tokens`
+  });
+}
+
+// 获取用户的所有交易
+export function getUserTransactions(userAddress: string): Transaction[] {
+  const transactions = getAllTransactions();
+  return transactions.filter(t =>
+    t.fromAddress === userAddress || t.toAddress === userAddress
+  );
+}
+
+// 获取用户的资金汇总
+export function getUserFinancialSummary(userAddress: string): {
+  totalPaid: number;
+  totalReceived: number;
+  netBalance: number;
+  transactions: Transaction[];
+} {
+  const transactions = getUserTransactions(userAddress);
+
+  let totalPaid = 0;
+  let totalReceived = 0;
+
+  transactions.forEach(t => {
+    if (t.fromAddress === userAddress) {
+      totalPaid += parseFloat(t.amount);
+    }
+    if (t.toAddress === userAddress) {
+      totalReceived += parseFloat(t.amount);
+    }
+  });
+
+  return {
+    totalPaid,
+    totalReceived,
+    netBalance: totalReceived - totalPaid,
+    transactions
+  };
+}
+
+// 处理比赛结束后的奖金分配
+export function distributePrizes(tournamentId: string): void {
+  const tournaments = getAllTournaments();
+  const tournament = tournaments.find(t => t.id === tournamentId);
+
+  if (!tournament) {
+    console.error('Tournament not found for prize distribution');
+    return;
+  }
+
+  if (tournament.status !== 'Ended') {
+    console.error('Cannot distribute prizes: Tournament not ended');
+    return;
+  }
+
+  if (tournament.results.length === 0) {
+    console.log('No results to distribute prizes');
+    return;
+  }
+
+  // 计算奖金池
+  const prizePool = calculatePrizePool(tournament);
+  const sortedResults = [...tournament.results].sort((a, b) => b.score - a.score);
+
+  // 简化的奖金分配：所有参与者平分奖金池（可扩展为更复杂的分配方式）
+  const prizePerPlayer = Math.floor(prizePool / sortedResults.length);
+
+  sortedResults.forEach((result, index) => {
+    if (prizePerPlayer > 0) {
+      recordPrizePayout(tournamentId, result.playerAddress, prizePerPlayer.toString());
+    }
+  });
+
+  console.log(`Distributed ${prizePool} tokens to ${sortedResults.length} participants`);
+}
+
+// 处理比赛取消时的退款
+export function processCancelRefunds(tournamentId: string): void {
+  const tournaments = getAllTournaments();
+  const tournament = tournaments.find(t => t.id === tournamentId);
+
+  if (!tournament) {
+    console.error('Tournament not found for refund processing');
+    return;
+  }
+
+  // 给所有参与者退还报名费（不含平台手续费）
+  tournament.participants.forEach(playerAddress => {
+    recordCancelRefund(tournamentId, playerAddress, tournament.entryFee);
+  });
+
+  console.log(`Processed refunds for ${tournament.participants.length} participants`);
 }
