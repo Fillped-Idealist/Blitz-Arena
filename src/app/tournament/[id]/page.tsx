@@ -522,83 +522,98 @@ export default function TournamentDetailPage() {
                     </Card>
                   )}
 
-                  {/* Action Buttons - Unified Card */}
+                  {/* Action Buttons - Vertical Layout */}
                   {!activeGame && (
-                    <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border-white/10 overflow-hidden">
-                      <div className="p-8">
-                        <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
-                          {/* Primary Action */}
-                          <div className="flex-1 text-center md:text-left">
-                            <h3 className="text-2xl font-bold text-white mb-2">
-                              {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address)
-                                ? 'Ready to Play'
-                                : 'Experience the Game'
-                              }
-                            </h3>
-                            <p className="text-gray-400">
-                              {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address)
-                                ? `Join the ${gameTypeLabels[tournament.gameType]} game and compete for the prize pool`
-                                : 'Try the game in practice mode without joining the tournament'
-                              }
-                            </p>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            {/* Primary Button - Start Game */}
-                            {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) && (
-                              <Button
-                                size="lg"
-                                onClick={handleStartGame}
-                                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-8"
-                              >
-                                <Gamepad2 className="w-5 h-5 mr-2" />
-                                Start Game
-                              </Button>
-                            )}
-
-                            {/* Secondary Button - Try Game */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {/* Start Game Card */}
+                      {hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) && (
+                        <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20 overflow-hidden group hover:border-blue-500/40 transition-all duration-300">
+                          <div className="p-8 text-center">
+                            <div className="mb-6">
+                              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <Gamepad2 className="w-8 h-8 text-white" />
+                              </div>
+                              <h3 className="text-2xl font-bold text-white mb-2">Start Game</h3>
+                              <p className="text-gray-400 text-sm">
+                                Compete in the tournament and submit your score to the leaderboard
+                              </p>
+                            </div>
                             <Button
                               size="lg"
-                              onClick={handleTryGame}
-                              variant={hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address) ? 'outline' : 'default'}
-                              className={`w-full sm:w-auto font-semibold px-8 ${
-                                hasJoined && tournament.status !== 'Ended' && !tournament.results.some(r => r.playerAddress === address)
-                                  ? 'border-purple-500/50 text-purple-400 hover:bg-purple-500/10'
-                                  : 'bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white'
-                              }`}
+                              onClick={handleStartGame}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
                             >
-                              <Gamepad2 className="w-5 h-5 mr-2" />
-                              Try Game
+                              Play Now
                             </Button>
                           </div>
-                        </div>
+                        </Card>
+                      )}
 
-                        {/* Status Badge - Only show if cannot start game */}
-                        {(!hasJoined || tournament.status === 'Ended' || tournament.results.some(r => r.playerAddress === address)) && (
-                          <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-sm text-gray-400">
-                            {tournament.status === 'Ended' && (
-                              <span className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-gray-500" />
-                                Tournament has ended
-                              </span>
-                            )}
-                            {!hasJoined && tournament.status !== 'Ended' && (
-                              <span className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                                Join the tournament to compete
-                              </span>
-                            )}
-                            {tournament.results.some(r => r.playerAddress === address) && (
-                              <span className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500" />
-                                Your score has been submitted
-                              </span>
-                            )}
+                      {/* Try Game Card */}
+                      <Card className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20 overflow-hidden group hover:border-green-500/40 transition-all duration-300">
+                        <div className="p-8 text-center">
+                          <div className="mb-6">
+                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-teal-500 mb-4 group-hover:scale-110 transition-transform duration-300">
+                              <Gamepad2 className="w-8 h-8 text-white" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-white mb-2">Try Game</h3>
+                            <p className="text-gray-400 text-sm">
+                              Practice mode without joining the tournament
+                            </p>
                           </div>
-                        )}
-                      </div>
-                    </Card>
+                          <Button
+                            size="lg"
+                            onClick={handleTryGame}
+                            className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-semibold"
+                          >
+                            Practice
+                          </Button>
+                        </div>
+                      </Card>
+
+                      {/* Status Card - Only show if cannot start game */}
+                      {(!hasJoined || tournament.status === 'Ended' || tournament.results.some(r => r.playerAddress === address)) && (
+                        <Card className="md:col-span-2 bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10">
+                          <div className="p-8 text-center">
+                            <div className="mb-6">
+                              {tournament.status === 'Ended' && (
+                                <>
+                                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-500/20 mb-4">
+                                    <span className="text-3xl">🏆</span>
+                                  </div>
+                                  <h3 className="text-2xl font-bold text-white mb-2">Tournament Ended</h3>
+                                  <p className="text-gray-400 text-sm">
+                                    Check the leaderboard for the final results
+                                  </p>
+                                </>
+                              )}
+                              {!hasJoined && tournament.status !== 'Ended' && (
+                                <>
+                                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/20 mb-4">
+                                    <span className="text-3xl">⚡</span>
+                                  </div>
+                                  <h3 className="text-2xl font-bold text-white mb-2">Join to Compete</h3>
+                                  <p className="text-gray-400 text-sm">
+                                    Register for the tournament to submit your official score
+                                  </p>
+                                </>
+                              )}
+                              {tournament.results.some(r => r.playerAddress === address) && tournament.status !== 'Ended' && (
+                                <>
+                                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 mb-4">
+                                    <span className="text-3xl">✓</span>
+                                  </div>
+                                  <h3 className="text-2xl font-bold text-white mb-2">Score Submitted</h3>
+                                  <p className="text-gray-400 text-sm">
+                                    Your result has been recorded. Good luck!
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      )}
+                    </div>
                   )}
 
                   {/* Leaderboard Preview */}
