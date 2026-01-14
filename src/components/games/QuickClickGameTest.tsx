@@ -286,7 +286,7 @@ export default function QuickClickGameTest({ onCancel }: QuickClickGameTestProps
                     <div className="text-sm text-gray-400 space-y-1">
                       <p>平均速度：{getClicksPerSecond()} 次/秒</p>
                       <p>总耗时：30秒</p>
-                      <p className="text-xs text-gray-500 mt-2">测试模式：成绩不会保存</p>
+                      <p className="text-xs text-gray-500 mt-2">体验游戏：成绩不会保存</p>
                     </div>
                   </div>
                 </div>

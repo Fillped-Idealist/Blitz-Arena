@@ -297,7 +297,7 @@ export default function TournamentsPage() {
                       ) : game.participants.includes(address || "") ? (
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>已参加</span>
+                          <span>Joined</span>
                         </div>
                       ) : (
                         "Join"

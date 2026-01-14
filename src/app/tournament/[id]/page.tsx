@@ -186,6 +186,18 @@ export default function TournamentDetailPage() {
 
     if (!tournament) return;
 
+    // 检查比赛状态：只有正在进行的比赛才能开始游戏
+    if (tournament.status !== 'Ongoing') {
+      const statusMessages: Record<string, string> = {
+        'Open': 'The tournament has not started yet. Please wait.',
+        'Full': 'The tournament has not started yet. Please wait.',
+        'Ended': 'This tournament has already ended.',
+        'Canceled': 'This tournament has been canceled.'
+      };
+      toast.error(statusMessages[tournament.status] || 'Cannot start game at this time');
+      return;
+    }
+
     // 检查是否已提交结果
     if (address && tournament.results.some(r => r.playerAddress === address)) {
       toast.info('You have already submitted your result');
@@ -199,6 +211,20 @@ export default function TournamentDetailPage() {
   const handleCancelGame = () => {
     setActiveGame(null);
     toast.info('Game cancelled');
+  };
+
+  // 体验游戏
+  const handleTryGame = () => {
+    // 跳转到体验游戏页面并自动选择对应游戏
+    const gameTypeMap: Record<string, string> = {
+      '1': 'number-guess',
+      '2': 'rock-paper-scissors',
+      '3': 'quick-click',
+      '4': 'roguelike-survival',
+      '5': 'infinite-match'
+    };
+    const gameId = gameTypeMap[tournament?.gameType || '1'];
+    router.push(`/test?game=${gameId}`);
   };
 
   // 状态显示
@@ -510,6 +536,24 @@ export default function TournamentDetailPage() {
                       >
                         <Gamepad2 className="w-5 h-5 mr-2" />
                         Start Game
+                      </Button>
+                    </Card>
+                  )}
+
+                  {/* Try Game Button - Always visible */}
+                  {!activeGame && (
+                    <Card className="bg-gradient-to-r from-green-500/10 to-teal-500/10 border-green-500/20 p-8 text-center">
+                      <h3 className="text-2xl font-bold text-white mb-4">Want to Try First?</h3>
+                      <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                        Experience the {gameTypeLabels[tournament.gameType]} game in practice mode without joining the tournament.
+                      </p>
+                      <Button
+                        size="lg"
+                        onClick={handleTryGame}
+                        className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white"
+                      >
+                        <Gamepad2 className="w-5 h-5 mr-2" />
+                        Try Game
                       </Button>
                     </Card>
                   )}

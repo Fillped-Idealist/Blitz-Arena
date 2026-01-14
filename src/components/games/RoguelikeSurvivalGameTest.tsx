@@ -6100,10 +6100,10 @@ export default function RoguelikeSurvivalGameTest({ onCancel }: RoguelikeSurviva
     };
   }, [gameInitialized, playSound]);
 
-  // ==================== 游戏结束（测试模式）====================
+  // ==================== 游戏结束（体验游戏）====================
   const handleGameOver = () => {
     gameStateRef.current = GameState.GAME_OVER;
-    // 测试模式：不提交成绩，只显示结果
+    // 体验游戏：不提交成绩，只显示结果
   };
 
 
@@ -6258,7 +6258,7 @@ export default function RoguelikeSurvivalGameTest({ onCancel }: RoguelikeSurviva
                 {TRANSLATIONS[language].playAgain}
               </Button>
               <div className="text-center text-xs text-gray-500">
-                测试模式：成绩不会保存
+                体验游戏：成绩不会保存
               </div>
             </div>
           )}

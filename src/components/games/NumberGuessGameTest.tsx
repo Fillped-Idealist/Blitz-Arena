@@ -201,7 +201,7 @@ export default function NumberGuessGameTest({ onCancel }: NumberGuessGameTestPro
                         {score > 0 ? '🎉 恭喜过关！' : '😔 游戏结束'}
                       </p>
                       <p className="text-gray-300">最终得分：{score} 分</p>
-                      <p className="text-xs text-gray-500 mt-2">测试模式：成绩不会保存</p>
+                      <p className="text-xs text-gray-500 mt-2">体验游戏：成绩不会保存</p>
                     </div>
                     <Button
                       onClick={startGame}

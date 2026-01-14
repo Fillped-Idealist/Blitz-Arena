@@ -272,7 +272,7 @@ export default function RockPaperScissorsGameTest({ onCancel }: RockPaperScissor
                         <p className="text-sm">
                           {wins} 胜 / {draws} 平 / {losses} 负
                         </p>
-                        <p className="text-xs text-gray-500 mt-2">测试模式：成绩不会保存</p>
+                        <p className="text-xs text-gray-500 mt-2">体验游戏：成绩不会保存</p>
                       </div>
                     </div>
                     <Button

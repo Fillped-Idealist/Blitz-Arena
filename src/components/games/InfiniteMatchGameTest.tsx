@@ -39,7 +39,7 @@ interface PathPoint {
 // 多语言配置
 const I18N = {
   zh: {
-    title: '无限消除 - 测试模式',
+    title: '无限消除 - 体验游戏',
     subtitle: '连接相同的方块，挑战无限关卡（无需钱包）',
     rules: {
       title: '游戏规则',
@@ -47,7 +47,7 @@ const I18N = {
       rule2: '时间限制：每关需要在限定时间内消除所有方块，前3关保持6分钟，之后每关减少45秒',
       rule3: '难度递增：完成当前关卡后进入下一关，关卡越高方块种类越多，挑战越大',
       rule4: '连击系统：连续消除可以累积连击，获得非线性分数加成（最高100%加成）',
-      rule5: '测试模式：本模式无需连接钱包，仅用于体验游戏玩法，成绩不会保存到区块链'
+      rule5: '体验游戏：本模式无需连接钱包，仅用于体验游戏玩法，成绩不会保存到区块链'
     },
     ui: {
       startGame: '开始游戏',
@@ -64,7 +64,7 @@ const I18N = {
       gameOver: '游戏结束',
       reshuffle: '已重新洗牌',
       nextLevel: '进入第 X 关！',
-      testMode: '测试模式',
+      testMode: '体验游戏',
       noWallet: '无需钱包'
     }
   },
@@ -1473,7 +1473,7 @@ export default function InfiniteMatchGameTest({ onCancel }: InfiniteMatchGameTes
                     </Button>
                   </div>
                   <p className="text-sm text-gray-500 mt-4">
-                    测试模式：成绩不会保存到区块链
+                    体验游戏：成绩不会保存到区块链
                   </p>
                 </div>
               </motion.div>

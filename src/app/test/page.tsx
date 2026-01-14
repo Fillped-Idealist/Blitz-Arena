@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import InfiniteMatchGameTest from "@/components/games/InfiniteMatchGameTest";
@@ -9,9 +10,9 @@ import NumberGuessGameTest from "@/components/games/NumberGuessGameTest";
 import QuickClickGameTest from "@/components/games/QuickClickGameTest";
 import RockPaperScissorsGameTest from "@/components/games/RockPaperScissorsGameTest";
 import RoguelikeSurvivalGameTest from "@/components/games/RoguelikeSurvivalGameTest";
-import { 
-  Gamepad2, 
-  ArrowLeft, 
+import {
+  Gamepad2,
+  ArrowLeft,
   Sparkles,
   Info,
   ShieldCheck,
@@ -23,7 +24,16 @@ import {
 } from "lucide-react";
 
 export default function TestPage() {
+  const searchParams = useSearchParams();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+
+  // 从URL参数中读取游戏ID，自动启动对应游戏
+  useEffect(() => {
+    const gameParam = searchParams.get('game');
+    if (gameParam) {
+      setSelectedGame(gameParam);
+    }
+  }, [searchParams]);
 
   const games = [
     {
@@ -87,7 +97,7 @@ export default function TestPage() {
     {
       icon: ShieldCheck,
       title: '无需钱包',
-      description: '测试模式不需要连接钱包，可以直接体验游戏'
+      description: '体验游戏不需要连接钱包，可以直接体验游戏'
     },
     {
       icon: Zap,
@@ -97,7 +107,7 @@ export default function TestPage() {
     {
       icon: Info,
       title: '不保存成绩',
-      description: '测试模式的成绩不会保存到区块链或排行榜'
+      description: '体验游戏的成绩不会保存到区块链或排行榜'
     }
   ];
 
@@ -156,7 +166,7 @@ export default function TestPage() {
               <Gamepad2 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">游戏测试模式</h1>
+              <h1 className="text-2xl font-bold text-white">体验游戏</h1>
               <p className="text-sm text-gray-400">无需钱包 · 完整体验 · 无保存</p>
             </div>
           </div>
@@ -259,10 +269,10 @@ export default function TestPage() {
               <Info className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h4 className="text-lg font-semibold text-white mb-2">关于测试模式</h4>
+              <h4 className="text-lg font-semibold text-white mb-2">关于体验游戏</h4>
               <p className="text-gray-400 text-sm leading-relaxed">
-                测试模式专用于游戏体验和功能测试。在此模式下，您无需连接钱包即可体验完整的游戏功能。
-                请注意，测试模式下获得的成绩不会保存到区块链或排行榜中。如果您想参与正式比赛并赢取奖励，
+                体验游戏专用于游戏体验和功能测试。在此模式下，您无需连接钱包即可体验完整的游戏功能。
+                请注意，体验游戏模式下获得的成绩不会保存到区块链或排行榜中。如果您想参与正式比赛并赢取奖励，
                 请返回主页面连接钱包后参加比赛。
               </p>
             </div>
