@@ -675,7 +675,13 @@ export function distributePrizes(tournamentId: string): void {
 
   // 计算奖金池
   const prizePool = calculatePrizePool(tournament);
-  const sortedResults = [...tournament.results].sort((a, b) => b.score - a.score);
+  // 排序：分数高的排前面，分数相同则提交时间早的排前面
+  const sortedResults = [...tournament.results].sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return a.timestamp - b.timestamp;
+  });
 
   // 根据分配类型分配奖金
   switch (tournament.distributionType) {

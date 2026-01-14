@@ -87,6 +87,16 @@ export default function TournamentDetailPage() {
     '5': '🧩'
   };
 
+  // 结果排序函数：分数高的排前面，分数相同则提交时间早的排前面
+  const sortResults = (results: { playerAddress: string; score: number; timestamp: number }[]) => {
+    return [...results].sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score; // 分数高的排前面
+      }
+      return a.timestamp - b.timestamp; // 分数相同则提交时间早的排前面
+    });
+  };
+
   const gameTypeEnum: Record<string, GameType> = {
     '1': GameType.NumberGuess,
     '2': GameType.RockPaperScissors,
@@ -605,7 +615,7 @@ export default function TournamentDetailPage() {
                         </div>
                         <div className="bg-green-500/10 rounded-lg p-4 text-center">
                           <div className="text-xl font-bold text-green-400">
-                            #{(tournament.results.sort((a, b) => b.score - a.score).findIndex(r => r.playerAddress === address) ?? 0) + 1}
+                            #{(sortResults(tournament.results).findIndex(r => r.playerAddress === address) ?? 0) + 1}
                           </div>
                           <div className="text-sm text-gray-400 mt-1">Rank</div>
                         </div>
@@ -727,8 +737,7 @@ export default function TournamentDetailPage() {
 
                       {/* Leaderboard List */}
                       <div className="max-h-96 overflow-y-auto">
-                        {tournament.results
-                          .sort((a, b) => b.score - a.score)
+                        {sortResults(tournament.results)
                           .map((result, index) => {
                             const rank = index + 1;
                             const isCurrentPlayer = result.playerAddress === address;
