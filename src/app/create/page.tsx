@@ -405,7 +405,7 @@ export default function CreateTournamentPage() {
                     }
                   >
                     <SelectTrigger className="mt-2 h-12 bg-white/5 border-white/10 text-white">
-                      <SelectValue />
+                      <SelectValue placeholder={PRIZE_DISTRIBUTION.find(d => d.value === formData.distributionType)?.label || "Select distribution method"} />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-white/10">
                       {PRIZE_DISTRIBUTION.map((dist) => (
