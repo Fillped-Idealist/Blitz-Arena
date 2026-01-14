@@ -56,6 +56,7 @@ const sections = [
       { id: 'joining-tournaments', title: 'Joining Tournaments' },
       { id: 'submitting-scores', title: 'Submitting Scores' },
       { id: 'prize-distribution', title: 'Prize Distribution' },
+      { id: 'platform-rules', title: 'Platform Rules' },
     ],
   },
   {
@@ -723,52 +724,274 @@ function Tournaments({ activeSubsection }: { activeSubsection: string }) {
               Prize Distribution
             </h1>
             <p className="text-lg text-gray-400">
-              How prizes are distributed among winners.
+              How prizes are calculated and distributed among winners.
             </p>
           </div>
 
           <div className="space-y-6">
             <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Standard Distribution</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Prize Pool Calculation</h3>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-yellow-500 text-white border-none">1st</Badge>
-                    <span className="text-white">First Place</span>
-                  </div>
-                  <span className="text-2xl font-bold text-yellow-400">50%</span>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Effective Prize Pool =</strong> (Entry Fee × Number of Participants) - Platform Fee
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Platform Fee: 10% of total entry fees
+                  </p>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-gray-400 text-white border-none">2nd</Badge>
-                    <span className="text-white">Second Place</span>
-                  </div>
-                  <span className="text-2xl font-bold text-gray-300">30%</span>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-1">
+                    <strong>Example:</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    10 players × 5 MNT = 50 MNT total entry fees<br/>
+                    Platform fee: 50 MNT × 10% = 5 MNT<br/>
+                    <strong>Effective prize pool: 50 - 5 = 45 MNT</strong>
+                  </p>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-amber-700 text-white border-none">3rd</Badge>
-                    <span className="text-white">Third Place</span>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Distribution Methods</h3>
+              <p className="text-gray-400 mb-4">
+                Tournaments can use different prize distribution methods based on the creator's settings:
+              </p>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-none">Winner Takes All</Badge>
                   </div>
-                  <span className="text-2xl font-bold text-amber-600">20%</span>
+                  <p className="text-gray-300">
+                    The entire prize pool goes to the player with the highest score. If multiple players have the same top score, the one who submitted earlier wins.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-none">Average Split</Badge>
+                  </div>
+                  <p className="text-gray-300">
+                    The prize pool is divided equally among all participants who submitted a score.
+                  </p>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Example: 10 players, 45 MNT pool → each gets 4.5 MNT
+                  </p>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="bg-gradient-to-r from-green-500 to-teal-500 text-white border-none">Top 3 Ranked</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-gray-300">
+                      <span>1st Place</span>
+                      <span className="text-yellow-400 font-bold">50%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-gray-300">
+                      <span>2nd Place</span>
+                      <span className="text-gray-300 font-bold">30%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-gray-300">
+                      <span>3rd Place</span>
+                      <span className="text-amber-600 font-bold">20%</span>
+                    </div>
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    If fewer than 3 players submit scores, prizes are distributed proportionally.
+                  </p>
                 </div>
               </div>
             </Card>
 
             <Card className="bg-white/5 border-white/10 p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Important Notes</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Ranking Rules</h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <TrendingUp className="w-5 h-5 text-green-400 mt-0.5" />
+                  <div>
+                    <strong>Primary: Higher Score</strong>
+                    <p className="text-gray-400 text-sm">Players with higher scores rank higher</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Clock className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <strong>Secondary: Earlier Submission</strong>
+                    <p className="text-gray-400 text-sm">When scores are equal, the player who submitted earlier gets the higher rank</p>
+                  </div>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Automatic Distribution</h3>
               <ul className="space-y-3 text-gray-300">
                 <li className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <span>Prizes are distributed automatically after tournament ends</span>
+                  <span>Prizes are distributed <strong>automatically</strong> when the tournament ends</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <span>Tie scores are resolved by submission time (earlier submission wins)</span>
+                  <span>Prizes are sent directly to each winner's wallet address</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <span>Prizes are sent directly to the winner's wallet</span>
+                  <span>All transactions are recorded on-chain for transparency</span>
+                </li>
+              </ul>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {activeSubsection === 'platform-rules' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="mb-8">
+            <Badge className="mb-4 bg-gradient-to-r from-red-500 to-pink-600 border-none text-white">
+              Platform Rules
+            </Badge>
+            <h1 className="text-4xl font-bold text-white mb-4">
+              Platform Rules & Policies
+            </h1>
+            <p className="text-lg text-gray-400">
+              Important rules and policies governing all tournaments and interactions on GameFi Arena.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-red-400" />
+                Platform Fees
+              </h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Standard Fee: 10%</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    A 10% service fee is charged on all entry fees collected. This fee supports platform operations and is deducted before calculating the prize pool.
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Non-Refundable on Cancellation</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    If a tournament is canceled, the platform fee is NOT refunded. Only the entry fees (minus the 10% fee) are refunded to participants.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-400" />
+                Tournament Cancellation Policy
+              </h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Minimum Player Requirement</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Tournament creators can set a minimum number of required participants. If the tournament doesn't reach this threshold by the scheduled start time, it will be automatically canceled.
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Automatic Refund Process</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    When a tournament is canceled, entry fees are automatically refunded to all participants' wallets. The refund amount is the entry fee minus the platform fee.
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-2">
+                    <strong>Example</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    If 5 players joined with 5 MNT each:<br/>
+                    • Total collected: 25 MNT<br/>
+                    • Platform fee (10%): 2.5 MNT (kept by platform)<br/>
+                    • Refund per player: 22.5 MNT ÷ 5 = 4.5 MNT each
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-yellow-400" />
+                Entry Fee & Refund Policy
+              </h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <span><strong>Non-Refundable:</strong> Entry fees are non-refundable once the tournament has started and participants have begun competing.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <span><strong>One Entry Per Player:</strong> Each wallet address can only join a specific tournament once.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <span><strong>Time Window:</strong> You can only submit scores while the tournament is in "Ongoing" status (between start and end time).</span>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Coins className="w-5 h-5 text-purple-400" />
+                Transaction Types & Financial Records
+              </h3>
+              <p className="text-gray-400 mb-4">
+                All financial transactions are recorded and traceable. The following transaction types exist:
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                  <Badge className="bg-blue-500/20 text-blue-400 border-none mt-0.5">join_fee</Badge>
+                  <span className="text-gray-300">Entry fee payment when joining a tournament</span>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                  <Badge className="bg-purple-500/20 text-purple-400 border-none mt-0.5">platform_fee</Badge>
+                  <span className="text-gray-300">10% platform fee deduction from entry fees</span>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                  <Badge className="bg-yellow-500/20 text-yellow-400 border-none mt-0.5">prize_payout</Badge>
+                  <span className="text-gray-300">Prize distribution to winners after tournament ends</span>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                  <Badge className="bg-red-500/20 text-red-400 border-none mt-0.5">cancel_refund</Badge>
+                  <span className="text-gray-300">Refund to participants when tournament is canceled</span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-gray-400" />
+                Fair Play & Security
+              </h3>
+              <ul className="space-y-3 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <span><strong>On-Chain Transparency:</strong> All tournament results and transactions are recorded on the blockchain for transparency and immutability.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <span><strong>Score Verification:</strong> Scores are verified automatically upon submission to ensure validity.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+                  <span><strong>Try Game Mode:</strong> Practice mode is available for all games without wallet connection or score submission.</span>
                 </li>
               </ul>
             </Card>
@@ -808,13 +1031,16 @@ function Rewards({ activeSubsection }: { activeSubsection: string }) {
                 Tournament Prizes
               </h3>
               <p className="text-gray-400 mb-4">
-                Win tournaments to earn a share of the prize pool. The higher your rank, the more you earn.
+                Win tournaments to earn a share of the prize pool. The distribution method depends on the tournament settings.
               </p>
               <ul className="space-y-2 text-gray-300">
-                <li>• 1st Place: 50% of prize pool</li>
-                <li>• 2nd Place: 30% of prize pool</li>
-                <li>• 3rd Place: 20% of prize pool</li>
+                <li>• <strong>Winner Takes All:</strong> All prizes go to the top scorer</li>
+                <li>• <strong>Average Split:</strong> Prizes divided equally among all participants</li>
+                <li>• <strong>Top 3 Ranked:</strong> 50% / 30% / 20% split for top 3 players</li>
               </ul>
+              <p className="text-gray-400 text-sm mt-3">
+                Platform fee: 10% deducted from all entry fees
+              </p>
             </Card>
 
             <Card className="bg-white/5 border-white/10 p-6">
@@ -980,19 +1206,23 @@ function FAQ() {
     },
     {
       question: 'How are prizes distributed?',
-      answer: 'Prizes are distributed based on final rankings: 1st place receives 50% of the prize pool, 2nd place gets 30%, and 3rd place gets 20%. Prizes are sent automatically to winners\' wallets.',
+      answer: 'Prizes are distributed based on the tournament\'s distribution method. The effective prize pool is calculated as (Entry Fee × Number of Participants) - 10% platform fee. Three distribution methods are available: Winner Takes All (all to top scorer), Average Split (divided equally among all participants), and Top 3 Ranked (50%, 30%, 20% split). Prizes are sent automatically to winners\' wallets when the tournament ends.',
     },
     {
       question: 'Can I submit multiple scores?',
-      answer: 'No, you can only submit one score per tournament. Make sure to practice first using the "Try Game" feature before submitting your official score.',
+      answer: 'No, you can only submit one score per tournament. Make sure to practice first using the "Try Game" feature before submitting your official score. Your submission time is recorded and used as a tiebreaker.',
     },
     {
-      question: 'What happens if a tournament ends with no participants?',
-      answer: 'If a tournament has no participants by the end of the registration period, it will be canceled and any entry fees will be refunded to the creator.',
+      question: 'What happens if a tournament doesn\'t reach the minimum number of players?',
+      answer: 'When the tournament starts, if the number of participants is below the minimum threshold (set by the creator), the tournament will be automatically canceled. Entry fees will be refunded to all participants. Note: The 10% platform fee is NOT refunded in cancellations.',
     },
     {
       question: 'How are tie scores resolved?',
-      answer: 'Tie scores are resolved by submission time - the player who submitted their score earlier will receive the higher rank.',
+      answer: 'Ranking is determined by two factors: 1) Higher score ranks higher, 2) If scores are equal, the player who submitted their score earlier receives the higher rank. This ensures fair competition when players achieve the same score.',
+    },
+    {
+      question: 'What fees does the platform charge?',
+      answer: 'The platform charges a 10% service fee on all entry fees collected. This fee is deducted from the total entry fees before calculating the prize pool. The platform fee is NOT refunded in case of tournament cancellation.',
     },
     {
       question: 'Is my wallet secure?',
