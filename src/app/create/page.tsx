@@ -371,20 +371,27 @@ export default function CreateTournamentPage() {
                         Creator adds prize pool to attract more players
                       </span>
                     </div>
-                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5" />
-                        <div className="text-sm">
-                          <div className="text-yellow-200 font-medium mb-1">
-                            Minimum Required: {Math.ceil((parseFloat(formData.entryFee) * formData.maxPlayers) / 2)} tokens
+                    {parseFloat(formData.prizePool) <= (parseFloat(formData.entryFee) * formData.maxPlayers) / 2 ? (
+                      <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5" />
+                          <div className="text-sm">
+                            <div className="text-yellow-200 font-medium mb-1">
+                              Minimum Required: {Math.ceil((parseFloat(formData.entryFee) * formData.maxPlayers) / 2)} tokens
+                            </div>
+                            <p className="text-yellow-300/80">
+                              Creator prize pool must be greater than (Entry Fee × Max Players) / 2<br/>
+                              Current: {formData.entryFee} × {formData.maxPlayers} ÷ 2 = {(parseFloat(formData.entryFee) * formData.maxPlayers / 2).toFixed(2)}
+                            </p>
                           </div>
-                          <p className="text-yellow-300/80">
-                            Creator prize pool must be greater than (Entry Fee × Max Players) / 2<br/>
-                            Current: {formData.entryFee} × {formData.maxPlayers} ÷ 2 = {(parseFloat(formData.entryFee) * formData.maxPlayers / 2).toFixed(2)}
-                          </p>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-green-400">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Requirement met! Your prize pool exceeds the minimum requirement.</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
