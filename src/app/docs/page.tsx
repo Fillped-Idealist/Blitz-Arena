@@ -734,10 +734,19 @@ function Tournaments({ activeSubsection }: { activeSubsection: string }) {
               <div className="space-y-4">
                 <div className="p-4 bg-white/5 rounded-lg">
                   <p className="text-gray-300 mb-2">
-                    <strong>Effective Prize Pool =</strong> (Entry Fee × Number of Participants) - Platform Fee
+                    <strong>Total Prize Pool =</strong> Creator Prize Pool + (Entry Fee × Number of Participants - Platform Fee)
                   </p>
                   <p className="text-gray-400 text-sm">
-                    Platform Fee: 10% of total entry fees
+                    Platform Fee: 10% of total entry fees (deducted from player contributions only)
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-gray-300 mb-1">
+                    <strong>Creator Prize Pool Requirement:</strong>
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Creator must provide a prize pool greater than (Entry Fee × Max Players) / 2<br/>
+                    This ensures attractive prizes for participants and demonstrates creator commitment.
                   </p>
                 </div>
                 <div className="p-4 bg-white/5 rounded-lg">
@@ -745,9 +754,14 @@ function Tournaments({ activeSubsection }: { activeSubsection: string }) {
                     <strong>Example:</strong>
                   </p>
                   <p className="text-gray-400 text-sm">
-                    10 players × 5 MNT = 50 MNT total entry fees<br/>
-                    Platform fee: 50 MNT × 10% = 5 MNT<br/>
-                    <strong>Effective prize pool: 50 - 5 = 45 MNT</strong>
+                    • Entry Fee: 10 MNT per player<br/>
+                    • Max Players: 30 players<br/>
+                    • Creator provides: 200 MNT (greater than 10×30÷2 = 150 MNT)<br/>
+                    • Actual Participants: 20 players<br/>
+                    • Total Entry Fees: 20 × 10 = 200 MNT<br/>
+                    • Platform Fee: 200 × 10% = 20 MNT<br/>
+                    • Effective Entry Fees: 200 - 20 = 180 MNT<br/>
+                    • <strong>Total Prize Pool: 200 (creator) + 180 (players) = 380 MNT</strong>
                   </p>
                 </div>
               </div>

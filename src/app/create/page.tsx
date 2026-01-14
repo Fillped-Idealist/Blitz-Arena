@@ -135,6 +135,13 @@ export default function CreateTournamentPage() {
       return;
     }
 
+    // 验证创建者奖池是否满足要求：必须大于 (报名费 × 最大人数) / 2
+    const minimumCreatorPrize = (parseFloat(formData.entryFee) * formData.maxPlayers) / 2;
+    if (parseFloat(formData.prizePool) <= minimumCreatorPrize) {
+      toast.error(`Creator prize pool must be greater than ${minimumCreatorPrize} tokens (Entry Fee × Max Players / 2)`);
+      return;
+    }
+
     setLoading(true);
     try {
       // Simulate blockchain transaction
@@ -344,10 +351,10 @@ export default function CreateTournamentPage() {
                   </p>
                 </div>
 
-                {/* Prize Pool */}
+                {/* Creator Prize Pool */}
                 <div>
                   <Label htmlFor="prizePool" className="text-white">
-                    Prize Pool (tokens)
+                    Creator Prize Pool (tokens)
                   </Label>
                   <Input
                     id="prizePool"
@@ -357,11 +364,27 @@ export default function CreateTournamentPage() {
                     onChange={(e) => handleInputChange("prizePool", e.target.value)}
                     className="mt-2 bg-white/5 border-white/10 text-white"
                   />
-                  <div className="flex items-center gap-2 mt-2 text-sm">
-                    <Info className="w-4 h-4 text-blue-400" />
-                    <span className="text-gray-400">
-                      5% platform fee will be deducted from the prize pool
-                    </span>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Info className="w-4 h-4 text-blue-400" />
+                      <span className="text-gray-400">
+                        Creator adds prize pool to attract more players
+                      </span>
+                    </div>
+                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5" />
+                        <div className="text-sm">
+                          <div className="text-yellow-200 font-medium mb-1">
+                            Minimum Required: {Math.ceil((parseFloat(formData.entryFee) * formData.maxPlayers) / 2)} tokens
+                          </div>
+                          <p className="text-yellow-300/80">
+                            Creator prize pool must be greater than (Entry Fee × Max Players) / 2<br/>
+                            Current: {formData.entryFee} × {formData.maxPlayers} ÷ 2 = {(parseFloat(formData.entryFee) * formData.maxPlayers / 2).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

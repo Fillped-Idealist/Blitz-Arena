@@ -31,7 +31,7 @@ export interface Tournament {
   gameType: string; // "1", "2", "3"
   gameTypeLabel: string;
   gameTypeIcon: string;
-  prize: string;
+  prize: string; // 创建者提供的初始奖池
   entryFee: string;
   minPlayers: number;
   maxPlayers: number;
@@ -61,8 +61,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     gameType: '1',
     gameTypeLabel: 'Number Guess',
     gameTypeIcon: '🔢',
-    prize: '10000',
-    entryFee: '100',
+    prize: '640', // 创建者提供的奖池（> 5 × 128 ÷ 2 = 320）
+    entryFee: '5',
     minPlayers: 2,
     maxPlayers: 128,
     currentPlayers: 96,
@@ -73,7 +73,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
     distributionType: '0', // Winner Takes All
-    participants: [],
+    participants: Array(96).fill(null).map((_, i) => `0xplayer${i}`),
     results: []
   },
   {
@@ -84,8 +84,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     gameType: '2',
     gameTypeLabel: 'Rock Paper Scissors',
     gameTypeIcon: '✊✋✌️',
-    prize: '5000',
-    entryFee: '50',
+    prize: '160', // 创建者提供的奖池（> 5 × 64 ÷ 2 = 160，需要 >160）
+    entryFee: '5',
     minPlayers: 2,
     maxPlayers: 64,
     currentPlayers: 64,
@@ -96,7 +96,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
     distributionType: '1', // Average Split
-    participants: [],
+    participants: Array(64).fill(null).map((_, i) => `0xplayer${i}`),
     results: []
   },
   {
@@ -107,8 +107,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     gameType: '3',
     gameTypeLabel: 'Quick Click',
     gameTypeIcon: '🎯',
-    prize: '25000',
-    entryFee: '500',
+    prize: '80', // 创建者提供的奖池（> 5 × 32 ÷ 2 = 80，需要 >80）
+    entryFee: '5',
     minPlayers: 2,
     maxPlayers: 32,
     currentPlayers: 28,
@@ -119,7 +119,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
     distributionType: '2', // Top 3 Ranked
-    participants: [],
+    participants: Array(28).fill(null).map((_, i) => `0xplayer${i}`),
     results: []
   },
   {
@@ -130,8 +130,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     gameType: '1',
     gameTypeLabel: 'Number Guess',
     gameTypeIcon: '🔢',
-    prize: '1000',
-    entryFee: '10',
+    prize: '125', // 创建者提供的奖池（> 5 × 50 ÷ 2 = 125，需要 >125）
+    entryFee: '5',
     minPlayers: 2,
     maxPlayers: 50,
     currentPlayers: 32,
@@ -142,7 +142,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     creatorAddress: '0xcreator',
     createdAt: Date.now(),
     distributionType: '0', // Winner Takes All
-    participants: [],
+    participants: Array(32).fill(null).map((_, i) => `0xplayer${i}`),
     results: []
   }
 ];
@@ -587,9 +587,14 @@ export function recordJoinFee(tournamentId: string, playerAddress: string, entry
   }
 }
 
-// 计算奖金池（使用 prizePool 字段，已扣除手续费）
+// 计算奖金池（基于报名费和创建者提供的奖池，扣除10%平台手续费）
 function calculatePrizePool(tournament: Tournament): number {
-  return parseFloat(tournament.prize);
+  const totalEntryFees = parseFloat(tournament.entryFee) * tournament.participants.length;
+  const platformFee = totalEntryFees * 0.1;
+  const effectiveEntryFees = totalEntryFees - platformFee;
+  const creatorPrizePool = parseFloat(tournament.prize || '0');
+  const totalPrizePool = effectiveEntryFees + creatorPrizePool;
+  return Math.floor(totalPrizePool);
 }
 
 // 记录奖金发放
