@@ -44,8 +44,8 @@
       ]
     },
     "/workspace/projects/contracts/GameInstance.sol": {
-      "lastModificationDate": 1768487504990,
-      "contentHash": "4c90973e38a197d0e8e359a61d402d13",
+      "lastModificationDate": 1768488269694,
+      "contentHash": "e56b2c16a68e7bfb23b525f8ee556155",
       "sourceName": "contracts/GameInstance.sol",
       "solcConfig": {
         "version": "0.8.24",

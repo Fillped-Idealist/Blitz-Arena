@@ -60,7 +60,7 @@ export function useLeaderboard(options?: {
                 publicClient.readContract({
                   address,
                   abi: GAME_INSTANCE_ABI,
-                  functionName: 'winners',
+                  functionName: 'getWinners',
                 }) as Promise<`0x${string}`[]>,
                 publicClient.readContract({
                   address,

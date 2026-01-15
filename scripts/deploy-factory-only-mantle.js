@@ -5,6 +5,10 @@ const path = require("path");
 async function main() {
   console.log("Incremental deployment to Mantle Sepolia Testnet...\n");
 
+  // 获取网络信息
+  const network = await hre.ethers.provider.getNetwork();
+  console.log("Network:", network.name, "(Chain ID:", network.chainId, ")");
+
   // 读取现有部署信息
   const deploymentInfoPath = path.join(__dirname, "..", "deployments", "deployment.json");
   const deploymentInfo = JSON.parse(fs.readFileSync(deploymentInfoPath, "utf8"));
@@ -51,7 +55,7 @@ async function main() {
   // 更新部署信息
   deploymentInfo.gameFactory = factoryAddress;
   deploymentInfo.timestamp = new Date().toISOString();
-  deploymentInfo.notes = "GameFactory redeployed with updated time logic (registration ends 15 min before game ends)";
+  deploymentInfo.notes = "GameFactory redeployed with updated time logic and getWinners function";
 
   // 保存更新后的部署信息
   fs.writeFileSync(deploymentInfoPath, JSON.stringify(deploymentInfo, null, 2));
@@ -66,11 +70,13 @@ async function main() {
   console.log("2. Old GameInstance contracts will still use the old logic");
   console.log("3. New tournaments created with the new GameFactory will use the updated logic");
   console.log("\n📝 Changes in this deployment:");
+  console.log("- GameInstance: added getWinners() function to return winners array");
   console.log("- Time logic: registrationEndTime = gameEndTime - 15 minutes");
   console.log("- Game start check: uses gameStartTime instead of registrationEndTime");
   console.log("- Join game check: simplified to use registrationEndTime only");
   console.log("- Submit score check: added gameEndTime check");
   console.log("- Min game duration: 30 minutes (reduced from 24 hours)");
+  console.log("- Frontend: updated join logic to allow registration during ongoing games");
 }
 
 main()

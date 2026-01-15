@@ -368,7 +368,7 @@ export function useGameInstance(gameAddress: `0x${string}` | null) {
   const { data: winners, refetch: refetchWinners } = useReadContract({
     address: gameAddress!,
     abi: GAME_INSTANCE_ABI,
-    functionName: 'winners',
+    functionName: 'getWinners',
     query: {
       enabled: !!gameAddress,
     },
@@ -525,9 +525,13 @@ export function useJoinGame() {
 
       console.log('[useJoinGame] Game status:', status.toString());
 
-      if (status !== BigInt(0)) { // GameStatus.Created = 0
+      // 检查比赛状态
+      // 允许立即开始模式下游戏进行中报名（只要在报名截止时间之前）
+      if (status === BigInt(1)) {
+        // GameStatus.Ongoing - 允许报名，继续到时间检查
+        console.log('[useJoinGame] Game is ongoing, allowing registration until deadline');
+      } else if (status !== BigInt(0)) { // 其他非 Created 和 Ongoing 状态
         const statusMessages: Record<string, string> = {
-          '1': 'Game is in progress. Registration is closed.',
           '2': 'Game has ended. Registration is closed.',
           '3': 'Prizes have been distributed. Registration is closed.',
           '4': 'Game has been canceled. Registration is closed.',
@@ -669,10 +673,10 @@ export function useJoinGame() {
         const lowerMessage = errorMessage.toLowerCase();
 
         if (lowerMessage.includes('game not accepting players')) {
-          throw new Error('Game is not accepting players. It may have already started or ended.');
+          throw new Error('Game is not accepting players. It may have already ended or been canceled.');
         }
         if (lowerMessage.includes('registration time passed')) {
-          throw new Error('Registration time has passed. Please check the tournament schedule.');
+          throw new Error('Registration time has passed. The tournament registration closes 15 minutes before the game ends.');
         }
         if (lowerMessage.includes('max players reached')) {
           throw new Error('Tournament is full. Maximum number of players has been reached.');

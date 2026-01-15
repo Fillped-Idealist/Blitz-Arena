@@ -532,4 +532,9 @@ contract GameInstance is AccessControl {
         return gameResults[player];
     }
 
+    /// @notice 获取获胜者列表
+    function getWinners() external view returns (address[] memory) {
+        return winners;
+    }
+
 }
