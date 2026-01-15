@@ -34,7 +34,7 @@ export default function TournamentsPage() {
   const [joining, setJoining] = useState<string | null>(null);
 
   const { allGames, refetchGames } = useGameFactory();
-  const { gamesData, loading } = useGamesBatch(allGames);
+  const { gamesData, loading, refetch: refetchGamesBatch } = useGamesBatch(allGames);
   const { joinGame, isSuccess: joinSuccess } = useJoinGame();
 
   // Filter games
@@ -71,9 +71,13 @@ export default function TournamentsPage() {
   // 监听加入比赛成功，刷新比赛列表
   useEffect(() => {
     if (joinSuccess) {
+      // 同时刷新游戏列表和批量数据
       refetchGames();
+      setTimeout(() => {
+        refetchGamesBatch();
+      }, 1000); // 延迟1秒刷新批量数据，确保合约状态已更新
     }
-  }, [joinSuccess, refetchGames]);
+  }, [joinSuccess, refetchGames, refetchGamesBatch]);
 
   // Format time
   const formatTime = (timestamp: bigint) => {

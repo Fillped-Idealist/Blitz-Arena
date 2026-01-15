@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/navbar';
 import {
-  useGameDetails,
+  useGameDetailsWithRefetch,
   useJoinGame,
   useSubmitScore,
   GameType,
@@ -35,21 +35,21 @@ export default function TournamentDetailPage() {
   const [lastJoinHash, setLastJoinHash] = useState<`0x${string}` | null>(null);
 
   // 使用合约数据
-  const { gameDetails, loading } = useGameDetails(gameAddress);
+  const { gameDetails, loading, refetch: refetchGameDetails } = useGameDetailsWithRefetch(gameAddress);
   const { joinGame, hash: joinHash, isSuccess: joinSuccess, isPending: joinPending } = useJoinGame();
   const { submitScore, isSuccess: submitSuccess } = useSubmitScore();
 
-  // 监听加入成功 - 只在 hash 匹配时显示成功消息
+  // 监听加入成功 - 只在 hash 匹配时显示成功消息并刷新数据
   useEffect(() => {
     if (joinSuccess && joinHash && joinHash !== lastJoinHash) {
       toast.success('Successfully joined the tournament!');
       setLastJoinHash(joinHash);
-      // 延迟刷新页面，确保用户看到成功消息
+      // 延迟刷新游戏详情数据，确保合约状态已更新
       setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        refetchGameDetails();
+      }, 1000);
     }
-  }, [joinSuccess, joinHash, lastJoinHash]);
+  }, [joinSuccess, joinHash, lastJoinHash, refetchGameDetails]);
 
   // 监听提交成功
   useEffect(() => {
