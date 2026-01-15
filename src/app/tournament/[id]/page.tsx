@@ -32,19 +32,24 @@ export default function TournamentDetailPage() {
 
   const [activeGame, setActiveGame] = useState<number | null>(null);
   const [joining, setJoining] = useState(false);
+  const [lastJoinHash, setLastJoinHash] = useState<`0x${string}` | null>(null);
 
   // 使用合约数据
   const { gameDetails, loading } = useGameDetails(gameAddress);
-  const { joinGame, hash: joinHash, isSuccess: joinSuccess } = useJoinGame();
+  const { joinGame, hash: joinHash, isSuccess: joinSuccess, isPending: joinPending } = useJoinGame();
   const { submitScore, isSuccess: submitSuccess } = useSubmitScore();
 
-  // 监听加入成功
+  // 监听加入成功 - 只在 hash 匹配时显示成功消息
   useEffect(() => {
-    if (joinSuccess && joinHash) {
+    if (joinSuccess && joinHash && joinHash !== lastJoinHash) {
       toast.success('Successfully joined the tournament!');
-      window.location.reload(); // 重新加载页面以刷新数据
+      setLastJoinHash(joinHash);
+      // 延迟刷新页面，确保用户看到成功消息
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     }
-  }, [joinSuccess, joinHash]);
+  }, [joinSuccess, joinHash, lastJoinHash]);
 
   // 监听提交成功
   useEffect(() => {

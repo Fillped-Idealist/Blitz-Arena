@@ -447,6 +447,40 @@ export function useJoinGame() {
         throw new Error('Wallet client or public client not available');
       }
 
+      // 获取当前区块时间戳
+      const currentBlock = await publicClient.getBlock();
+      const currentTimestamp = Number(currentBlock.timestamp);
+
+      // 获取游戏的报名时间和游戏开始时间
+      const [registrationEndTime, gameStartTime] = await Promise.all([
+        publicClient.readContract({
+          address: gameAddress,
+          abi: GAME_INSTANCE_ABI,
+          functionName: 'registrationEndTime',
+        }) as Promise<bigint>,
+        publicClient.readContract({
+          address: gameAddress,
+          abi: GAME_INSTANCE_ABI,
+          functionName: 'gameStartTime',
+        }) as Promise<bigint>,
+      ]);
+
+      const regEndTime = Number(registrationEndTime);
+      const startTime = Number(gameStartTime);
+
+      // 检查报名时间
+      if (regEndTime === startTime) {
+        // 立即开始模式：允许在游戏开始后 5 分钟内报名
+        if (currentTimestamp >= startTime + 300) {
+          throw new Error('Registration time has passed. The tournament started more than 5 minutes ago.');
+        }
+      } else {
+        // 正常模式：必须在报名时间结束前报名
+        if (currentTimestamp >= regEndTime) {
+          throw new Error('Registration time has passed. The tournament registration has ended.');
+        }
+      }
+
       // 计算报名费金额
       const entryFeeAmount = parseUnits(entryFee, 18);
 

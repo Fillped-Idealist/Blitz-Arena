@@ -139,7 +139,19 @@ contract GameInstance is AccessControl {
     function joinGame() external {
         // 1. 检查状态和时间
         require(status == Types.GameStatus.Created, "Game not accepting players");
-        require(block.timestamp < registrationEndTime, "Registration time passed"); // 检查报名时间
+
+        // 检查报名时间
+        // 如果 registrationEndTime == gameStartTime（立即开始模式），允许在游戏开始后继续报名
+        // 否则，必须在报名时间结束前报名
+        if (registrationEndTime == gameStartTime) {
+            // 立即开始模式：允许在游戏进行中报名，直到达到 maxPlayers
+            // 或者可以设置一个合理的延长期（比如 5 分钟）
+            require(block.timestamp < gameStartTime + 5 minutes, "Registration time passed");
+        } else {
+            // 正常模式：必须在报名时间结束前报名
+            require(block.timestamp < registrationEndTime, "Registration time passed");
+        }
+
         // 2. 检查玩家数量
         require(players.length < maxPlayers, "Max players reached");
 

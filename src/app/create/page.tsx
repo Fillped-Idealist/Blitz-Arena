@@ -86,7 +86,7 @@ export default function CreateTournamentPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { supported } = useNetworkCheck();
-  const { createGame } = useCreateGame();
+  const { createGame, hash: createHash, isSuccess: createSuccess, isPending: createPending } = useCreateGame();
   const addresses = useContractAddresses();
   const { approve } = useERC20(addresses?.PRIZE_TOKEN as `0x${string}`);
 
@@ -165,8 +165,18 @@ export default function CreateTournamentPage() {
       const blockTimestamp = parseInt(currentBlock?.timestamp || Math.floor(Date.now() / 1000), 16);
 
       // 计算时间戳（使用区块时间）
-      const registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
-      const gameStartTime = registrationEndTime; // 游戏在报名结束后立即开始
+      let registrationEndTime: number;
+      let gameStartTime: number;
+
+      if (formData.startImmediately) {
+        // 立即开始模式
+        registrationEndTime = blockTimestamp; // 报名立即结束
+        gameStartTime = blockTimestamp; // 游戏立即开始
+      } else {
+        // 正常模式
+        registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
+        gameStartTime = registrationEndTime; // 游戏在报名结束后立即开始
+      }
 
       // 准备配置
       const config = {
@@ -184,24 +194,37 @@ export default function CreateTournamentPage() {
       };
 
       // 创建比赛
-      await createGame(config);
-
-      toast.success("Tournament created successfully!");
-      router.push("/tournaments");
+      createGame(config);
     } catch (error: any) {
       console.error('Failed to create tournament:', error);
       toast.error("Failed to create tournament", {
         description: error?.message || "Please check your wallet and try again",
       });
-    } finally {
       setLoading(false);
     }
   };
 
+  // 监听创建成功
+  useEffect(() => {
+    if (createSuccess && createHash) {
+      toast.success("Tournament created successfully!");
+      router.push("/tournaments");
+    }
+  }, [createSuccess, createHash]);
+
   const calculateEndTime = () => {
     if (!isMounted) return "";
     const now = new Date();
-    const totalMinutes = formData.registrationDuration + formData.gameDuration;
+    let totalMinutes = 0;
+
+    if (formData.startImmediately) {
+      // 立即开始：比赛持续时间为 gameDuration
+      totalMinutes = formData.gameDuration;
+    } else {
+      // 正常流程：报名时间 + 游戏时间
+      totalMinutes = formData.registrationDuration + formData.gameDuration;
+    }
+
     now.setMinutes(now.getMinutes() + totalMinutes);
     return now.toLocaleString("en-US", {
       month: "short",
