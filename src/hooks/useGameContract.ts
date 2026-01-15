@@ -470,9 +470,9 @@ export function useJoinGame() {
 
       // 检查报名时间
       if (regEndTime === startTime) {
-        // 立即开始模式：允许在游戏开始后 5 分钟内报名
-        if (currentTimestamp >= startTime + 300) {
-          throw new Error('Registration time has passed. The tournament started more than 5 minutes ago.');
+        // 立即开始模式：允许在游戏开始后 15 分钟内报名
+        if (currentTimestamp >= startTime + 900) {
+          throw new Error('Registration time has passed. The tournament started more than 15 minutes ago.');
         }
       } else {
         // 正常模式：必须在报名时间结束前报名

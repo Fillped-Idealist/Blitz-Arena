@@ -145,8 +145,8 @@ contract GameInstance is AccessControl {
         // 否则，必须在报名时间结束前报名
         if (registrationEndTime == gameStartTime) {
             // 立即开始模式：允许在游戏进行中报名，直到达到 maxPlayers
-            // 或者可以设置一个合理的延长期（比如 5 分钟）
-            require(block.timestamp < gameStartTime + 5 minutes, "Registration time passed");
+            // 或者可以设置一个合理的延长期（比如 15 分钟）
+            require(block.timestamp < gameStartTime + 15 minutes, "Registration time passed");
         } else {
             // 正常模式：必须在报名时间结束前报名
             require(block.timestamp < registrationEndTime, "Registration time passed");
