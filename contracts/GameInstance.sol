@@ -82,8 +82,8 @@ contract GameInstance is AccessControl {
 
         // 时间检查
         require(config.registrationEndTime > block.timestamp, "Reg end must be in future");
-        require(config.gameStartTime >= config.registrationEndTime, "Game must start after reg ends");
         require(config.gameEndTime > config.gameStartTime, "Game end must be after start");
+        require(config.gameEndTime > config.registrationEndTime, "Reg end must be before game end");
         // 人数检查
         require(config.maxPlayers >= config.minPlayers, "Max must be >= Min");
 
@@ -234,9 +234,9 @@ contract GameInstance is AccessControl {
     /// @notice 比赛创建者/裁判调用此函数开始比赛
     function startGame() external onlyRole(CREATOR_ROLE) {
         require(status == Types.GameStatus.Created, "Game not in Created status");
-        
-        // 1. 检查时间是否已过（允许延迟启动）
-        require(block.timestamp >= registrationEndTime, "Registration is not over yet"); 
+
+        // 1. 检查时间是否已过（允许在gameStartTime时开始）
+        require(block.timestamp >= gameStartTime, "Game cannot start yet");
 
         // 2. 检查最小人数，如果不足则自动取消并退款
         if (players.length < minPlayers) {
@@ -317,13 +317,15 @@ contract GameInstance is AccessControl {
     function submitScore(uint score) external {
         require(status == Types.GameStatus.Ongoing, "Game not ongoing");
         // 检查比赛是否已开始
-        require(block.timestamp >= gameStartTime, "Game has not started yet"); 
-        
+        require(block.timestamp >= gameStartTime, "Game has not started yet");
+        // 检查比赛是否已结束
+        require(block.timestamp <= gameEndTime, "Game has ended");
+
         // 1. 检查是否已报名
         require(isJoined[msg.sender], "Player not joined");
-        
+
         // 2. 检查是否已提交过分数 (此处逻辑可能需要修改：如果允许更新成绩，则移除此检查)
-        // require(scores[msg.sender] == 0, "Score already submitted"); 
+        // require(scores[msg.sender] == 0, "Score already submitted");
 
         scores[msg.sender] = score;
 
@@ -335,7 +337,9 @@ contract GameInstance is AccessControl {
     function submitGameResult(Types.GameResult calldata result) external {
         require(status == Types.GameStatus.Ongoing, "Game not ongoing");
         // 检查比赛是否已开始
-        require(block.timestamp >= gameStartTime, "Game has not started yet"); 
+        require(block.timestamp >= gameStartTime, "Game has not started yet");
+        // 检查比赛是否已结束
+        require(block.timestamp <= gameEndTime, "Game has ended");
 
         // 1. 检查是否已报名
         require(isJoined[msg.sender], "Player not joined");

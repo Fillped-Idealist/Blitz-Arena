@@ -556,7 +556,7 @@ export default function TournamentDetailPage() {
                           </div>
                           <h3 className="text-2xl font-bold text-white mb-2">Start Tournament</h3>
                           <p className="text-gray-400 text-sm">
-                            Start the tournament now. Registration is closed.
+                            Start the tournament now. Players can still join until 15 minutes before the end.
                           </p>
                         </div>
                         <Button

@@ -1465,7 +1465,7 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
         const registrationEnd = Number(registrationEndTime);
         const gameStart = Number(gameStartTime);
         const statusBigInt = status as unknown as bigint;
-        const canStartGame = statusBigInt === BigInt(GameStatus.Created) && now >= registrationEnd;
+        const canStartGame = statusBigInt === BigInt(GameStatus.Created) && now >= gameStart;
 
         setGameDetails({
           address: gameAddress,
@@ -1712,7 +1712,7 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
       const registrationEnd = Number(registrationEndTime);
       const gameStart = Number(gameStartTime);
       const statusBigInt = status as unknown as bigint;
-      const canStartGame = statusBigInt === BigInt(GameStatus.Created) && now >= registrationEnd;
+      const canStartGame = statusBigInt === BigInt(GameStatus.Created) && now >= gameStart;
 
       setGameDetails({
         address: gameAddress,

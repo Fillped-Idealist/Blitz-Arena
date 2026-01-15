@@ -5,7 +5,8 @@
   "prizeToken": "0xFa5ba717eA6fbDeBa21D1eb440A713BC80413b5A",
   "userLevelManager": "0x8feFB3C18f48f148BCe092b9bE82915D581bA1Ba",
   "gameRegistry": "0xDEd2563C3111a654603A2427Db18452C85b31C2B",
-  "gameFactory": "0x059dc6dcCa08308DD4c7A1005Fd604e564f0E87E",
+  "gameFactory": "0x41A0E0c74a22E5aA2418F4c33524Fd855332BFE8",
   "deployer": "0xce289Ca273e6edd7D84CA15eB354E56a34c7d03d",
-  "timestamp": "2026-01-15T14:11:42.292Z"
+  "timestamp": "2026-01-15T14:34:51.054Z",
+  "notes": "GameFactory redeployed with updated time logic (registration ends 15 min before game ends)"
 }
