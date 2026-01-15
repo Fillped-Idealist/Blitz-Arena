@@ -42,6 +42,16 @@ Blitz Arena 是一个原生的区块链游戏竞技平台，它使玩家能够�
 - **邮箱**: 2062147937@qq.com
 - **GitHub**: [Fillped-Idealist](https://github.com/Fillped-Idealist?tab=repositories)
 
+### 📜 已部署合约（Mantle Sepolia 测试网）
+
+| 合约名称 | 合约地址 | 区块浏览器 |
+|---------|---------|-----------|
+| **BLZ 代币** | `0x5ae1364fE3FF7F78a0DD7e995F72C4Dd8184190A` | [查看](https://sepolia.mantlescan.xyz/address/0x5ae1364fE3FF7F78a0DD7e995F72C4Dd8184190A) |
+| **MNT 奖金代币** | `0xFa5ba717eA6fbDeBa21D1eb440A713BC80413b5A` | [查看](https://sepolia.mantlescan.xyz/address/0xFa5ba717eA6fbDeBa21D1eb440A713BC80413b5A) |
+| **Game Registry** | `0xDEd2563C3111a654603A2427Db18452C85b31C2B` | [查看](https://sepolia.mantlescan.xyz/address/0xDEd2563C3111a654603A2427Db18452C85b31C2B) |
+| **Game Factory** | `0x99E43c03AB9c8DC0d03c9EF3fbcDd92c13Da34BA` | [查看](https://sepolia.mantlescan.xyz/address/0x99E43c03AB9c8DC0d03c9EF3fbcDd92c13Da34BA) |
+| **User Level Manager** | `0x8feFB3C18f48f148BCe092b9bE82915D581bA1Ba` | [查看](https://sepolia.mantlescan.xyz/address/0x8feFB3C18f48f148BCe092b9bE82915D581bA1Ba) |
+
 ---
 
 ## ✨ 特性

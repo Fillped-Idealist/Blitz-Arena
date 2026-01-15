@@ -42,6 +42,16 @@ Every tournament creation automatically deploys smart contracts to the Mantle bl
 - **Email**: 2062147937@qq.com
 - **GitHub**: [Fillped-Idealist](https://github.com/Fillped-Idealist?tab=repositories)
 
+### 📜 Deployed Contracts (Mantle Sepolia Testnet)
+
+| Contract | Address | Explorer |
+|----------|---------|----------|
+| **BLZ Token** | `0x5ae1364fE3FF7F78a0DD7e995F72C4Dd8184190A` | [View](https://sepolia.mantlescan.xyz/address/0x5ae1364fE3FF7F78a0DD7e995F72C4Dd8184190A) |
+| **MNT Prize Token** | `0xFa5ba717eA6fbDeBa21D1eb440A713BC80413b5A` | [View](https://sepolia.mantlescan.xyz/address/0xFa5ba717eA6fbDeBa21D1eb440A713BC80413b5A) |
+| **Game Registry** | `0xDEd2563C3111a654603A2427Db18452C85b31C2B` | [View](https://sepolia.mantlescan.xyz/address/0xDEd2563C3111a654603A2427Db18452C85b31C2B) |
+| **Game Factory** | `0x99E43c03AB9c8DC0d03c9EF3fbcDd92c13Da34BA` | [View](https://sepolia.mantlescan.xyz/address/0x99E43c03AB9c8DC0d03c9EF3fbcDd92c13Da34BA) |
+| **User Level Manager** | `0x8feFB3C18f48f148BCe092b9bE82915D581bA1Ba` | [View](https://sepolia.mantlescan.xyz/address/0x8feFB3C18f48f148BCe092b9bE82915D581bA1Ba) |
+
 ---
 
 ## ✨ Features
