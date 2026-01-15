@@ -53,16 +53,11 @@ const GAME_TYPES = [
   },
   {
     value: "4",
-    label: "Cycle Rift (轮回裂隙)",
-    icon: "🌀",
-    description: "Survive in the Cycle Rift, defeat endless monsters, upgrade skills, and survive as long as possible"
-  },
-  {
-    value: "5",
-    label: "Infinite Match",
+    label: "Infinite Match (无限消除)",
     icon: "🧩",
     description: "Match identical tiles through connected paths, challenge infinite levels"
   },
+  // 注意：当前合约只支持4种游戏类型（1-4），Cycle Rift（肉鸽割草）需要重新部署合约后才能使用
 ];
 
 const PRIZE_DISTRIBUTION = [

@@ -20,13 +20,15 @@ export enum GameStatus {
   Canceled = 4,
 }
 
-// GameType 枚举
+// GameType 枚举（与合约 Types.sol 保持一致）
 export enum GameType {
   None = 0,
   NumberGuess = 1,
   RockPaperScissors = 2,
   QuickClick = 3,
   InfiniteMatch = 4,
+  // 注意：合约中只有5个游戏类型（0-4），没有值5
+  // Cycle Rift（肉鸽割草）当前不可用，需要重新部署合约添加
 }
 
 // PrizeDistributionType 枚举
@@ -455,12 +457,7 @@ export function useJoinGame() {
     hash,
   });
 
-  // 监听交易成功
-  useEffect(() => {
-    if (isSuccess) {
-      toast.success("Successfully joined tournament!");
-    }
-  }, [isSuccess]);
+  // 移除 toast.success，由调用方自行处理成功消息
 
   const joinGame = async (gameAddress: `0x${string}`, entryFee: string) => {
     try {
