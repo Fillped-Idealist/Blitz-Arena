@@ -71,13 +71,11 @@ export default function TournamentsPage() {
   // 监听加入比赛成功，刷新比赛列表
   useEffect(() => {
     if (joinSuccess) {
-      toast.success('Successfully joined the tournament!');
-      // 立即刷新游戏列表
+      // 同时刷新游戏列表和批量数据
       refetchGames();
-      // 延迟刷新批量数据，确保合约状态已更新
       setTimeout(() => {
         refetchGamesBatch();
-      }, 2000);
+      }, 1000); // 延迟1秒刷新批量数据，确保合约状态已更新
     }
   }, [joinSuccess, refetchGames, refetchGamesBatch]);
 
@@ -117,9 +115,10 @@ export default function TournamentsPage() {
       case BigInt(3):
         return "Quick Click";
       case BigInt(4):
-        return "Infinite Match (无限消除)";
+        return "Cycle Rift (轮回裂隙)";
+      case BigInt(5):
+        return "Infinite Match";
       default:
-        console.warn(`[getGameTypeLabel] Unknown game type: ${gameType}`);
         return "Unknown";
     }
   };
