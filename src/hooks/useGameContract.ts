@@ -501,17 +501,80 @@ export function useJoinGame() {
       const regEndTime = Number(registrationEndTime);
       const startTime = Number(gameStartTime);
 
+      console.log('[useJoinGame] Registration end time:', regEndTime, new Date(regEndTime * 1000).toISOString());
+      console.log('[useJoinGame] Game start time:', startTime, new Date(startTime * 1000).toISOString());
+      console.log('[useJoinGame] Current timestamp:', currentTimestamp, new Date(currentTimestamp * 1000).toISOString());
+      console.log('[useJoinGame] Is immediate start mode:', regEndTime === startTime);
+
       // 检查报名时间
       if (regEndTime === startTime) {
         // 立即开始模式：允许在游戏开始后 15 分钟内报名
+        const timeUntilDeadline = startTime + 900 - currentTimestamp;
+        console.log('[useJoinGame] Immediate start mode. Time until deadline:', timeUntilDeadline, 'seconds');
+
         if (currentTimestamp >= startTime + 900) {
           throw new Error('Registration time has passed. The tournament started more than 15 minutes ago.');
         }
       } else {
         // 正常模式：必须在报名时间结束前报名
+        const timeUntilRegEnd = regEndTime - currentTimestamp;
+        console.log('[useJoinGame] Normal mode. Time until registration ends:', timeUntilRegEnd, 'seconds');
+
         if (currentTimestamp >= regEndTime) {
           throw new Error('Registration time has passed. The tournament registration has ended.');
         }
+      }
+
+      // 检查比赛状态
+      const status = await publicClient.readContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'status',
+      }) as unknown as bigint;
+
+      console.log('[useJoinGame] Game status:', status.toString());
+
+      if (status !== BigInt(0)) { // GameStatus.Created = 0
+        const statusMessages: Record<string, string> = {
+          '1': 'Game is in progress. Registration is closed.',
+          '2': 'Game has ended. Registration is closed.',
+          '3': 'Prizes have been distributed. Registration is closed.',
+          '4': 'Game has been canceled. Registration is closed.',
+        };
+        throw new Error(statusMessages[status.toString()] || 'Cannot join game at this time');
+      }
+
+      // 检查玩家数量
+      const maxPlayers = await publicClient.readContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'maxPlayers',
+      }) as bigint;
+
+      const players = await publicClient.readContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'players',
+      }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+
+      console.log('[useJoinGame] Current players:', players.length, '/', maxPlayers.toString());
+
+      if (players.length >= Number(maxPlayers)) {
+        throw new Error('Tournament is full. Maximum number of players has been reached.');
+      }
+
+      // 检查是否已加入
+      const isJoined = await publicClient.readContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'isJoined',
+        args: [address],
+      }) as boolean;
+
+      console.log('[useJoinGame] User isJoined:', isJoined);
+
+      if (isJoined) {
+        throw new Error('You have already joined this tournament.');
       }
 
       // 计算报名费金额
@@ -526,7 +589,14 @@ export function useJoinGame() {
         args: [address, gameAddress],
       }) as bigint;
 
+      console.log('[useJoinGame] Current allowance:', allowance.toString());
+      console.log('[useJoinGame] Required entryFee:', entryFeeAmount.toString());
+      console.log('[useJoinGame] Approval needed:', allowance < entryFeeAmount);
+
       // 如果授权不足，先授权
+      // 使用更大的授权额度以避免频繁授权（授权 10 倍的入场费，最多 100 个代币）
+      const approveAmount = entryFeeAmount * BigInt(10) > parseUnits('100', 18) ? entryFeeAmount * BigInt(10) : parseUnits('100', 18);
+
       if (allowance < entryFeeAmount) {
         toast.info('Approving token transfer...', {
           description: 'Please approve the transaction in your wallet',
@@ -536,8 +606,11 @@ export function useJoinGame() {
           address: addresses.PRIZE_TOKEN as `0x${string}`,
           abi: ERC20_ABI,
           functionName: 'approve',
-          args: [gameAddress, entryFeeAmount],
+          args: [gameAddress, approveAmount],
         });
+
+        console.log('[useJoinGame] Approve transaction sent:', approveHash);
+        console.log('[useJoinGame] Approve amount:', approveAmount.toString());
 
         // 等待授权交易确认
         const receipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -546,14 +619,34 @@ export function useJoinGame() {
           throw new Error('Token approval failed');
         }
 
+        console.log('[useJoinGame] Approve transaction confirmed');
+
         toast.success('Token approved successfully', {
           description: 'You can now join the tournament',
         });
+      } else {
+        console.log('[useJoinGame] Token already approved');
+      }
+
+      // 检查代币余额
+      const balance = await publicClient.readContract({
+        address: addresses.PRIZE_TOKEN as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address],
+      }) as bigint;
+
+      console.log('[useJoinGame] Token balance:', balance.toString());
+
+      if (balance < entryFeeAmount) {
+        throw new Error(`Insufficient token balance. You have ${formatUnits(balance, 18)} tokens, but need ${entryFee} tokens.`);
       }
 
       toast.info('Joining tournament...', {
         description: 'Please approve the transaction in your wallet',
       });
+
+      console.log('[useJoinGame] Calling joinGame on contract:', gameAddress);
 
       writeContract({
         address: gameAddress,
@@ -561,7 +654,39 @@ export function useJoinGame() {
         functionName: 'joinGame',
       });
     } catch (err) {
+      console.error('[useJoinGame] Error:', err);
+
+      // 解析合约错误
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+
+      // 检查是否是合约回滚错误
+      if (errorMessage.includes('execution reverted')) {
+        // 尝试从错误消息中提取更多信息
+        const lowerMessage = errorMessage.toLowerCase();
+
+        if (lowerMessage.includes('game not accepting players')) {
+          throw new Error('Game is not accepting players. It may have already started or ended.');
+        }
+        if (lowerMessage.includes('registration time passed')) {
+          throw new Error('Registration time has passed. Please check the tournament schedule.');
+        }
+        if (lowerMessage.includes('max players reached')) {
+          throw new Error('Tournament is full. Maximum number of players has been reached.');
+        }
+        if (lowerMessage.includes('already joined')) {
+          throw new Error('You have already joined this tournament.');
+        }
+        if (lowerMessage.includes('transfer failed')) {
+          throw new Error('Token transfer failed. Please ensure you have sufficient tokens and have approved the contract.');
+        }
+        if (lowerMessage.includes('insufficient allowance') || lowerMessage.includes('allowance')) {
+          throw new Error('Token allowance is insufficient. Please approve the contract to spend your tokens.');
+        }
+        if (lowerMessage.includes('insufficient balance')) {
+          throw new Error('Insufficient token balance. Please make sure you have enough tokens to join.');
+        }
+      }
+
       toast.error('Failed to join tournament', {
         description: errorMessage,
       });

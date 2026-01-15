@@ -536,12 +536,7 @@ export default function TournamentDetailPage() {
                           }`}
                         >
                           <div className="w-12 text-center">
-                            <span className={`text-lg font-bold ${
-                              rank === 1 ? 'text-yellow-400' :
-                              rank === 2 ? 'text-gray-300' :
-                              rank === 3 ? 'text-amber-600' :
-                              'text-gray-400'
-                            }`}>
+                            <span className="text-lg font-bold text-gray-400">
                               #{rank}
                             </span>
                           </div>
@@ -563,10 +558,12 @@ export default function TournamentDetailPage() {
                             </div>
                             <div className="text-xs text-gray-500">
                               {submittedTime.toLocaleString('en-US', {
+                                year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',
                                 hour: '2-digit',
-                                minute: '2-digit'
+                                minute: '2-digit',
+                                hour12: true
                               })}
                             </div>
                           </div>
