@@ -203,12 +203,16 @@ export function useCreateGame() {
       if (adjustedRegistrationEndTime <= latestTimestamp) {
         const timeDiff = latestTimestamp - adjustedRegistrationEndTime;
         console.log('Time expired, diff:', timeDiff, 'seconds');
-        adjustedRegistrationEndTime = latestTimestamp + 60;
         adjustedGameStartTime = latestTimestamp + 60;
-        // 调整游戏结束时间，确保至少24小时的持续时间
+        // 调整游戏结束时间，确保至少30分钟的持续时间
         const originalDuration = config.gameEndTime - config.gameStartTime;
-        const minDuration = 24 * 60 * 60; // 24小时
+        const minDuration = 30 * 60; // 30分钟
         adjustedGameEndTime = adjustedGameStartTime + Math.max(originalDuration, minDuration);
+        // 报名截止时间为游戏结束前15分钟
+        adjustedRegistrationEndTime = adjustedGameEndTime - (15 * 60);
+      } else {
+        // 如果时间没有过期，确保报名截止时间是游戏结束前15分钟
+        adjustedRegistrationEndTime = adjustedGameEndTime - (15 * 60);
       }
 
       console.log('Adjusted registration end time:', adjustedRegistrationEndTime);
@@ -510,7 +514,6 @@ export function useJoinGame() {
       console.log('[useJoinGame] Game start time:', startTime, new Date(startTime * 1000).toISOString());
       console.log('[useJoinGame] Game end time:', endTime, new Date(endTime * 1000).toISOString());
       console.log('[useJoinGame] Current timestamp:', currentTimestamp, new Date(currentTimestamp * 1000).toISOString());
-      console.log('[useJoinGame] Is immediate start mode:', regEndTime === startTime);
 
       // 检查报名时间（移动到状态检查之后，因为状态更重要）
       // 先检查比赛状态
@@ -532,30 +535,13 @@ export function useJoinGame() {
         throw new Error(statusMessages[status.toString()] || 'Cannot join game at this time');
       }
 
-      // 现在检查报名时间
-      if (regEndTime === startTime) {
-        // 立即开始模式：允许在比赛结束前15分钟内报名
-        // 例如：120分钟的比赛，创建后105分钟内可以报名
-        const timeUntilEnd = endTime - currentTimestamp;
-        const registrationDeadline = endTime - 15 * 60; // 结束前15分钟
-        const timeUntilDeadline = registrationDeadline - currentTimestamp;
+      // 现在检查报名时间（报名截止时间是比赛结束前15分钟）
+      const timeUntilRegEnd = regEndTime - currentTimestamp;
+      console.log('[useJoinGame] Time until registration ends:', timeUntilRegEnd, 'seconds');
+      console.log('[useJoinGame] Registration ends 15 minutes before game ends');
 
-        console.log('[useJoinGame] Immediate start mode.');
-        console.log('[useJoinGame] Time until game ends:', timeUntilEnd, 'seconds');
-        console.log('[useJoinGame] Registration deadline:', registrationDeadline, new Date(registrationDeadline * 1000).toISOString());
-        console.log('[useJoinGame] Time until registration deadline:', timeUntilDeadline, 'seconds');
-
-        if (currentTimestamp >= registrationDeadline) {
-          throw new Error('Registration time has passed. In immediate start mode, registration closes 15 minutes before the game ends.');
-        }
-      } else {
-        // 正常模式：必须在报名时间结束前报名
-        const timeUntilRegEnd = regEndTime - currentTimestamp;
-        console.log('[useJoinGame] Normal mode. Time until registration ends:', timeUntilRegEnd, 'seconds');
-
-        if (currentTimestamp >= regEndTime) {
-          throw new Error('Registration time has passed. The tournament registration has ended.');
-        }
+      if (currentTimestamp >= regEndTime) {
+        throw new Error('Registration time has passed. The tournament registration closes 15 minutes before the game ends.');
       }
 
       // 检查玩家数量

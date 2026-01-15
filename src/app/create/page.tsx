@@ -172,32 +172,35 @@ export default function CreateTournamentPage() {
       console.log('Start immediately:', formData.startImmediately);
 
       // 计算时间戳（使用区块时间）
-      let registrationEndTime: number;
       let gameStartTime: number;
       let gameEndTime: number;
+      let registrationEndTime: number;
 
       if (formData.startImmediately) {
         // 立即开始模式：在区块时间基础上增加 60 秒，确保时间在未来
-        // 增加更多缓冲时间，因为从提交到交易打包可能需要较长时间
-        registrationEndTime = blockTimestamp + 60;
         gameStartTime = blockTimestamp + 60;
-        // 比赛结束时间 = 开始时间 + 游戏时长
-        gameEndTime = gameStartTime + formData.gameDuration * 60;
       } else {
-        // 正常模式
-        registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
-        gameStartTime = registrationEndTime; // 游戏在报名结束后立即开始
-        // 比赛结束时间 = 开始时间 + 游戏时长
-        gameEndTime = gameStartTime + formData.gameDuration * 60;
+        // 正常模式：游戏在报名持续时间后开始
+        gameStartTime = blockTimestamp + formData.registrationDuration * 60;
       }
 
+      // 游戏结束时间 = 开始时间 + 游戏时长（至少30分钟）
+      const minGameDuration = 30 * 60; // 30分钟
+      const requestedGameDuration = formData.gameDuration * 60;
+      const actualGameDuration = Math.max(requestedGameDuration, minGameDuration);
+      gameEndTime = gameStartTime + actualGameDuration;
+
+      // 报名截止时间为游戏结束前15分钟
+      registrationEndTime = gameEndTime - (15 * 60);
+
       // 输出计算结果
-      console.log('Registration end time:', registrationEndTime);
-      console.log('Registration end UTC:', new Date(registrationEndTime * 1000).toISOString());
       console.log('Game start time:', gameStartTime);
       console.log('Game start UTC:', new Date(gameStartTime * 1000).toISOString());
       console.log('Game end time:', gameEndTime);
       console.log('Game end UTC:', new Date(gameEndTime * 1000).toISOString());
+      console.log('Registration end time:', registrationEndTime);
+      console.log('Registration end UTC:', new Date(registrationEndTime * 1000).toISOString());
+      console.log('Game duration:', actualGameDuration / 60, 'minutes');
       console.log('==============================');
 
       // 准备配置

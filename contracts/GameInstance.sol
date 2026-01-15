@@ -143,17 +143,8 @@ contract GameInstance is AccessControl {
         // 1. 检查状态和时间
         require(status == Types.GameStatus.Created, "Game not accepting players");
 
-        // 检查报名时间
-        // 立即开始模式（registrationEndTime == gameStartTime）：允许在比赛结束前15分钟内报名
-        // 正常模式：必须在报名时间结束前报名
-        if (registrationEndTime == gameStartTime) {
-            // 立即开始模式：允许在比赛结束前15分钟内报名
-            // 例如：120分钟的比赛，创建后105分钟内可以报名
-            require(block.timestamp < gameEndTime - 15 minutes, "Registration time passed");
-        } else {
-            // 正常模式：必须在报名时间结束前报名
-            require(block.timestamp < registrationEndTime, "Registration time passed");
-        }
+        // 检查报名时间：在报名截止时间前都可以报名（报名截止时间是比赛结束前15分钟）
+        require(block.timestamp < registrationEndTime, "Registration time passed");
 
         // 2. 检查玩家数量
         require(players.length < maxPlayers, "Max players reached");
