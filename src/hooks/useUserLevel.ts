@@ -158,6 +158,24 @@ export function formatUserLevelData(userData?: UserLevelData) {
     };
   }
 
+  // 检查所有字段是否存在，如果不存在则使用默认值
+  if (
+    userData.totalExp === undefined ||
+    userData.totalExp === null ||
+    userData.currentLevel === undefined ||
+    userData.currentLevel === null ||
+    userData.expForNextLevel === undefined ||
+    userData.expForNextLevel === null
+  ) {
+    return {
+      level: 1,
+      experience: 0,
+      totalExp: 0,
+      expForNextLevel: 100,
+      progress: 0,
+    };
+  }
+
   const level = Number(userData.currentLevel);
   const totalExp = Number(formatUnits(userData.totalExp, 18));
   const expForNextLevel = Number(formatUnits(userData.expForNextLevel, 18));

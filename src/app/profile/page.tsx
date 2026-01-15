@@ -84,7 +84,22 @@ export default function ProfilePage() {
 
   // 格式化用户等级数据
   const levelData = formatUserLevelData(userData);
-  const tokenBalance = tokenBalanceRaw ? Number(formatUnits(tokenBalanceRaw as bigint, 18)) : 0;
+
+  // 格式化代币余额，确保不会出现 NaN
+  let tokenBalance = 0;
+  if (tokenBalanceRaw && typeof tokenBalanceRaw === 'bigint') {
+    try {
+      tokenBalance = Number(formatUnits(tokenBalanceRaw, 18));
+      // 确保结果不是 NaN
+      if (isNaN(tokenBalance) || !isFinite(tokenBalance)) {
+        console.warn('Token balance is invalid:', tokenBalanceRaw);
+        tokenBalance = 0;
+      }
+    } catch (error) {
+      console.error('Failed to format token balance:', error);
+      tokenBalance = 0;
+    }
+  }
 
   // 从比赛数据计算统计数据
   const stats = {
