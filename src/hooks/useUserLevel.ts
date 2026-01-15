@@ -30,15 +30,16 @@ export function useUserLevel() {
     console.warn(`Chain ID ${chainId} is not supported`);
   }
 
-  const addresses = getContractAddresses(chainId);
+  // 只在支持的网络中获取合约地址
+  const addresses = supported ? getContractAddresses(chainId) : null;
 
   const { data: userData, isLoading, error, refetch } = useReadContract({
-    address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
+    address: addresses?.USER_LEVEL_MANAGER as `0x${string}` | undefined,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getUserData",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address && supported,
+      enabled: !!address && supported && !!addresses,
     },
   });
 
@@ -56,15 +57,15 @@ export function useUserLevel() {
 export function useExpForLevel(level: number) {
   const chainId = useChainId();
   const supported = isSupportedChain(chainId);
-  const addresses = getContractAddresses(chainId);
+  const addresses = supported ? getContractAddresses(chainId) : null;
 
   const { data: expNeeded } = useReadContract({
-    address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
+    address: addresses?.USER_LEVEL_MANAGER as `0x${string}` | undefined,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getExpForLevel",
     args: [BigInt(level)],
     query: {
-      enabled: supported,
+      enabled: supported && !!addresses,
     },
   });
 
@@ -80,15 +81,15 @@ export function useHasAchievement(achievementId: number) {
   const { address } = useAccount();
   const chainId = useChainId();
   const supported = isSupportedChain(chainId);
-  const addresses = getContractAddresses(chainId);
+  const addresses = supported ? getContractAddresses(chainId) : null;
 
   const { data: hasAchievement } = useReadContract({
-    address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
+    address: addresses?.USER_LEVEL_MANAGER as `0x${string}` | undefined,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "hasAchievement",
     args: address ? [address, BigInt(achievementId)] : undefined,
     query: {
-      enabled: !!address && supported,
+      enabled: !!address && supported && !!addresses,
     },
   });
 
@@ -103,15 +104,15 @@ export function useHasAchievement(achievementId: number) {
 export function useAchievement(achievementId: number) {
   const chainId = useChainId();
   const supported = isSupportedChain(chainId);
-  const addresses = getContractAddresses(chainId);
+  const addresses = supported ? getContractAddresses(chainId) : null;
 
   const { data: achievement } = useReadContract({
-    address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
+    address: addresses?.USER_LEVEL_MANAGER as `0x${string}` | undefined,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getAchievement",
     args: [BigInt(achievementId)],
     query: {
-      enabled: supported,
+      enabled: supported && !!addresses,
     },
   });
 
@@ -126,14 +127,14 @@ export function useAchievement(achievementId: number) {
 export function useLevelManagerTokenBalance() {
   const chainId = useChainId();
   const supported = isSupportedChain(chainId);
-  const addresses = getContractAddresses(chainId);
+  const addresses = supported ? getContractAddresses(chainId) : null;
 
   const { data: balance } = useReadContract({
-    address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
+    address: addresses?.USER_LEVEL_MANAGER as `0x${string}` | undefined,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getTokenBalance",
     query: {
-      enabled: supported,
+      enabled: supported && !!addresses,
     },
   });
 

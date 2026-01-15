@@ -24,7 +24,7 @@ export const mantleSepolia = {
 export const config = getDefaultConfig({
   appName: "Blitz Arena",
   projectId: "YOUR_PROJECT_ID", // 在生产环境中需要替换为实际的 WalletConnect Project ID
-  chains: [hardhat, mantleSepolia],
+  chains: [mantleSepolia, hardhat], // 将 Mantle Sepolia 设为默认网络
   ssr: true,
 });
 
