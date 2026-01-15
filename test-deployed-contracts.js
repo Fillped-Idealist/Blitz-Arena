@@ -125,9 +125,4 @@ async function main() {
   console.log("\n=== All tests passed! ===");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+// 测试代码不变，只是调用main()

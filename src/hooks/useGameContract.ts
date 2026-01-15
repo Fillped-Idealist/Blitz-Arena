@@ -295,15 +295,6 @@ export function useGameInstance(gameAddress: `0x${string}` | null) {
     },
   });
 
-  const { data: players, refetch: refetchPlayers } = useReadContract({
-    address: gameAddress!,
-    abi: GAME_INSTANCE_ABI,
-    functionName: 'players',
-    query: {
-      enabled: !!gameAddress,
-    },
-  });
-
   const { data: entryFee, refetch: refetchEntryFee } = useReadContract({
     address: gameAddress!,
     abi: GAME_INSTANCE_ABI,
@@ -402,7 +393,6 @@ export function useGameInstance(gameAddress: `0x${string}` | null) {
     refetchCreator();
     refetchTitle();
     refetchGameType();
-    refetchPlayers();
     refetchEntryFee();
     refetchPrizePool();
     refetchMinPlayers();
@@ -424,7 +414,6 @@ export function useGameInstance(gameAddress: `0x${string}` | null) {
       creator: creator as `0x${string}` | undefined,
       title: title as string | undefined,
       gameType: gameType as bigint | undefined,
-      players: players as Array<{ player: `0x${string}`, score: bigint }> | undefined,
       entryFee: entryFee as bigint | undefined,
       prizePool: prizePool as bigint | undefined,
       minPlayers: minPlayers as bigint | undefined,
@@ -551,15 +540,19 @@ export function useJoinGame() {
         functionName: 'maxPlayers',
       }) as bigint;
 
-      const players = await publicClient.readContract({
+      const gameData = await publicClient.readContract({
         address: gameAddress,
         abi: GAME_INSTANCE_ABI,
-        functionName: 'players',
-      }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+        functionName: 'getGameData',
+      }) as unknown as {
+        playerCount: bigint;
+        status: bigint;
+        // ... 其他字段
+      };
 
-      console.log('[useJoinGame] Current players:', players.length, '/', maxPlayers.toString());
+      console.log('[useJoinGame] Current players:', Number(gameData.playerCount), '/', maxPlayers.toString());
 
-      if (players.length >= Number(maxPlayers)) {
+      if (Number(gameData.playerCount) >= Number(maxPlayers)) {
         throw new Error('Tournament is full. Maximum number of players has been reached.');
       }
 
@@ -827,18 +820,23 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                   }) as unknown as Promise<bigint>,
                 ]);
 
-              // 获取玩家数量和用户是否已加入 - 添加错误处理
+              // 获取玩家数量和用户是否已加入
               let playerCount = 0;
               let isJoined = false;
 
               try {
-                const players = await publicClient.readContract({
+                const gameData = await publicClient.readContract({
                   address: gameAddress,
                   abi: GAME_INSTANCE_ABI,
-                  functionName: 'players',
-                }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
-                playerCount = players?.length || 0;
-                console.log(`[useGamesBatch] Game ${gameAddress}: Fetched ${playerCount} players`);
+                  functionName: 'getGameData',
+                }) as unknown as {
+                  playerCount: bigint;
+                  status: bigint;
+                  // ... 其他字段
+                };
+
+                playerCount = Number(gameData.playerCount);
+                console.log(`[useGamesBatch] Game ${gameAddress}: Fetched playerCount = ${playerCount}`);
 
                 // 如果用户已连接钱包，检查是否已加入
                 if (userAddress) {
@@ -851,8 +849,8 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                   console.log(`[useGamesBatch] Game ${gameAddress}: User ${userAddress} isJoined = ${isJoined}`);
                 }
               } catch (err) {
-                // 如果获取玩家失败，默认为 0
-                console.warn(`[useGamesBatch] Failed to fetch players for game ${gameAddress}:`, err);
+                // 如果获取失败，默认为 0
+                console.warn(`[useGamesBatch] Failed to fetch game data for ${gameAddress}:`, err);
                 playerCount = 0;
               }
 
@@ -960,12 +958,16 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
           let isJoined = false;
 
           try {
-            const players = await client.readContract({
+            const gameData = await client.readContract({
               address: gameAddress,
               abi: GAME_INSTANCE_ABI,
-              functionName: 'players',
-            }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
-            playerCount = players?.length || 0;
+              functionName: 'getGameData',
+            }) as unknown as {
+              playerCount: bigint;
+              status: bigint;
+              // ... 其他字段
+            };
+            playerCount = Number(gameData.playerCount);
 
             if (userAddress) {
               isJoined = await client.readContract({
@@ -1217,12 +1219,16 @@ export function useUserGames(userAddress?: `0x${string}`) {
                     }),
                   ]);
 
-                // 获取玩家列表
-                const players = await publicClient.readContract({
+                // 获取游戏数据（包含玩家数量）
+                const gameData = await publicClient.readContract({
                   address: gameAddr,
                   abi: GAME_INSTANCE_ABI,
-                  functionName: 'players',
-                }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+                  functionName: 'getGameData',
+                }) as unknown as {
+                  playerCount: bigint;
+                  status: bigint;
+                  // ... 其他字段
+                };
 
                 // 获取用户在比赛中的游戏结果（包含提交时间）
                 const gameResult = await publicClient.readContract({
@@ -1248,7 +1254,7 @@ export function useUserGames(userAddress?: `0x${string}`) {
                   gameType: gameType as unknown as bigint,
                   entryFee: entryFee as unknown as bigint,
                   prizePool: prizePool as unknown as bigint,
-                  players: players?.length || 0,
+                  players: Number(gameData.playerCount),
                   isJoined: true,
                   submittedAt,
                 };
@@ -1370,16 +1376,37 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
         // 获取玩家列表和 gameResults（包含提交时间）- 添加错误处理
         let playersList: Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }> = [];
         try {
-          const players = await publicClient.readContract({
+          // 使用 getGameData 获取玩家数量
+          const gameData = await publicClient.readContract({
             address: gameAddress,
             abi: GAME_INSTANCE_ABI,
-            functionName: 'players',
-          }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+            functionName: 'getGameData',
+          }) as unknown as {
+            playerCount: bigint;
+            status: bigint;
+            // ... 其他字段
+          };
 
-          console.log(`[useGameDetails] Fetched ${players?.length || 0} players`);
+          const playerCount = Number(gameData.playerCount);
+          console.log(`[useGameDetails] Fetched playerCount = ${playerCount}`);
 
-          // 获取每个玩家的 gameResults（包含提交时间）
-          if (players && players.length > 0) {
+          // 逐个获取玩家数据
+          if (playerCount > 0) {
+            const playersPromises = [];
+            for (let i = 0; i < playerCount; i++) {
+              playersPromises.push(
+                publicClient.readContract({
+                  address: gameAddress,
+                  abi: GAME_INSTANCE_ABI,
+                  functionName: 'players',
+                  args: [i] as any,
+                }) as unknown as { player: `0x${string}`, score: bigint }
+              );
+            }
+
+            const players = await Promise.all(playersPromises);
+
+            // 获取每个玩家的 gameResults（包含提交时间）
             playersList = await Promise.all(players.map(async (p) => {
               try {
                 const gameResult = await publicClient.readContract({
@@ -1593,16 +1620,37 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
       // 获取玩家列表和 gameResults（包含提交时间）- 添加错误处理
       let playersList: Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }> = [];
       try {
-        const players = await client.readContract({
+        // 使用 getGameData 获取玩家数量
+        const gameData = await client.readContract({
           address: gameAddress,
           abi: GAME_INSTANCE_ABI,
-          functionName: 'players',
-        }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+          functionName: 'getGameData',
+        }) as unknown as {
+          playerCount: bigint;
+          status: bigint;
+          // ... 其他字段
+        };
 
-        console.log(`[useGameDetailsWithRefetch] Fetched ${players?.length || 0} players`);
+        const playerCount = Number(gameData.playerCount);
+        console.log(`[useGameDetailsWithRefetch] Fetched playerCount = ${playerCount}`);
 
-        // 获取每个玩家的 gameResults（包含提交时间）
-        if (players && players.length > 0) {
+        // 逐个获取玩家数据
+        if (playerCount > 0) {
+          const playersPromises = [];
+          for (let i = 0; i < playerCount; i++) {
+            playersPromises.push(
+              client.readContract({
+                address: gameAddress,
+                abi: GAME_INSTANCE_ABI,
+                functionName: 'players',
+                args: [i] as any,
+              }) as unknown as { player: `0x${string}`, score: bigint }
+            );
+          }
+
+          const players = await Promise.all(playersPromises);
+
+          // 获取每个玩家的 gameResults（包含提交时间）
           playersList = await Promise.all(players.map(async (p) => {
             try {
               const gameResult = await client.readContract({

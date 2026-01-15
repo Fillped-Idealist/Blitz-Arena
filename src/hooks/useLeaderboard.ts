@@ -65,8 +65,12 @@ export function useLeaderboard(options?: {
                 publicClient.readContract({
                   address,
                   abi: GAME_INSTANCE_ABI,
-                  functionName: 'players',
-                }) as Promise<Array<{ player: `0x${string}`, score: bigint }>>,
+                  functionName: 'getGameData',
+                }) as unknown as Promise<{
+                  playerCount: bigint;
+                  status: bigint;
+                  // ... 其他字段
+                }>,
               ]);
 
               return {
@@ -75,7 +79,7 @@ export function useLeaderboard(options?: {
                 gameType: gameTypeVal,
                 prizePool,
                 winners,
-                players,
+                playerCount: Number(players.playerCount),
               };
             } catch (error) {
               console.error(`Failed to fetch game ${address}:`, error);

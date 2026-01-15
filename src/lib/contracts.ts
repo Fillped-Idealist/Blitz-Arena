@@ -880,6 +880,86 @@ export const GAME_INSTANCE_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getGameData",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "creator",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "enum Types.GameStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum Types.GameType",
+            "name": "gameType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxPlayers",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "playerCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "registrationEndTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gameStartTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "feeToken",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entryFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "prizeToken",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "prizePool",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Types.GameData",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const;
 
