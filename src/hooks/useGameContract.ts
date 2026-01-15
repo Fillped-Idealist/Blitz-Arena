@@ -582,12 +582,20 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                   }) as unknown as Promise<bigint>,
                 ]);
 
-              // 获取玩家数量
-              const players = await publicClient.readContract({
-                address,
-                abi: GAME_INSTANCE_ABI,
-                functionName: 'players',
-              }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+              // 获取玩家数量 - 添加错误处理
+              let playerCount = 0;
+              try {
+                const players = await publicClient.readContract({
+                  address,
+                  abi: GAME_INSTANCE_ABI,
+                  functionName: 'players',
+                }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+                playerCount = players?.length || 0;
+              } catch (err) {
+                // 如果获取玩家失败，默认为 0
+                console.warn(`Failed to fetch players for game ${address}:`, err);
+                playerCount = 0;
+              }
 
               return {
                 address,
@@ -600,7 +608,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                 maxPlayers: maxPlayers as bigint,
                 registrationEndTime: registrationEndTime as bigint,
                 gameStartTime: gameStartTime as bigint,
-                players: players?.length || 0,
+                players: playerCount,
               };
             } catch (error) {
               console.error(`Failed to fetch game ${address}:`, error);
