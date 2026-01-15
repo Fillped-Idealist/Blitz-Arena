@@ -361,7 +361,7 @@ export default function TournamentDetailPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-400">Players:</span>
                       <span className="text-white">
-                        {gameDetails.players} / {formatUnits(gameDetails.maxPlayers, 18)}
+                        {gameDetails.players} / {gameDetails.maxPlayers}
                       </span>
                     </div>
                     <div className="flex justify-between">
