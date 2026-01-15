@@ -53,6 +53,12 @@ export function useNetworkCheck() {
 // 获取合约地址
 export function useContractAddresses() {
   const chainId = useChainId();
+  const supported = isSupportedChain(chainId);
+
+  if (!supported) {
+    return null;
+  }
+
   return getContractAddresses(chainId);
 }
 
@@ -64,15 +70,21 @@ export function useGameFactory() {
   const addresses = useContractAddresses();
 
   const { data: allGames, refetch: refetchGames } = useReadContract({
-    address: addresses.GAME_FACTORY as `0x${string}`,
+    address: addresses?.GAME_FACTORY as `0x${string}`,
     abi: GAME_FACTORY_ABI,
     functionName: 'getAllGames',
+    query: {
+      enabled: !!addresses,
+    },
   });
 
   const { data: totalGames, refetch: refetchTotalGames } = useReadContract({
-    address: addresses.GAME_FACTORY as `0x${string}`,
+    address: addresses?.GAME_FACTORY as `0x${string}`,
     abi: GAME_FACTORY_ABI,
     functionName: 'getTotalGames',
+    query: {
+      enabled: !!addresses,
+    },
   });
 
   return {
@@ -120,6 +132,10 @@ export function useCreateGame() {
 
       if (!address) {
         throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      if (!addresses) {
+        throw new Error('Contract addresses not available on current network');
       }
 
       // 计算总金额 (奖池 + 10% 平台费)
@@ -717,12 +733,19 @@ export function useUserGames(userAddress?: `0x${string}`) {
   const chainId = useChainId();
   const userAddr = userAddress || address;
   const publicClient = usePublicClient();
-  const addresses = getContractAddresses(chainId);
+
+  // 检查网络是否支持
+  const supported = isSupportedChain(chainId);
+
+  // 只在支持的网络中获取合约地址
+  const addresses = supported ? getContractAddresses(chainId) : null;
+
   const [userGames, setUserGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!userAddr || !publicClient || !addresses.GAME_FACTORY) return;
+    // 不在支持的网络或不满足条件时，不执行合约调用
+    if (!supported || !userAddr || !publicClient || !addresses?.GAME_FACTORY) return;
 
     const fetchUserGames = async () => {
       setLoading(true);
@@ -833,7 +856,7 @@ export function useUserGames(userAddress?: `0x${string}`) {
     };
 
     fetchUserGames();
-  }, [userAddr, publicClient, addresses.GAME_FACTORY]);
+  }, [userAddr, publicClient, addresses?.GAME_FACTORY]);
 
   return { userGames, loading, refetch: () => {} };
 }

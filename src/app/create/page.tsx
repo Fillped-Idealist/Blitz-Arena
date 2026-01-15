@@ -88,7 +88,7 @@ export default function CreateTournamentPage() {
   const { supported } = useNetworkCheck();
   const { createGame } = useCreateGame();
   const addresses = useContractAddresses();
-  const { approve } = useERC20(addresses.PRIZE_TOKEN as `0x${string}`);
+  const { approve } = useERC20(addresses?.PRIZE_TOKEN as `0x${string}`);
 
   const [loading, setLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);

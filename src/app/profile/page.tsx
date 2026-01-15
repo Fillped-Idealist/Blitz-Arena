@@ -44,21 +44,24 @@ export default function ProfilePage() {
   const { address, isConnected, chainId } = useAccount();
   const [isMounted, setIsMounted] = useState(false);
 
-  // 使用合约获取用户比赛数据
+  // 检查网络是否支持
+  const isSupportedChain = chainId === 31337 || chainId === 5003;
+
+  // 使用合约获取用户比赛数据（只在支持的网络）
   const { userGames, loading: gamesLoading } = useUserGames();
 
-  // 从链上获取用户等级数据
+  // 从链上获取用户等级数据（只在支持的网络）
   const { userData, isLoading: levelLoading } = useUserLevel();
 
-  // 从链上获取 BLZ 代币余额
-  const addresses = chainId ? getContractAddresses(chainId) : getContractAddresses(31337);
+  // 从链上获取 BLZ 代币余额（只在支持的网络）
+  const addresses = isSupportedChain && chainId ? getContractAddresses(chainId) : null;
   const { data: tokenBalanceRaw } = useReadContract({
-    address: addresses.BLZ_TOKEN as `0x${string}`,
+    address: addresses?.BLZ_TOKEN as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address,
+      enabled: !!address && !!addresses,
     },
   });
 

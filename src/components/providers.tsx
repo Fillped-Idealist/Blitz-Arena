@@ -6,6 +6,7 @@ import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { config } from "@/lib/wagmi";
 import { Toaster } from "@/components/ui/sonner";
+import { NetworkCheck } from "@/components/NetworkCheck";
 import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             accentColorForeground: "white",
           })}
         >
+          <NetworkCheck />
           {children}
           <Toaster />
         </RainbowKitProvider>
