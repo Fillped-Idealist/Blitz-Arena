@@ -174,16 +174,21 @@ export default function CreateTournamentPage() {
       // 计算时间戳（使用区块时间）
       let registrationEndTime: number;
       let gameStartTime: number;
+      let gameEndTime: number;
 
       if (formData.startImmediately) {
         // 立即开始模式：在区块时间基础上增加 60 秒，确保时间在未来
         // 增加更多缓冲时间，因为从提交到交易打包可能需要较长时间
         registrationEndTime = blockTimestamp + 60;
         gameStartTime = blockTimestamp + 60;
+        // 比赛结束时间 = 开始时间 + 游戏时长
+        gameEndTime = gameStartTime + formData.gameDuration * 60;
       } else {
         // 正常模式
         registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
         gameStartTime = registrationEndTime; // 游戏在报名结束后立即开始
+        // 比赛结束时间 = 开始时间 + 游戏时长
+        gameEndTime = gameStartTime + formData.gameDuration * 60;
       }
 
       // 输出计算结果
@@ -191,6 +196,8 @@ export default function CreateTournamentPage() {
       console.log('Registration end UTC:', new Date(registrationEndTime * 1000).toISOString());
       console.log('Game start time:', gameStartTime);
       console.log('Game start UTC:', new Date(gameStartTime * 1000).toISOString());
+      console.log('Game end time:', gameEndTime);
+      console.log('Game end UTC:', new Date(gameEndTime * 1000).toISOString());
       console.log('==============================');
 
       // 准备配置
@@ -204,6 +211,7 @@ export default function CreateTournamentPage() {
         maxPlayers: formData.maxPlayers,
         registrationEndTime,
         gameStartTime,
+        gameEndTime,
         distributionType: parseInt(formData.distributionType) as PrizeDistributionType,
         rankPrizes: formData.distributionType === "2" ? [6000, 3000, 1000] : [], // 60%, 30%, 10% for top 3
       };

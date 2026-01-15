@@ -26,7 +26,8 @@ export enum GameType {
   NumberGuess = 1,
   RockPaperScissors = 2,
   QuickClick = 3,
-  InfiniteMatch = 4,
+  RoguelikeSurvival = 4, // 新增：肉鸽割草游戏（Cycle Rift）
+  InfiniteMatch = 5, // 更新：Infinite Match 为 5
 }
 
 // PrizeDistributionType 枚举
@@ -474,7 +475,7 @@ export function useJoinGame() {
       const currentTimestamp = Number(currentBlock.timestamp);
 
       // 获取游戏的报名时间和游戏开始时间
-      const [registrationEndTime, gameStartTime] = await Promise.all([
+      const [registrationEndTime, gameStartTime, gameEndTime] = await Promise.all([
         publicClient.readContract({
           address: gameAddress,
           abi: GAME_INSTANCE_ABI,
@@ -485,13 +486,20 @@ export function useJoinGame() {
           abi: GAME_INSTANCE_ABI,
           functionName: 'gameStartTime',
         }) as Promise<bigint>,
+        publicClient.readContract({
+          address: gameAddress,
+          abi: GAME_INSTANCE_ABI,
+          functionName: 'gameEndTime',
+        }) as Promise<bigint>,
       ]);
 
       const regEndTime = Number(registrationEndTime);
       const startTime = Number(gameStartTime);
+      const endTime = Number(gameEndTime);
 
       console.log('[useJoinGame] Registration end time:', regEndTime, new Date(regEndTime * 1000).toISOString());
       console.log('[useJoinGame] Game start time:', startTime, new Date(startTime * 1000).toISOString());
+      console.log('[useJoinGame] Game end time:', endTime, new Date(endTime * 1000).toISOString());
       console.log('[useJoinGame] Current timestamp:', currentTimestamp, new Date(currentTimestamp * 1000).toISOString());
       console.log('[useJoinGame] Is immediate start mode:', regEndTime === startTime);
 
@@ -517,10 +525,20 @@ export function useJoinGame() {
 
       // 现在检查报名时间
       if (regEndTime === startTime) {
-        // 立即开始模式：允许在游戏开始前报名，也可以在开始后 15 分钟内继续报名
-        // 只要比赛还没开始（status === 0），就可以加入
-        console.log('[useJoinGame] Immediate start mode. Can join as long as status is Created.');
-        // 不需要额外的时间检查，因为如果时间过了 15 分钟，status 可能已经改变
+        // 立即开始模式：允许在比赛结束前15分钟内报名
+        // 例如：120分钟的比赛，创建后105分钟内可以报名
+        const timeUntilEnd = endTime - currentTimestamp;
+        const registrationDeadline = endTime - 15 * 60; // 结束前15分钟
+        const timeUntilDeadline = registrationDeadline - currentTimestamp;
+
+        console.log('[useJoinGame] Immediate start mode.');
+        console.log('[useJoinGame] Time until game ends:', timeUntilEnd, 'seconds');
+        console.log('[useJoinGame] Registration deadline:', registrationDeadline, new Date(registrationDeadline * 1000).toISOString());
+        console.log('[useJoinGame] Time until registration deadline:', timeUntilDeadline, 'seconds');
+
+        if (currentTimestamp >= registrationDeadline) {
+          throw new Error('Registration time has passed. In immediate start mode, registration closes 15 minutes before the game ends.');
+        }
       } else {
         // 正常模式：必须在报名时间结束前报名
         const timeUntilRegEnd = regEndTime - currentTimestamp;
@@ -645,7 +663,7 @@ export function useJoinGame() {
         functionName: 'joinGame',
       });
     } catch (err) {
-      console.error('[useJoinGame] Error:', err);
+      console.log('[useJoinGame] Error:', err);
 
       // 解析合约错误
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -867,7 +885,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                 isJoined,
               };
             } catch (error) {
-              console.error(`Failed to fetch game ${gameAddress}:`, error);
+              console.log(`Failed to fetch game ${gameAddress}:`, error);
               throw error;
             }
           })
@@ -879,7 +897,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
 
         setGamesData(successfulGames);
       } catch (error) {
-        console.error('Error fetching games batch:', error);
+        console.log('Error fetching games batch:', error);
         setError(error as Error);
       } finally {
         setLoading(false);
@@ -995,7 +1013,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
             isJoined,
           };
         } catch (error) {
-          console.error(`Failed to fetch game ${gameAddress}:`, error);
+          console.log(`Failed to fetch game ${gameAddress}:`, error);
           throw error;
         }
       })
@@ -1005,7 +1023,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
         .map(result => result.value);
       setGamesData(successfulGames);
     }).catch((error) => {
-      console.error('Error refetching games batch:', error);
+      console.log('Error refetching games batch:', error);
       setError(error as Error);
     }).finally(() => {
       setLoading(false);
@@ -1129,6 +1147,7 @@ interface GameData {
   maxPlayers: bigint;
   registrationEndTime: bigint;
   gameStartTime: bigint;
+  gameEndTime: bigint; // 新增：比赛结束时间
   players: number;
   isJoined: boolean;
 }
@@ -1259,7 +1278,7 @@ export function useUserGames(userAddress?: `0x${string}`) {
               }
               return null as (GameData & { submittedAt?: bigint }) | null;
             } catch (error) {
-              console.error(`Failed to check game ${gameAddr}:`, error);
+              console.log(`Failed to check game ${gameAddr}:`, error);
               return null;
             }
           })
@@ -1271,7 +1290,7 @@ export function useUserGames(userAddress?: `0x${string}`) {
 
         setUserGames(validGames);
       } catch (error) {
-        console.error('Error fetching user games:', error);
+        console.log('Error fetching user games:', error);
       } finally {
         setLoading(false);
       }
@@ -1312,6 +1331,7 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           maxPlayers,
           registrationEndTime,
           gameStartTime,
+          gameEndTime,
           creator,
         ] = await Promise.all([
           publicClient.readContract({
@@ -1363,6 +1383,11 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
             address: gameAddress,
             abi: GAME_INSTANCE_ABI,
             functionName: 'gameStartTime',
+          }),
+          publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'gameEndTime',
           }),
           publicClient.readContract({
             address: gameAddress,
@@ -1503,6 +1528,7 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           maxPlayers: maxPlayers as unknown as bigint,
           registrationEndTime: registrationEndTime as bigint,
           gameStartTime: gameStartTime as bigint,
+          gameEndTime: gameEndTime as bigint,
           creator: creator as `0x${string}`,
           playersList: playersList,
           players: playersList.length,
@@ -1513,7 +1539,7 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           prizeToClaim,
         });
       } catch (error) {
-        console.error('Error fetching game details:', error);
+        console.log('Error fetching game details:', error);
       } finally {
         setLoading(false);
       }
@@ -1556,6 +1582,7 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
         maxPlayers,
         registrationEndTime,
         gameStartTime,
+        gameEndTime,
         creator,
       ] = await Promise.all([
         client.readContract({
@@ -1607,6 +1634,11 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
           address: gameAddress,
           abi: GAME_INSTANCE_ABI,
           functionName: 'gameStartTime',
+        }),
+        client.readContract({
+          address: gameAddress,
+          abi: GAME_INSTANCE_ABI,
+          functionName: 'gameEndTime',
         }),
         client.readContract({
           address: gameAddress,
@@ -1753,7 +1785,7 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
         prizeToClaim,
       });
     } catch (error) {
-      console.error('Error fetching game details:', error);
+      console.log('Error fetching game details:', error);
     } finally {
       setLoading(false);
     }

@@ -24,6 +24,7 @@ contract Types {
         NumberGuess,        // 猜数字游戏
         RockPaperScissors,  // 石头剪刀布
         QuickClick,         // 快速点击
+        RoguelikeSurvival,  // 肉鸽割草游戏（Cycle Rift）
         InfiniteMatch       // 无限消除游戏
     }
 
@@ -64,6 +65,7 @@ contract Types {
 
         uint registrationEndTime;   // 报名截止时间 (Unix timestamp)
         uint gameStartTime;         // 比赛开始时间 (Unix timestamp)
+        uint gameEndTime;           // 比赛结束时间 (Unix timestamp)
 
         address prizeTokenAddress;  // 奖金使用的 ERC20 代币地址
         uint prizePool;             // 奖池

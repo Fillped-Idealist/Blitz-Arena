@@ -30,9 +30,10 @@ contract GameInstance is AccessControl {
 
     uint public minPlayers;
     uint public maxPlayers;
-    
+
     uint public registrationEndTime;
     uint public gameStartTime;
+    uint public gameEndTime; // 新增：比赛结束时间
 
     address public feeToken;
     uint public entryFee;
@@ -82,6 +83,7 @@ contract GameInstance is AccessControl {
         // 时间检查
         require(config.registrationEndTime > block.timestamp, "Reg end must be in future");
         require(config.gameStartTime >= config.registrationEndTime, "Game must start after reg ends");
+        require(config.gameEndTime > config.gameStartTime, "Game end must be after start");
         // 人数检查
         require(config.maxPlayers >= config.minPlayers, "Max must be >= Min");
 
@@ -100,7 +102,8 @@ contract GameInstance is AccessControl {
 
         registrationEndTime = config.registrationEndTime;
         gameStartTime = config.gameStartTime;
-        
+        gameEndTime = config.gameEndTime; // 新增：设置比赛结束时间
+
         prizeToken = config.prizeTokenAddress;
         prizePool = config.prizePool;
         creatorPrizePool = config.prizePool; // 记录创建者的原始奖池
@@ -141,12 +144,12 @@ contract GameInstance is AccessControl {
         require(status == Types.GameStatus.Created, "Game not accepting players");
 
         // 检查报名时间
-        // 如果 registrationEndTime == gameStartTime（立即开始模式），允许在游戏开始后继续报名
-        // 否则，必须在报名时间结束前报名
+        // 立即开始模式（registrationEndTime == gameStartTime）：允许在比赛结束前15分钟内报名
+        // 正常模式：必须在报名时间结束前报名
         if (registrationEndTime == gameStartTime) {
-            // 立即开始模式：允许在游戏进行中报名，直到达到 maxPlayers
-            // 或者可以设置一个合理的延长期（比如 15 分钟）
-            require(block.timestamp < gameStartTime + 15 minutes, "Registration time passed");
+            // 立即开始模式：允许在比赛结束前15分钟内报名
+            // 例如：120分钟的比赛，创建后105分钟内可以报名
+            require(block.timestamp < gameEndTime - 15 minutes, "Registration time passed");
         } else {
             // 正常模式：必须在报名时间结束前报名
             require(block.timestamp < registrationEndTime, "Registration time passed");

@@ -65,16 +65,16 @@ export default function TournamentDetailPage() {
     [GameType.NumberGuess]: 'Number Guess',
     [GameType.RockPaperScissors]: 'Rock Paper Scissors',
     [GameType.QuickClick]: 'Quick Click',
-    4: 'Cycle Rift (轮回裂隙)', // 合约中可能为0，使用Cycle Rift
-    5: 'Infinite Match', // 实际应该映射到5
+    [GameType.RoguelikeSurvival]: 'Cycle Rift',
+    [GameType.InfiniteMatch]: 'Infinite Match',
   };
 
   const gameTypeIcons: Record<number, string> = {
     [GameType.NumberGuess]: '🔢',
     [GameType.RockPaperScissors]: '✊✋✌️',
     [GameType.QuickClick]: '🎯',
-    4: '🌀', // Cycle Rift
-    5: '🧩', // Infinite Match
+    [GameType.RoguelikeSurvival]: '🌀', // Cycle Rift
+    [GameType.InfiniteMatch]: '🧩', // Infinite Match
   };
 
   // 结果排序函数：分数高的排前面，分数相同则提交时间早的排前面
@@ -181,8 +181,8 @@ export default function TournamentDetailPage() {
       [GameType.NumberGuess]: 'number-guess',
       [GameType.RockPaperScissors]: 'rock-paper-scissors',
       [GameType.QuickClick]: 'quick-click',
-      4: 'roguelike-survival',
-      5: 'infinite-match',
+      [GameType.RoguelikeSurvival]: 'roguelike-survival',
+      [GameType.InfiniteMatch]: 'infinite-match',
     };
     const gameId = gameTypeMap[Number(gameDetails.gameType)] || 'number-guess';
     router.push(`/test?game=${gameId}`);

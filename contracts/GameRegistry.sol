@@ -41,17 +41,20 @@ contract GameRegistry is AccessControl {
         gameEnabled[Types.GameType.NumberGuess] = true;
         gameEnabled[Types.GameType.RockPaperScissors] = true;
         gameEnabled[Types.GameType.QuickClick] = true;
+        gameEnabled[Types.GameType.RoguelikeSurvival] = true;
         gameEnabled[Types.GameType.InfiniteMatch] = true;
 
         // 设置各游戏最大分数限制
         maxScores[Types.GameType.NumberGuess] = 100; // 猜数字最高100分
         maxScores[Types.GameType.RockPaperScissors] = 100; // 猜拳最高100分
         maxScores[Types.GameType.QuickClick] = 50; // 30秒内最多点击50次（合理上限）
+        maxScores[Types.GameType.RoguelikeSurvival] = 100000; // 肉鸽割草最高100000分（理论最大值）
         maxScores[Types.GameType.InfiniteMatch] = 10000; // 无限消除最高10000分（理论最大值）
 
         emit GameEnabled(Types.GameType.NumberGuess);
         emit GameEnabled(Types.GameType.RockPaperScissors);
         emit GameEnabled(Types.GameType.QuickClick);
+        emit GameEnabled(Types.GameType.RoguelikeSurvival);
         emit GameEnabled(Types.GameType.InfiniteMatch);
     }
 
@@ -178,6 +181,33 @@ contract GameRegistry is AccessControl {
             // 验证分数不超过理论最大值
             // 假设每关平均1000分，最多10关
             uint256 maxExpectedScore = level * 1000;
+            require(finalScore <= maxExpectedScore, "Score too high for level");
+
+            // 验证提交的分数与metadata中的分数一致
+            require(result.score == finalScore, "Score mismatch with metadata");
+        } else if (result.gameType == Types.GameType.RoguelikeSurvival) {
+            // 肉鸽割草游戏验证
+            require(result.metadata.length >= 4, "Missing game metadata");
+            // metadata[0] = 最终得分, metadata[1] = 到达关卡, metadata[2] = 击败敌人数量, metadata[3] = 存活时间
+            uint256 finalScore = result.metadata[0];
+            uint256 level = result.metadata[1];
+            uint256 kills = result.metadata[2];
+            uint256 survivalTime = result.metadata[3];
+
+            // 验证关卡合理性（至少到达第1关）
+            require(level >= 1, "Invalid level");
+            require(kills >= 0, "Invalid kills");
+            require(survivalTime >= 0, "Invalid survival time");
+
+            // 验证分数合理性
+            // 基础分数计算：每关至少有10个敌人，每个敌人100分
+            // 所以第1关至少1000分
+            uint256 minExpectedScore = level * 1000;
+            require(finalScore >= minExpectedScore, "Score too low for level");
+
+            // 验证分数不超过理论最大值
+            // 假设每关平均5000分，最多20关
+            uint256 maxExpectedScore = level * 5000;
             require(finalScore <= maxExpectedScore, "Score too high for level");
 
             // 验证提交的分数与metadata中的分数一致

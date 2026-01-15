@@ -115,6 +115,8 @@ export default function TournamentsPage() {
       case BigInt(3):
         return "Quick Click";
       case BigInt(4):
+        return "Cycle Rift";
+      case BigInt(5):
         return "Infinite Match";
       default:
         return "Unknown";

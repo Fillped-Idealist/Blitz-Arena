@@ -143,6 +143,11 @@ export const GAME_FACTORY_ABI = [
             "type": "uint256"
           },
           {
+            "internalType": "uint256",
+            "name": "gameEndTime",
+            "type": "uint256"
+          },
+          {
             "internalType": "address",
             "name": "prizeTokenAddress",
             "type": "address"
@@ -267,6 +272,11 @@ export const GAME_INSTANCE_ABI = [
           {
             "internalType": "uint256",
             "name": "gameStartTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gameEndTime",
             "type": "uint256"
           },
           {
@@ -871,6 +881,19 @@ export const GAME_INSTANCE_ABI = [
   {
     "inputs": [],
     "name": "gameStartTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "gameEndTime",
     "outputs": [
       {
         "internalType": "uint256",
