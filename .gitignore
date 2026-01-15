@@ -34,6 +34,10 @@ hardhat-node.log
 hardhat.log
 .coze-logs/
 
+# Coze CLI
+.coze
+.cozeproj/
+
 # Hardhat
 artifacts/
 cache/
