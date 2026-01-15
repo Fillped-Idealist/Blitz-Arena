@@ -37,9 +37,7 @@ hardhat.log
 # Hardhat
 artifacts/
 cache/
-deployments/deployment-localhost.json
-deployments/latest-tournament.json
-deployments/tournament.json
+deployments/
 
 # Editor / IDE
 .vscode/
@@ -67,7 +65,7 @@ scripts/deploy-registry-only.js
 scripts/setGameRegistry.js
 scripts/verify-deployment.js
 
-# Documentation (excluding README.md)
+# Documentation (excluding README.md and README.zh-CN.md)
 CHANGELOG.md
 DEPLOYMENT.md
 DEPLOYMENT_SUMMARY.md
@@ -84,7 +82,6 @@ TIME_LOGIC_UPDATE.md
 TOKEN_REFUND_UPDATE.md
 USER_TEST_REPORT.md
 WUZETIAN_ULTIMATE_DESIGN.md
-README.zh-CN.md
 README.en.md
 
 # Documentation directories
