@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useChainId, useReadContract, useWriteContract, useSimulateContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
+import { useAccount, useChainId, useReadContract, useWriteContract, useSimulateContract, useWaitForTransactionReceipt, usePublicClient, useWalletClient } from "wagmi";
 import { parseUnits, formatUnits } from 'viem';
 import { toast } from 'sonner';
 import {
@@ -105,6 +105,8 @@ export function useCreateGame() {
   const { address } = useAccount();
   const addresses = useContractAddresses();
   const { supported } = useNetworkCheck();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
 
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
@@ -138,10 +140,40 @@ export function useCreateGame() {
         throw new Error('Contract addresses not available on current network');
       }
 
-      // 计算总金额 (奖池 + 10% 平台费)
+      if (!publicClient || !walletClient) {
+        throw new Error('Wallet client or public client not available');
+      }
+
+      // 计算奖池金额（创建比赛时只需要授权 prizePool，不包含平台费）
+      // 平台费是在玩家报名时从报名费中扣除的
       const prizePoolAmount = parseUnits(config.prizePool, 18);
-      const platformFee = (prizePoolAmount * BigInt(1000)) / BigInt(10000); // 10% fee
-      const totalAmount = prizePoolAmount + platformFee;
+
+      // 检查并授权 PrizeToken
+      const allowance = await publicClient.readContract({
+        address: addresses.PRIZE_TOKEN as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address, addresses.GAME_FACTORY as `0x${string}`],
+      }) as bigint;
+
+      // 如果授权不足，先授权
+      if (allowance < prizePoolAmount) {
+        toast.info('Approving token transfer...', {
+          description: 'Please approve the transaction in your wallet',
+        });
+
+        const approveHash = await walletClient.writeContract({
+          address: addresses.PRIZE_TOKEN as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [addresses.GAME_FACTORY as `0x${string}`, prizePoolAmount],
+        });
+
+        // 等待授权交易确认
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+        toast.success('Token approved successfully');
+      }
 
       // 准备配置参数
       const gameConfig = {
