@@ -1123,18 +1123,60 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           }),
         ]);
 
-        // 获取玩家数量 - 添加错误处理
-        let playerCount = 0;
+        // 获取玩家列表和 gameResults（包含提交时间）- 添加错误处理
+        let playersList: Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }> = [];
         try {
           const players = await publicClient.readContract({
             address: gameAddress,
             abi: GAME_INSTANCE_ABI,
             functionName: 'players',
           }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
-          playerCount = players?.length || 0;
+
+          console.log(`[useGameDetails] Fetched ${players?.length || 0} players`);
+
+          // 获取每个玩家的 gameResults（包含提交时间）
+          if (players && players.length > 0) {
+            playersList = await Promise.all(players.map(async (p) => {
+              try {
+                const gameResult = await publicClient.readContract({
+                  address: gameAddress,
+                  abi: GAME_INSTANCE_ABI,
+                  functionName: 'gameResults',
+                  args: [p.player],
+                }) as unknown as {
+                  gameType: bigint;
+                  player: `0x${string}`;
+                  score: bigint;
+                  timestamp: bigint;
+                  gameHash: `0x${string}`;
+                  metadata: bigint[];
+                } | undefined;
+
+                // 如果 gameResults 存在且分数大于 0，使用其中的 timestamp
+                // 否则使用 0（表示未提交或使用 submitScore 而非 submitGameResult）
+                const submittedAt = gameResult && gameResult.score > BigInt(0) ? gameResult.timestamp : BigInt(0);
+
+                return {
+                  player: p.player,
+                  score: p.score,
+                  submittedAt,
+                };
+              } catch (err) {
+                console.warn(`[useGameDetails] Failed to fetch gameResult for player ${p.player}:`, err);
+                // 如果获取失败，返回基本数据（submittedAt 为 0）
+                return {
+                  player: p.player,
+                  score: p.score,
+                  submittedAt: BigInt(0),
+                };
+              }
+            }));
+
+            console.log(`[useGameDetails] Processed ${playersList.length} players with submittedAt`);
+          }
         } catch (err) {
-          console.warn('Failed to fetch players:', err);
-          playerCount = 0;
+          console.warn('[useGameDetails] Failed to fetch players:', err);
+          playersList = [];
         }
 
         let myScore: bigint | undefined;
@@ -1193,8 +1235,8 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           registrationEndTime: registrationEndTime as bigint,
           gameStartTime: gameStartTime as bigint,
           creator: creator as `0x${string}`,
-          playersList: [],
-          players: playerCount,
+          playersList: playersList,
+          players: playersList.length,
           myScore,
           hasSubmitted,
           isJoined,

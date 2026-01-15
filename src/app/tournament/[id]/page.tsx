@@ -78,12 +78,17 @@ export default function TournamentDetailPage() {
   };
 
   // 结果排序函数：分数高的排前面，分数相同则提交时间早的排前面
+  // 只显示已提交分数的玩家（score > 0 且 submittedAt > 0）
   const sortResults = (results: Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }>) => {
-    return [...results].sort((a, b) => {
+    // 过滤掉未提交分数的玩家
+    const validResults = results.filter(r => r.score > BigInt(0) && r.submittedAt > BigInt(0));
+
+    // 排序：分数高的排前面，分数相同则提交时间早的排前面
+    return validResults.sort((a, b) => {
       if (b.score !== a.score) {
-        return Number(b.score) - Number(a.score); // 分数高的排前面
+        return Number(b.score) - Number(a.score);
       }
-      return Number(a.submittedAt) - Number(b.submittedAt); // 分数相同则提交时间早的排前面
+      return Number(a.submittedAt) - Number(b.submittedAt);
     });
   };
 
@@ -515,50 +520,92 @@ export default function TournamentDetailPage() {
                     </div>
                   </div>
 
-                  {/* Leaderboard List */}
+                  {/* Leaderboard List - Two sections: Ranked and Not Yet Submitted */}
                   <div className="max-h-96 overflow-y-auto">
-                    {sortResults(gameDetails.playersList)
-                      .map((result, index) => {
-                        const rank = index + 1;
-                        const isCurrentPlayer = result.player === address;
+                    {/* Ranked Players (Submitted Score) */}
+                    {sortResults(gameDetails.playersList).map((result, index) => {
+                      const rank = index + 1;
+                      const isCurrentPlayer = result.player === address;
+                      const submittedTime = new Date(Number(result.submittedAt) * 1000);
 
-                        return (
-                          <div
-                            key={result.player}
-                            className={`flex items-center gap-4 p-4 hover:bg-white/5 transition-colors ${
-                              isCurrentPlayer ? 'bg-blue-500/10' : ''
-                            }`}
-                          >
-                            <div className="w-12 text-center">
-                              <span className={`text-lg font-bold ${
-                                rank === 1 ? 'text-yellow-400' :
-                                rank === 2 ? 'text-gray-300' :
-                                rank === 3 ? 'text-amber-600' :
-                                'text-gray-400'
-                              }`}>
-                                #{rank}
-                              </span>
+                      return (
+                        <div
+                          key={result.player}
+                          className={`flex items-center gap-4 p-4 hover:bg-white/5 transition-colors ${
+                            isCurrentPlayer ? 'bg-blue-500/10' : ''
+                          }`}
+                        >
+                          <div className="w-12 text-center">
+                            <span className={`text-lg font-bold ${
+                              rank === 1 ? 'text-yellow-400' :
+                              rank === 2 ? 'text-gray-300' :
+                              rank === 3 ? 'text-amber-600' :
+                              'text-gray-400'
+                            }`}>
+                              #{rank}
+                            </span>
+                          </div>
+
+                          <div className="flex-1">
+                            <div className="font-mono text-sm text-white">
+                              {result.player.slice(0, 6)}...{result.player.slice(-4)}
                             </div>
+                            {isCurrentPlayer && (
+                              <Badge className="mt-1 bg-blue-500/20 text-blue-400 text-xs">
+                                You
+                              </Badge>
+                            )}
+                          </div>
 
-                            <div className="flex-1">
-                              <div className="font-mono text-sm text-white">
-                                {result.player.slice(0, 6)}...{result.player.slice(-4)}
-                              </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-white">
+                              {formatUnits(result.score, 0)}
                             </div>
-
-                            <div className="text-right">
-                              <div className="text-xl font-bold text-white">
-                                {formatUnits(result.score, 0)}
-                              </div>
-                              {isCurrentPlayer && (
-                                <Badge className="mt-1 bg-blue-500 text-white text-xs">
-                                  You
-                                </Badge>
-                              )}
+                            <div className="text-xs text-gray-500">
+                              {submittedTime.toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      );
+                    })}
+
+                    {/* Players Not Yet Submitted */}
+                    {gameDetails.playersList.filter(r => r.score === BigInt(0) || r.submittedAt === BigInt(0)).map((result) => {
+                      const isCurrentPlayer = result.player === address;
+
+                      return (
+                        <div
+                          key={result.player}
+                          className={`flex items-center gap-4 p-4 bg-gray-500/5 border-t border-white/5 ${
+                            isCurrentPlayer ? 'bg-blue-500/10' : ''
+                          }`}
+                        >
+                          <div className="w-12 text-center">
+                            <span className="text-gray-500">-</span>
+                          </div>
+
+                          <div className="flex-1">
+                            <div className="font-mono text-sm text-gray-400">
+                              {result.player.slice(0, 6)}...{result.player.slice(-4)}
+                            </div>
+                            {isCurrentPlayer && (
+                              <Badge className="mt-1 bg-blue-500/20 text-blue-400 text-xs">
+                                You
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">Not yet submitted</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </Card>
               )}
@@ -567,7 +614,7 @@ export default function TournamentDetailPage() {
               {(!gameDetails.playersList || gameDetails.playersList.length === 0) && (
                 <Card className="bg-white/5 backdrop-blur-sm border-white/10 p-12 text-center">
                   <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-white mb-2">No Scores Yet</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">No Participants Yet</h3>
                   <p className="text-gray-400">
                     {gameDetails.isJoined
                       ? "You've joined this tournament. Start the game and submit your score to appear on the leaderboard!"
