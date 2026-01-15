@@ -124,6 +124,7 @@ export function useCreateGame() {
     maxPlayers: number;
     registrationEndTime: number; // Unix timestamp
     gameStartTime: number; // Unix timestamp
+    gameEndTime: number; // Unix timestamp
     prizePool: string; // in human-readable format (e.g., "100")
     distributionType: PrizeDistributionType;
     rankPrizes: number[]; // BPS values (0-10000)
@@ -191,10 +192,12 @@ export function useCreateGame() {
       console.log('Latest UTC time:', new Date(latestTimestamp * 1000).toISOString());
       console.log('Original registration end time:', config.registrationEndTime);
       console.log('Original game start time:', config.gameStartTime);
+      console.log('Original game end time:', config.gameEndTime);
 
       // 如果传入的时间已经过期（小于当前区块时间），需要调整
       let adjustedRegistrationEndTime = config.registrationEndTime;
       let adjustedGameStartTime = config.gameStartTime;
+      let adjustedGameEndTime = config.gameEndTime;
 
       // 如果时间已经过期，重新计算（立即开始模式 + 60 秒）
       if (adjustedRegistrationEndTime <= latestTimestamp) {
@@ -202,10 +205,15 @@ export function useCreateGame() {
         console.log('Time expired, diff:', timeDiff, 'seconds');
         adjustedRegistrationEndTime = latestTimestamp + 60;
         adjustedGameStartTime = latestTimestamp + 60;
+        // 调整游戏结束时间，确保至少24小时的持续时间
+        const originalDuration = config.gameEndTime - config.gameStartTime;
+        const minDuration = 24 * 60 * 60; // 24小时
+        adjustedGameEndTime = adjustedGameStartTime + Math.max(originalDuration, minDuration);
       }
 
       console.log('Adjusted registration end time:', adjustedRegistrationEndTime);
       console.log('Adjusted game start time:', adjustedGameStartTime);
+      console.log('Adjusted game end time:', adjustedGameEndTime);
       console.log('===========================');
 
       // 准备配置参数
@@ -219,6 +227,7 @@ export function useCreateGame() {
         maxPlayers: BigInt(config.maxPlayers),
         registrationEndTime: BigInt(adjustedRegistrationEndTime),
         gameStartTime: BigInt(adjustedGameStartTime),
+        gameEndTime: BigInt(adjustedGameEndTime),
         prizeTokenAddress: addresses.PRIZE_TOKEN as `0x${string}`,
         prizePool: prizePoolAmount,
         distributionType: config.distributionType,
@@ -1034,50 +1043,6 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
 }
 
 /**
- * 领取奖金的 hook
- */
-export function useClaimPrize() {
-  const { address } = useAccount();
-  const { data: hash, writeContract, isPending, error } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  const claimPrize = async (gameAddress: `0x${string}`) => {
-    try {
-      if (!address) {
-        throw new Error('Wallet not connected. Please connect your wallet first');
-      }
-
-      toast.info('Claiming prize...', {
-        description: 'Please approve the transaction in your wallet',
-      });
-
-      writeContract({
-        address: gameAddress,
-        abi: GAME_INSTANCE_ABI,
-        functionName: 'claimPrize',
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      toast.error('Failed to claim prize', {
-        description: errorMessage,
-      });
-      throw err;
-    }
-  };
-
-  return {
-    claimPrize,
-    hash,
-    isPending: isPending || isConfirming,
-    isSuccess,
-    error,
-  };
-}
-
-/**
  * ERC20 代币操作的 hook
  */
 export function useERC20(tokenAddress: `0x${string}`) {
@@ -1775,6 +1740,7 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
         maxPlayers: maxPlayers as unknown as bigint,
         registrationEndTime: registrationEndTime as bigint,
         gameStartTime: gameStartTime as bigint,
+        gameEndTime: gameEndTime as bigint,
         creator: creator as `0x${string}`,
         playersList: playersList,
         players: playersList.length,
@@ -2012,50 +1978,6 @@ export function useClaimPrize() {
 
 
 /**
- * 开始比赛的 hook
- */
-export function useStartGame() {
-  const { address } = useAccount();
-  const { data: hash, writeContract, isPending, error } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  const startGame = async (gameAddress: `0x${string}`) => {
-    try {
-      if (!address) {
-        throw new Error('Wallet not connected. Please connect your wallet first');
-      }
-
-      toast.info('Starting game...', {
-        description: 'Please approve the transaction in your wallet',
-      });
-
-      writeContract({
-        address: gameAddress,
-        abi: GAME_INSTANCE_ABI,
-        functionName: 'startGame',
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      toast.error('Failed to start game', {
-        description: errorMessage,
-      });
-      throw err;
-    }
-  };
-
-  return {
-    startGame,
-    hash,
-    isPending: isPending || isConfirming,
-    isSuccess,
-    error,
-  };
-}
-
-/**
  * 设置比赛获胜者的 hook
  */
 export function useSetWinners() {
@@ -2097,94 +2019,6 @@ export function useSetWinners() {
 
   return {
     setWinners,
-    hash,
-    isPending: isPending || isConfirming,
-    isSuccess,
-    error,
-  };
-}
-
-/**
- * 分配奖金的 hook
- */
-export function useDistributePrize() {
-  const { address } = useAccount();
-  const { data: hash, writeContract, isPending, error } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  const distributePrize = async (gameAddress: `0x${string}`) => {
-    try {
-      if (!address) {
-        throw new Error('Wallet not connected. Please connect your wallet first');
-      }
-
-      toast.info('Distributing prizes...', {
-        description: 'Please approve the transaction in your wallet',
-      });
-
-      writeContract({
-        address: gameAddress,
-        abi: GAME_INSTANCE_ABI,
-        functionName: 'distributePrize',
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      toast.error('Failed to distribute prizes', {
-        description: errorMessage,
-      });
-      throw err;
-    }
-  };
-
-  return {
-    distributePrize,
-    hash,
-    isPending: isPending || isConfirming,
-    isSuccess,
-    error,
-  };
-}
-
-/**
- * 取消比赛的 hook
- */
-export function useCancelGame() {
-  const { address } = useAccount();
-  const { data: hash, writeContract, isPending, error } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  const cancelGame = async (gameAddress: `0x${string}`) => {
-    try {
-      if (!address) {
-        throw new Error('Wallet not connected. Please connect your wallet first');
-      }
-
-      toast.info('Cancelling game...', {
-        description: 'Please approve the transaction in your wallet',
-      });
-
-      writeContract({
-        address: gameAddress,
-        abi: GAME_INSTANCE_ABI,
-        functionName: 'cancelGame',
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      toast.error('Failed to cancel game', {
-        description: errorMessage,
-      });
-      throw err;
-    }
-  };
-
-  return {
-    cancelGame,
     hash,
     isPending: isPending || isConfirming,
     isSuccess,
