@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/workspace/projects/contracts/GameFactory.sol": {
-      "lastModificationDate": 1768409647141,
-      "contentHash": "45cdbac1ff90c6f8a2b64a40b526c78d",
+      "lastModificationDate": 1768463752154,
+      "contentHash": "a96c114cc32a026b37d9357e59ecc92c",
       "sourceName": "contracts/GameFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -44,8 +44,8 @@
       ]
     },
     "/workspace/projects/contracts/GameInstance.sol": {
-      "lastModificationDate": 1768409366382,
-      "contentHash": "4fb541ecd993f21a2882029e1acc5ae1",
+      "lastModificationDate": 1768463944358,
+      "contentHash": "4f8f1d5f23d9067dfcb6bda5beba55d4",
       "sourceName": "contracts/GameInstance.sol",
       "solcConfig": {
         "version": "0.8.24",

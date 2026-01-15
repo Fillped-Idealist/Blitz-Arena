@@ -14,11 +14,13 @@ contract GameInstance is AccessControl {
 
     // AccessControl 的管理员角色哈希
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
+    bytes32 public constant PLATFORM_ROLE = keccak256("PLATFORM_ROLE");
     bool private initialized;
 
     // Game Registry 和 Level Manager 地址
     address public gameRegistry;
     address public levelManager;
+    address public gameFactory;
 
     // ====== 比赛基础数据（由 initialize 设置） ======
     address public creator;
@@ -38,6 +40,7 @@ contract GameInstance is AccessControl {
 
     address public prizeToken;
     uint public prizePool;
+    uint public creatorPrizePool; // 创建者提供的原始奖池
     Types.PrizeDistributionType public distributionType;
     uint[] public rankPrizes; //索引作为排名
     mapping(address => uint) public prizeToClaimsAmount; // 玩家地址 => 可领取的奖金数量
@@ -67,13 +70,14 @@ contract GameInstance is AccessControl {
 
 
     /// @notice 初始化函数
-    function initialize(Types.GameConfig memory config, address _creator, address _levelManager) external {
+    function initialize(Types.GameConfig memory config, address _creator, address _levelManager, address _gameFactory) external {
         // ... (基础检查保持不变)
         require(!initialized, "Already initialized");
         initialized = true;
 
-        // 设置 levelManager 地址
+        // 设置合约地址
         levelManager = _levelManager;
+        gameFactory = _gameFactory;
 
         // 时间检查
         require(config.registrationEndTime > block.timestamp, "Reg end must be in future");
@@ -99,6 +103,7 @@ contract GameInstance is AccessControl {
         
         prizeToken = config.prizeTokenAddress;
         prizePool = config.prizePool;
+        creatorPrizePool = config.prizePool; // 记录创建者的原始奖池
         distributionType = config.distributionType;
         rankPrizes = config.rankPrizes;
 
@@ -143,13 +148,27 @@ contract GameInstance is AccessControl {
 
         // 4. 处理报名费
         if (entryFee > 0) {
-            // 从玩家地址转账 entryFee 到本合约作为奖金池的一部分
+            // 从玩家地址转账 entryFee 到本合约
             require(IERC20(feeToken).transferFrom(msg.sender, address(this), entryFee), "Transfer failed");
+
+            // 平台手续费：10%
+            uint platformFee = (entryFee * 1000) / 10000; // 1000 基点 = 10%
+            uint addToPool = entryFee - platformFee;
+
+            // 将手续费转给 GameFactory（平台）
+            if (platformFee > 0 && gameFactory != address(0)) {
+                require(IERC20(feeToken).transfer(gameFactory, platformFee), "Platform fee transfer failed");
+            }
+
+            // 将剩余部分加入奖池（如果 feeToken 和 prizeToken 相同）
+            if (feeToken == prizeToken) {
+                prizePool += addToPool;
+            }
         }
 
         // 5. 更新状态
         players.push(Types.PlayerInfo(msg.sender, 0));
-        playerEntryFees[msg.sender] = entryFee;
+        playerEntryFees[msg.sender] = entryFee; // 记录原始报名费（全额）
         isJoined[msg.sender] = true; // 标记玩家已加入
 
         // 给参与者增加经验（通过 UserLevelManager）
@@ -216,27 +235,34 @@ contract GameInstance is AccessControl {
         // 2. 检查最小人数，如果不足则自动取消并退款
         if (players.length < minPlayers) {
             // 自动取消比赛
-            uint totalRefundAmount = prizePool;
-            prizePool = 0;
             status = Types.GameStatus.Canceled;
 
-            // 退还奖池给创建者
-            if (totalRefundAmount > 0) {
-                require(IERC20(prizeToken).transfer(creator, totalRefundAmount), "Prize refund failed");
+            // 退还创建者的奖池（只退还创建者的部分，不退还玩家报名费）
+            if (creatorPrizePool > 0) {
+                require(IERC20(prizeToken).transfer(creator, creatorPrizePool), "Prize refund failed");
+                prizePool -= creatorPrizePool;
+                emit GameCanceled(creator, creatorPrizePool);
             }
 
-            // 退还所有玩家的报名费
+            // 退还所有玩家的报名费（扣除平台手续费）
             for (uint i = 0; i < players.length; i++) {
                 address player = players[i].player;
                 uint feeAmount = playerEntryFees[player];
                 if (feeAmount > 0) {
                     playerEntryFees[player] = 0;
-                    require(IERC20(feeToken).transfer(player, feeAmount), "Entry fee refund failed");
-                    emit PlayerUnregistered(player, feeAmount);
+                    // 退还报名费，扣除 10% 平台手续费
+                    uint refundAmount = (feeAmount * 9000) / 10000; // 90%
+                    if (refundAmount > 0) {
+                        require(IERC20(feeToken).transfer(player, refundAmount), "Entry fee refund failed");
+                        // 如果 feeToken == prizeToken，从 prizePool 中扣减
+                        if (feeToken == prizeToken) {
+                            prizePool -= refundAmount;
+                        }
+                        emit PlayerUnregistered(player, refundAmount);
+                    }
                 }
             }
 
-            emit GameCanceled(creator, totalRefundAmount);
             return;
         }
 
@@ -252,21 +278,33 @@ contract GameInstance is AccessControl {
             status == Types.GameStatus.Created || status == Types.GameStatus.Ongoing,
             "Cannot cancel an ended or distributed game"
         );
-        
-        uint refundAmount = prizePool;
+
+        uint refundPrizeAmount = prizePool;
         prizePool = 0; // 清空奖池
 
         // 1. 更新状态
-        status = Types.GameStatus.Canceled; // 
+        status = Types.GameStatus.Canceled;
 
-        // 2. 将奖池中的所有代币退还给创建者
-        if (refundAmount > 0) {
-            // 注意：使用 prizeToken 进行转账，因为奖池中存储的是 prizeToken
-            require(IERC20(prizeToken).transfer(creator, refundAmount), "Refund failed");
+        // 2. 退还奖池给创建者
+        if (refundPrizeAmount > 0) {
+            require(IERC20(prizeToken).transfer(creator, refundPrizeAmount), "Prize refund failed");
+            emit GameCanceled(creator, refundPrizeAmount);
         }
-        
-        // 4. 触发事件
-        emit GameCanceled(creator, refundAmount);
+
+        // 3. 退还所有玩家的报名费（扣除平台手续费）
+        for (uint i = 0; i < players.length; i++) {
+            address player = players[i].player;
+            uint feeAmount = playerEntryFees[player];
+            if (feeAmount > 0) {
+                playerEntryFees[player] = 0;
+                // 退还报名费，扣除 10% 平台手续费
+                uint refundAmount = (feeAmount * 9000) / 10000; // 90%
+                if (refundAmount > 0) {
+                    require(IERC20(feeToken).transfer(player, refundAmount), "Fee refund failed");
+                    emit FeeRefund(player, refundAmount);
+                }
+            }
+        }
     }
 
     /// @notice 玩家提交比赛成绩（支持游戏结果验证）

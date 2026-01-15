@@ -39,59 +39,48 @@ contract GameFactory is AccessControl {
     
 
     function createGame(Types.GameConfig memory config) external returns (address gameInstance) {
-        // 1. 计算费用和总转账金额
-        uint totalPrizePool = config.prizePool;
-        // 5% 费用计算 (10000 基点中的 500)
-        uint creatorFee = (totalPrizePool * 500) / 10000; 
-        uint totalTransferAmount = totalPrizePool + creatorFee;
-
-        // 2. 检查创建者是否已预授权 GameFactory 支付总金额
+        // 1. 检查创建者是否已预授权 GameFactory 支付奖池
         require(
-            IERC20(config.prizeTokenAddress).allowance(msg.sender, address(this)) >= totalTransferAmount,
-            "Factory not approved for prize/fee token transfer"
+            IERC20(config.prizeTokenAddress).allowance(msg.sender, address(this)) >= config.prizePool,
+            "Factory not approved for prize token transfer"
         );
 
-        // 3. 将总金额 (奖池 + 费用) 从创建者转入 Factory 合约
-        // 注意：这里的 address(this) 是 GameFactory 合约地址
+        // 2. 将奖池金额从创建者转入 Factory 合约（无手续费）
         require(IERC20(config.prizeTokenAddress).transferFrom(
-            msg.sender, 
-            address(this), 
-            totalTransferAmount
+            msg.sender,
+            address(this),
+            config.prizePool
         ), "Transfer failed");
 
-        // 4. 部署新比赛实例 (全量部署模式)
+        // 3. 部署新比赛实例 (全量部署模式)
         GameInstance newGame = new GameInstance();
         gameInstance = address(newGame);
 
-        // 5. 初始化比赛实例
-        config.feeTokenAddress = BLZ_TOKEN_ADDRESS;
-        newGame.initialize(config, msg.sender, LEVEL_MANAGER_ADDRESS);
+        // 4. 初始化比赛实例
+        // feeToken 和 prizeToken 由创建者指定，通常都是 MNT
+        // BLZ Token 仅用于激励奖励（5/3/20/10/5 BLZ）
+        newGame.initialize(config, msg.sender, LEVEL_MANAGER_ADDRESS, address(this));
 
-        // 6. 将初始奖池金额转入新部署的 GameInstance 合约
-        // 费用 (creatorFee) 留在 Factory 合约中，等待 Factory Owner 提取。
-        if (totalPrizePool > 0) {
-            // Factory 将奖池部分转给新的 GameInstance 合约
-            require(IERC20(config.prizeTokenAddress).transfer(gameInstance, totalPrizePool), "Transfer failed");
+        // 5. 将初始奖池金额转入新部署的 GameInstance 合约
+        if (config.prizePool > 0) {
+            require(IERC20(config.prizeTokenAddress).transfer(gameInstance, config.prizePool), "Transfer failed");
         }
 
-        // 7. 授予 GameInstance GAME_ROLE 权限（用于调用addExp）
+        // 6. 授予 GameInstance GAME_ROLE 权限（用于调用addExp）
         UserLevelManager levelManager = UserLevelManager(LEVEL_MANAGER_ADDRESS);
         bytes32 GAME_ROLE = keccak256("GAME_ROLE");
         levelManager.grantRole(GAME_ROLE, gameInstance);
 
-        // 8. 记录
-        if (creatorFee > 0) {
-            feeBalances[config.prizeTokenAddress] += creatorFee; // <--- 关键：记录费用
-        }
+        // 7. 记录
         allGames.push(gameInstance);
         gamesByCreator[msg.sender].push(gameInstance);
 
-        // 9. 给创建者增加经验（通过 UserLevelManager）
+        // 8. 给创建者增加经验（通过 UserLevelManager）
         // 创建比赛奖励：5 BLZ 代币 = 5 经验
         levelManager.addExp(msg.sender, 5 * 10**18);
 
         emit GameCreated(gameInstance, msg.sender);
-        
+
     }
 
     /// @notice 只有 Owner 才能调用，提取 Factory 合约中所有累积的代币费用

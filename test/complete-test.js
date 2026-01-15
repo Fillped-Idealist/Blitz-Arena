@@ -92,9 +92,9 @@ describe("Complete Integration Test", function () {
 
       console.log("Creating tournament with config:", gameConfig);
 
-      // Approve tokens (prize pool + 5% fee = 105 MNT)
-      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("105"));
-      console.log("Approved 105 MNT for prize pool and fee");
+      // Approve tokens (prize pool only, no fee)
+      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("100"));
+      console.log("Approved 100 MNT for prize pool");
 
       // Create game
       const tx = await gameFactory.connect(addr1).createGame(gameConfig);
@@ -143,7 +143,7 @@ describe("Complete Integration Test", function () {
         rankPrizes: [10000]
       };
 
-      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("105"));
+      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("100"));
       const tx = await gameFactory.connect(addr1).createGame(gameConfig);
       const receipt = await tx.wait();
 
@@ -155,16 +155,15 @@ describe("Complete Integration Test", function () {
       gameInstance = GameInstance.attach(gameAddress);
 
       // Join players
-      // Note: feeToken is forced to BLZ_TOKEN_ADDRESS in GameFactory.createGame
-      // So we need to approve BLZ Token, not PrizeToken
+      // feeToken is MNT (same as prizeToken)
       console.log("GameInstance address:", gameInstance.target);
-      console.log("Joining players with BLZ Token (entry fee)");
+      console.log("Joining players with MNT Token (entry fee)");
 
-      await blzToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
+      await prizeToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr1).joinGame();
       console.log("Addr1 joined the tournament");
 
-      await blzToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
+      await prizeToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr2).joinGame();
       console.log("Addr2 joined the tournament");
 
@@ -198,7 +197,7 @@ describe("Complete Integration Test", function () {
         rankPrizes: [10000]
       };
 
-      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("105"));
+      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("100"));
       const tx = await gameFactory.connect(addr1).createGame(gameConfig);
       const receipt = await tx.wait();
 
@@ -210,15 +209,15 @@ describe("Complete Integration Test", function () {
       gameInstance = GameInstance.attach(gameAddress);
 
       // Only 2 players join (minPlayers = 3)
-      // Note: feeToken is BLZ Token
-      await blzToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
+      // feeToken is MNT (same as prizeToken)
+      await prizeToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr1).joinGame();
-      await blzToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
+      await prizeToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr2).joinGame();
 
       const creatorPrizeBalanceBefore = await prizeToken.balanceOf(addr1.address);
-      const player1FeeBalanceBefore = await blzToken.balanceOf(addr1.address);
-      const player2FeeBalanceBefore = await blzToken.balanceOf(addr2.address);
+      const player1FeeBalanceBefore = await prizeToken.balanceOf(addr1.address);
+      const player2FeeBalanceBefore = await prizeToken.balanceOf(addr2.address);
 
       console.log("Creator prize balance before:", ethers.formatEther(creatorPrizeBalanceBefore));
       console.log("Player1 fee balance before:", ethers.formatEther(player1FeeBalanceBefore));
@@ -246,19 +245,21 @@ describe("Complete Integration Test", function () {
 
       // Verify refunds
       const creatorPrizeBalanceAfter = await prizeToken.balanceOf(addr1.address);
-      const player1FeeBalanceAfter = await blzToken.balanceOf(addr1.address);
-      const player2FeeBalanceAfter = await blzToken.balanceOf(addr2.address);
+      const player1FeeBalanceAfter = await prizeToken.balanceOf(addr1.address);
+      const player2FeeBalanceAfter = await prizeToken.balanceOf(addr2.address);
 
       console.log("Creator prize balance after:", ethers.formatEther(creatorPrizeBalanceAfter));
       console.log("Player1 fee balance after:", ethers.formatEther(player1FeeBalanceAfter));
       console.log("Player2 fee balance after:", ethers.formatEther(player2FeeBalanceAfter));
 
-      // Creator should receive prize pool refund (100 MNT prize token)
-      expect(creatorPrizeBalanceAfter).to.equal(creatorPrizeBalanceBefore + ethers.parseEther("100"));
-      // Players should receive entry fee refund (5 BLZ each)
-      expect(player1FeeBalanceAfter).to.equal(player1FeeBalanceBefore + ethers.parseEther("5"));
-      expect(player2FeeBalanceAfter).to.equal(player2FeeBalanceBefore + ethers.parseEther("5"));
-      console.log("✓ Players received refunds");
+      // Creator is also a player, so receives:
+      // - 100 MNT (creator prize pool)
+      // - 4.5 MNT (player entry fee refund)
+      // Total: 104.5 MNT
+      expect(creatorPrizeBalanceAfter).to.equal(creatorPrizeBalanceBefore + ethers.parseEther("104.5"));
+      // Player2 receives 4.5 MNT entry fee refund
+      expect(player2FeeBalanceAfter).to.equal(player2FeeBalanceBefore + ethers.parseEther("4.5"));
+      console.log("✓ Players received refunds (entry fee minus platform fee)");
     });
   });
 
@@ -321,7 +322,7 @@ describe("Complete Integration Test", function () {
         rankPrizes: [10000]
       };
 
-      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("105"));
+      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("100"));
       const tx = await gameFactory.connect(addr1).createGame(gameConfig);
       const receipt = await tx.wait();
 
@@ -333,10 +334,10 @@ describe("Complete Integration Test", function () {
       gameInstance = GameInstance.attach(gameAddress);
 
       // Join players
-      // Note: feeToken is BLZ Token
-      await blzToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
+      // feeToken is MNT (same as prizeToken)
+      await prizeToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr1).joinGame();
-      await blzToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
+      await prizeToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr2).joinGame();
 
       const addr1XPBefore = (await userLevelManager.getUserData(addr1.address)).totalExp;
