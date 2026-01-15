@@ -61,7 +61,7 @@ export default function TournamentsPage() {
       // Success toast is handled by useJoinGame hook
       // The useGamesBatch hook will automatically refetch when allGames changes
     } catch (error) {
-      console.error('Failed to join tournament:', error);
+      console.log('Failed to join tournament:', error);
       // Error toast is already handled by useJoinGame hook
     } finally {
       setJoining(null);

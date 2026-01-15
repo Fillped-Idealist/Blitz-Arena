@@ -495,26 +495,8 @@ export function useJoinGame() {
       console.log('[useJoinGame] Current timestamp:', currentTimestamp, new Date(currentTimestamp * 1000).toISOString());
       console.log('[useJoinGame] Is immediate start mode:', regEndTime === startTime);
 
-      // 检查报名时间
-      if (regEndTime === startTime) {
-        // 立即开始模式：允许在游戏开始后 15 分钟内报名
-        const timeUntilDeadline = startTime + 900 - currentTimestamp;
-        console.log('[useJoinGame] Immediate start mode. Time until deadline:', timeUntilDeadline, 'seconds');
-
-        if (currentTimestamp >= startTime + 900) {
-          throw new Error('Registration time has passed. The tournament started more than 15 minutes ago.');
-        }
-      } else {
-        // 正常模式：必须在报名时间结束前报名
-        const timeUntilRegEnd = regEndTime - currentTimestamp;
-        console.log('[useJoinGame] Normal mode. Time until registration ends:', timeUntilRegEnd, 'seconds');
-
-        if (currentTimestamp >= regEndTime) {
-          throw new Error('Registration time has passed. The tournament registration has ended.');
-        }
-      }
-
-      // 检查比赛状态
+      // 检查报名时间（移动到状态检查之后，因为状态更重要）
+      // 先检查比赛状态
       const status = await publicClient.readContract({
         address: gameAddress,
         abi: GAME_INSTANCE_ABI,
@@ -531,6 +513,22 @@ export function useJoinGame() {
           '4': 'Game has been canceled. Registration is closed.',
         };
         throw new Error(statusMessages[status.toString()] || 'Cannot join game at this time');
+      }
+
+      // 现在检查报名时间
+      if (regEndTime === startTime) {
+        // 立即开始模式：允许在游戏开始前报名，也可以在开始后 15 分钟内继续报名
+        // 只要比赛还没开始（status === 0），就可以加入
+        console.log('[useJoinGame] Immediate start mode. Can join as long as status is Created.');
+        // 不需要额外的时间检查，因为如果时间过了 15 分钟，status 可能已经改变
+      } else {
+        // 正常模式：必须在报名时间结束前报名
+        const timeUntilRegEnd = regEndTime - currentTimestamp;
+        console.log('[useJoinGame] Normal mode. Time until registration ends:', timeUntilRegEnd, 'seconds');
+
+        if (currentTimestamp >= regEndTime) {
+          throw new Error('Registration time has passed. The tournament registration has ended.');
+        }
       }
 
       // 检查玩家数量
