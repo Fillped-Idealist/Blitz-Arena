@@ -339,6 +339,25 @@ export const GAME_INSTANCE_ABI = [
   },
   {
     "anonymous": false,
+    "inputs": [],
+    "name": "GameStarted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "winner",
+        "type": "address[]"
+      }
+    ],
+    "name": "WinnersSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [
       {
         "indexed": true,

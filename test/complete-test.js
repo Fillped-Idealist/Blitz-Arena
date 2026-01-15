@@ -155,17 +155,22 @@ describe("Complete Integration Test", function () {
       gameInstance = GameInstance.attach(gameAddress);
 
       // Join players
-      await prizeToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("5"));
+      // Note: feeToken is forced to BLZ_TOKEN_ADDRESS in GameFactory.createGame
+      // So we need to approve BLZ Token, not PrizeToken
+      console.log("GameInstance address:", gameInstance.target);
+      console.log("Joining players with BLZ Token (entry fee)");
+
+      await blzToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr1).joinGame();
       console.log("Addr1 joined the tournament");
 
-      await prizeToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("5"));
+      await blzToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr2).joinGame();
       console.log("Addr2 joined the tournament");
 
-      // Verify players
-      const players = await gameInstance.players();
-      expect(players.length).to.equal(2);
+      // Verify player count
+      const playerCount = await gameInstance.getGameData();
+      expect(playerCount.playerCount).to.equal(2);
       console.log("✓ Players joined successfully");
     });
 
@@ -174,8 +179,8 @@ describe("Complete Integration Test", function () {
 
       // Create tournament with minPlayers = 3
       const now = Math.floor(Date.now() / 1000);
-      const registrationEndTime = now + 3600;
-      const gameStartTime = now + 7200;
+      const registrationEndTime = now + 100; // 100 seconds from now
+      const gameStartTime = now + 3700; // 1 hour + 100 seconds from now
 
       const gameConfig = {
         title: "Insufficient Players Test",
@@ -205,24 +210,32 @@ describe("Complete Integration Test", function () {
       gameInstance = GameInstance.attach(gameAddress);
 
       // Only 2 players join (minPlayers = 3)
-      await prizeToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("5"));
+      // Note: feeToken is BLZ Token
+      await blzToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr1).joinGame();
-      await prizeToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("5"));
+      await blzToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr2).joinGame();
 
-      const balance1Before = await prizeToken.balanceOf(addr1.address);
-      const balance2Before = await prizeToken.balanceOf(addr2.address);
-      const creatorBalanceBefore = await prizeToken.balanceOf(addr1.address);
+      const creatorPrizeBalanceBefore = await prizeToken.balanceOf(addr1.address);
+      const player1FeeBalanceBefore = await blzToken.balanceOf(addr1.address);
+      const player2FeeBalanceBefore = await blzToken.balanceOf(addr2.address);
 
-      console.log("Addr1 balance before start:", ethers.formatEther(balance1Before));
-      console.log("Addr2 balance before start:", ethers.formatEther(balance2Before));
+      console.log("Creator prize balance before:", ethers.formatEther(creatorPrizeBalanceBefore));
+      console.log("Player1 fee balance before:", ethers.formatEther(player1FeeBalanceBefore));
+      console.log("Player2 fee balance before:", ethers.formatEther(player2FeeBalanceBefore));
+
+      // Increase time to make registration end
+      await ethers.provider.send("evm_increaseTime", [200]);
+      await ethers.provider.send("evm_mine");
 
       // Try to start game with insufficient players
+      // Note: Only creator (addr1) can call startGame
       try {
-        await gameInstance.startGame();
+        await gameInstance.connect(addr1).startGame();
         console.log("✗ Game should have been auto-cancelled");
         expect.fail("Game should have been auto-cancelled");
       } catch (error) {
+        console.log("Error occurred:", error.message);
         console.log("Game auto-cancelled due to insufficient players");
       }
 
@@ -232,14 +245,19 @@ describe("Complete Integration Test", function () {
       console.log("✓ Game status is Canceled");
 
       // Verify refunds
-      const balance1After = await prizeToken.balanceOf(addr1.address);
-      const balance2After = await prizeToken.balanceOf(addr2.address);
+      const creatorPrizeBalanceAfter = await prizeToken.balanceOf(addr1.address);
+      const player1FeeBalanceAfter = await blzToken.balanceOf(addr1.address);
+      const player2FeeBalanceAfter = await blzToken.balanceOf(addr2.address);
 
-      console.log("Addr1 balance after cancel:", ethers.formatEther(balance1After));
-      console.log("Addr2 balance after cancel:", ethers.formatEther(balance2After));
+      console.log("Creator prize balance after:", ethers.formatEther(creatorPrizeBalanceAfter));
+      console.log("Player1 fee balance after:", ethers.formatEther(player1FeeBalanceAfter));
+      console.log("Player2 fee balance after:", ethers.formatEther(player2FeeBalanceAfter));
 
-      expect(balance1After).to.be.gt(balance1Before);
-      expect(balance2After).to.be.gt(balance2Before);
+      // Creator should receive prize pool refund (100 MNT prize token)
+      expect(creatorPrizeBalanceAfter).to.equal(creatorPrizeBalanceBefore + ethers.parseEther("100"));
+      // Players should receive entry fee refund (5 BLZ each)
+      expect(player1FeeBalanceAfter).to.equal(player1FeeBalanceBefore + ethers.parseEther("5"));
+      expect(player2FeeBalanceAfter).to.equal(player2FeeBalanceBefore + ethers.parseEther("5"));
       console.log("✓ Players received refunds");
     });
   });
@@ -270,7 +288,8 @@ describe("Complete Integration Test", function () {
         rankPrizes: [10000]
       };
 
-      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("100"));
+      // Approve: prizePool (100) + 5% fee (5) = 105 MNT
+      await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("105"));
       await gameFactory.connect(addr1).createGame(gameConfig);
 
       const finalUserData = await userLevelManager.getUserData(addr1.address);
@@ -294,8 +313,8 @@ describe("Complete Integration Test", function () {
         entryFee: ethers.parseEther("5"),
         minPlayers: 2,
         maxPlayers: 10,
-        registrationEndTime: now + 3600,
-        gameStartTime: now + 7200,
+        registrationEndTime: now + 500, // Larger offset to account for time increases
+        gameStartTime: now + 4100,
         prizeTokenAddress: prizeToken.target,
         prizePool: ethers.parseEther("100"),
         distributionType: 0,
@@ -314,9 +333,10 @@ describe("Complete Integration Test", function () {
       gameInstance = GameInstance.attach(gameAddress);
 
       // Join players
-      await prizeToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("5"));
+      // Note: feeToken is BLZ Token
+      await blzToken.connect(addr1).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr1).joinGame();
-      await prizeToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("5"));
+      await blzToken.connect(addr2).approve(gameInstance.target, ethers.parseEther("10"));
       await gameInstance.connect(addr2).joinGame();
 
       const addr1XPBefore = (await userLevelManager.getUserData(addr1.address)).totalExp;
@@ -325,6 +345,18 @@ describe("Complete Integration Test", function () {
       console.log("Addr1 XP before participation:", addr1XPBefore.toString());
       console.log("Addr2 XP before participation:", addr2XPBefore.toString());
 
+      // Increase time to make registration end
+      await ethers.provider.send("evm_increaseTime", [600]);
+      await ethers.provider.send("evm_mine");
+
+      // Start the game (creator starts it)
+      await gameInstance.connect(addr1).startGame();
+      console.log("Game started");
+
+      // Increase time to make game start time arrive
+      await ethers.provider.send("evm_increaseTime", [4000]);
+      await ethers.provider.send("evm_mine");
+
       // Submit scores (addr1 wins with higher score)
       await gameInstance.connect(addr1).submitScore(100);
       await gameInstance.connect(addr2).submitScore(50);
@@ -332,23 +364,23 @@ describe("Complete Integration Test", function () {
       const addr1XPAfterParticipation = (await userLevelManager.getUserData(addr1.address)).totalExp;
       const addr2XPAfterParticipation = (await userLevelManager.getUserData(addr2.address)).totalExp;
 
-      console.log("Addr1 XP after participation:", addr1XPAfterParticipation.toString());
-      console.log("Addr2 XP after participation:", addr2XPAfterParticipation.toString());
+      console.log("Addr1 XP after submitting scores:", addr1XPAfterParticipation.toString());
+      console.log("Addr2 XP after submitting scores:", addr2XPAfterParticipation.toString());
 
-      // Both should get participation XP
-      expect(addr1XPAfterParticipation).to.be.gt(addr1XPBefore);
-      expect(addr2XPAfterParticipation).to.be.gt(addr2XPBefore);
+      // XP should not change after submitting scores (only distributed when setting winners)
+      expect(addr1XPAfterParticipation).to.equal(addr1XPBefore);
+      expect(addr2XPAfterParticipation).to.equal(addr2XPBefore);
 
-      // Set winners and distribute prizes
-      await gameInstance.setWinners([addr1.address]);
-      await gameInstance.distributePrize();
+      // Set winners and distribute prizes (creator addr1 calls these)
+      await gameInstance.connect(addr1).setWinners([addr1.address]);
+      await gameInstance.connect(addr1).distributePrize();
 
       const addr1XPFinal = (await userLevelManager.getUserData(addr1.address)).totalExp;
 
       console.log("Addr1 XP after winning:", addr1XPFinal.toString());
 
-      // Winner should get additional XP
-      expect(addr1XPFinal).to.be.gt(addr1XPAfterParticipation);
+      // Winner should get additional XP (20 BLZ = 20 EXP)
+      expect(addr1XPFinal).to.equal(addr1XPAfterParticipation + ethers.parseEther("20"));
       console.log("✓ XP awarded correctly for participation and winning");
     });
   });
@@ -369,15 +401,17 @@ describe("Complete Integration Test", function () {
           entryFee: ethers.parseEther("5"),
           minPlayers: 2,
           maxPlayers: 10,
-          registrationEndTime: now + 3600,
-          gameStartTime: now + 7200,
+          // Use larger offset to account for time increases from previous tests
+          registrationEndTime: now + 10000 + (i * 100),
+          gameStartTime: now + 15000 + (i * 100),
           prizeTokenAddress: prizeToken.target,
           prizePool: ethers.parseEther("100"),
           distributionType: 0,
           rankPrizes: [10000]
         };
 
-        await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("100"));
+        // Approve: prizePool (100) + 5% fee (5) = 105 MNT
+        await prizeToken.connect(addr1).approve(gameFactory.target, ethers.parseEther("105"));
         await gameFactory.connect(addr1).createGame(gameConfig);
       }
 
