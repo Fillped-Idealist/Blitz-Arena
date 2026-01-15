@@ -225,6 +225,7 @@ export default function TournamentsPage() {
               const isEnded = game.status === BigInt(2) || game.status === BigInt(4);
               const isOngoing = game.status === BigInt(1);
               const isFull = game.players >= Number(game.maxPlayers);
+              const isJoined = game.isJoined === true;
 
               return (
                 <motion.div
@@ -240,6 +241,8 @@ export default function TournamentsPage() {
                         ? 'bg-gradient-to-br from-gray-500/5 to-gray-600/[0.02] border-gray-500/20 opacity-75'
                         : isOngoing
                         ? 'bg-gradient-to-br from-green-500/10 to-emerald-600/10 border-green-500/30 shadow-lg shadow-green-500/10'
+                        : isJoined
+                        ? 'bg-gradient-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/30 shadow-lg shadow-blue-500/10'
                         : isFull
                         ? 'bg-gradient-to-br from-red-500/10 to-orange-600/10 border-red-500/30'
                         : 'bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10'
@@ -258,7 +261,13 @@ export default function TournamentsPage() {
                         <span className="text-xs font-bold text-white uppercase tracking-wider">In Progress</span>
                       </div>
                     )}
-                    {isFull && !isEnded && !isOngoing && (
+                    {isJoined && !isEnded && !isOngoing && (
+                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 py-2 px-4 flex items-center justify-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-white" />
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">Joined</span>
+                      </div>
+                    )}
+                    {isFull && !isEnded && !isOngoing && !isJoined && (
                       <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 to-orange-600 py-2 px-4 flex items-center justify-center gap-2">
                         <AlertCircle className="w-4 h-4 text-white" />
                         <span className="text-xs font-bold text-white uppercase tracking-wider">Full</span>
@@ -266,7 +275,7 @@ export default function TournamentsPage() {
                     )}
 
                     {/* Content */}
-                    <div className={`p-6 pb-4 ${isEnded || isOngoing || isFull ? 'pt-10' : ''}`}>
+                    <div className={`p-6 pb-4 ${isEnded || isOngoing || isJoined || isFull ? 'pt-10' : ''}`}>
                       <div className="flex items-center justify-between mb-4">
                         <Badge
                           className={`${
@@ -274,6 +283,8 @@ export default function TournamentsPage() {
                               ? 'bg-gray-600 text-white border-none'
                               : isOngoing
                               ? 'bg-green-600 text-white border-none'
+                              : isJoined
+                              ? 'bg-blue-600 text-white border-none'
                               : isFull
                               ? 'bg-red-600 text-white border-none'
                               : 'bg-blue-600 text-white border-none'
@@ -291,7 +302,7 @@ export default function TournamentsPage() {
 
                       <Link href={`/tournament/${game.address}`}>
                         <h3 className={`text-xl font-bold mb-2 group-hover:text-blue-400 transition-colors cursor-pointer ${
-                          isEnded ? 'text-gray-400' : 'text-white'
+                          isEnded ? 'text-gray-400' : isJoined ? 'text-blue-300' : 'text-white'
                         }`}>
                           {game.title}
                         </h3>
@@ -302,6 +313,8 @@ export default function TournamentsPage() {
                         className={`${
                           isEnded
                             ? 'border-gray-600/30 text-gray-400'
+                            : isJoined
+                            ? 'border-blue-600/30 text-blue-300'
                             : 'border-white/20 text-gray-300'
                         } mb-4`}
                       >
@@ -315,12 +328,12 @@ export default function TournamentsPage() {
                         <div className="bg-white/5 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-1">
                             <Trophy className={`w-4 h-4 ${
-                              isEnded ? 'text-gray-500' : 'text-yellow-400'
+                              isEnded ? 'text-gray-500' : isJoined ? 'text-blue-400' : 'text-yellow-400'
                             }`} />
                             <span className="text-xs text-gray-400">Prize Pool</span>
                           </div>
                           <div className={`text-lg font-bold ${
-                            isEnded ? 'text-gray-400' : 'text-white'
+                            isEnded ? 'text-gray-400' : isJoined ? 'text-blue-200' : 'text-white'
                           }`}>
                             {formatUnits(game.prizePool, 18)} tokens
                           </div>
@@ -328,12 +341,12 @@ export default function TournamentsPage() {
                         <div className="bg-white/5 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-1">
                             <Users className={`w-4 h-4 ${
-                              isEnded ? 'text-gray-500' : 'text-blue-400'
+                              isEnded ? 'text-gray-500' : isJoined ? 'text-blue-400' : 'text-blue-400'
                             }`} />
                             <span className="text-xs text-gray-400">Players</span>
                           </div>
                           <div className={`text-lg font-bold ${
-                            isEnded ? 'text-gray-400' : 'text-white'
+                            isEnded ? 'text-gray-400' : isJoined ? 'text-blue-200' : 'text-white'
                           }`}>
                             {game.players}/{game.maxPlayers}
                           </div>
@@ -346,19 +359,19 @@ export default function TournamentsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Zap className={`w-4 h-4 ${
-                            isEnded ? 'text-gray-500' : 'text-purple-400'
+                            isEnded ? 'text-gray-500' : isJoined ? 'text-blue-400' : 'text-purple-400'
                           }`} />
                           <span className={`text-sm ${
-                            isEnded ? 'text-gray-500' : 'text-gray-400'
+                            isEnded ? 'text-gray-500' : isJoined ? 'text-blue-300' : 'text-gray-400'
                           }`}>Entry Fee:</span>
                           <span className={`font-semibold ${
-                            isEnded ? 'text-gray-400' : 'text-white'
+                            isEnded ? 'text-gray-400' : isJoined ? 'text-blue-200' : 'text-white'
                           }`}>
                             {formatUnits(game.entryFee, 18)} tokens
                           </span>
                         </div>
                         <div className={`text-sm ${
-                          isEnded ? 'text-gray-500' : 'text-gray-400'
+                          isEnded ? 'text-gray-500' : isJoined ? 'text-blue-300' : 'text-gray-400'
                         }`}>
                           {formatTime(game.registrationEndTime)}
                         </div>
@@ -367,7 +380,7 @@ export default function TournamentsPage() {
                       <div className="flex gap-2">
                         <Button
                           className={`flex-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            isEnded || isOngoing || isFull
+                            isEnded || isOngoing || isFull || isJoined
                               ? 'bg-gray-700 hover:bg-gray-800 text-white'
                               : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
                           }`}
@@ -375,7 +388,8 @@ export default function TournamentsPage() {
                           disabled={
                             joining === game.address ||
                             isFull ||
-                            isOngoing
+                            isOngoing ||
+                            isJoined
                           }
                         >
                           {joining === game.address ? (
@@ -383,6 +397,8 @@ export default function TournamentsPage() {
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               <span>Processing...</span>
                             </>
+                          ) : isJoined ? (
+                            "Joined"
                           ) : isFull ? (
                             "Full"
                           ) : isOngoing ? (
@@ -397,6 +413,8 @@ export default function TournamentsPage() {
                             className={`w-full ${
                               isEnded
                                 ? 'border-gray-600/30 text-gray-400 hover:bg-gray-600/10'
+                                : isJoined
+                                ? 'border-blue-600/30 text-blue-300 hover:bg-blue-600/10'
                                 : 'border-white/20 text-white hover:bg-white/10'
                             }`}
                           >

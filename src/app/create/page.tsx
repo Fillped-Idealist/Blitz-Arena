@@ -170,8 +170,8 @@ export default function CreateTournamentPage() {
 
       if (formData.startImmediately) {
         // 立即开始模式
-        registrationEndTime = blockTimestamp; // 报名立即结束
-        gameStartTime = blockTimestamp; // 游戏立即开始
+        registrationEndTime = blockTimestamp + 1; // 报名立即结束（+1秒以满足 > 检查）
+        gameStartTime = blockTimestamp + 1; // 游戏立即开始（+1秒以满足 > 检查）
       } else {
         // 正常模式
         registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
