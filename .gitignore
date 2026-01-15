@@ -1,19 +1,10 @@
+# Dependencies
 node_modules
 dist
 .DS_Store
 *.swp
-.git/*
-__pycache__/
-*.pyc
-.venv/*
-*.o
-*.a
-/vendor
-*.egg-info/
-/.env
-.env
 
-# JS/TS bundlers & build outputs
+# Build outputs
 .next
 .nuxt
 .turbo
@@ -24,33 +15,96 @@ coverage
 storybook-static
 
 # Package manager artifacts
-pnpm-lock.yaml
 package-lock.json
 yarn.lock
 .pnp*
 .npm
 
-# Python tooling
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-
-# Go tooling
-bin/
-*.test
-
-# Editor / IDE
-.vscode/
-.idea/
-*.iml
-
-# OS / misc
-Thumbs.db
-ehthumbs.db
+# Environment variables
+.env
+.env.local
+.env.production
 
 # Logs
 output.log
 *.log
 *.log.*
 logs/
+hardhat-node.log
+hardhat.log
+.coze-logs/
+
+# Hardhat
+artifacts/
+cache/
+deployments/deployment-localhost.json
+deployments/latest-tournament.json
+deployments/tournament.json
+
+# Editor / IDE
+.vscode/
+.idea/
+*.iml
+
+# TypeScript
+*.tsbuildinfo
+
+# Test files
+test/
+test-*.js
+check-contracts*.js
+debug-*.js
+deploy-debug.js
+deploy-simple.js
+update-deployment.js
+scripts/test-*.js
+scripts/check-wallet.js
+scripts/checkFactory.js
+scripts/createSimpleTournament.js
+scripts/createTestTournament.js
+scripts/deploy-registry-localhost.js
+scripts/deploy-registry-only.js
+scripts/setGameRegistry.js
+scripts/verify-deployment.js
+
+# Documentation (excluding README.md)
+CHANGELOG.md
+DEPLOYMENT.md
+DEPLOYMENT_SUMMARY.md
+FINANCIAL_SUMMARY.md
+GAMES_README.md
+JOIN_LOGIC.md
+PERFORMANCE_TEST_REPORT.md
+PRIZE_DISTRIBUTION.md
+SMART_CONTRACT_INTEGRATION.md
+STRESS_TEST_REPORT.md
+TESTING_SUMMARY.md
+TEST_SUMMARY.md
+TIME_LOGIC_UPDATE.md
+TOKEN_REFUND_UPDATE.md
+USER_TEST_REPORT.md
+WUZETIAN_ULTIMATE_DESIGN.md
+README.zh-CN.md
+README.en.md
+
+# Documentation directories
+docs/
+deploy/deploy-mantle-guide.md
+
+# Assets (screenshots)
+assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+
+# Temporary files
+tmp/
+tmp-*.md
+FILE_CLASSIFICATION.md
+
+# OS / misc
+Thumbs.db
+ehthumbs.db

@@ -1,564 +1,388 @@
-# Blitz Arena - Professional Gaming Platform
+# Blitz Arena - 区块链游戏竞技平台 / Blockchain Gaming Tournament Platform
+
+<div align="center">
+
+一个基于智能合约的生产级游戏竞技平台，采用现代化 UI/UX 设计，支持多钱包集成和无缝智能合约交互。
 
 A production-grade blockchain gaming tournament platform featuring modern UI/UX design, multi-wallet support, and seamless smart contract integration.
 
-![Game Arena](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
-![Solidity](https://img.shields.io/badge/Solidity-0.8.24-blue?style=for-the-badge&logo=solidity)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?style=for-the-badge&logo=tailwind-css)
-
-## ✨ Features
-
-### 🎮 Smart Contracts
-- **GameFactory**: Factory pattern for creating tournament instances
-- **GameInstance**: Complete tournament lifecycle management
-- **GameRegistry**: Game type registration, result verification, and anti-cheat mechanisms
-- **UserLevelManager**: On-chain level, experience, and achievement management
-- **Types.sol**: Shared type definitions for consistency
-- **MockERC20**: Test token for local development
-
-### 💰 Platform Token (BLZ)
-Blitz Arena uses the BLZ token as the platform's native utility token:
-- **Entry Fee**: Players pay BLZ tokens to participate in tournaments
-- **Prize Pool**: Winners receive BLZ tokens as rewards
-- **Platform Fee**: 10% fee on all tournament transactions (creation, entry, refunds)
-- **Experience System**: 1 BLZ = 1 EXP, used for leveling up
-- **Achievement Rewards**: Unlock achievements to earn BLZ tokens
-
-**Token Distribution:**
-- Participation Reward: 3 BLZ per tournament (awarded after game completion)
-- Top 3 Bonus: 20 BLZ for 1st, 10 BLZ for 2nd, 5 BLZ for 3rd place
-- Achievement Rewards: Variable BLZ amounts for unlocking achievements
-- Level Progression: 1 BLZ = 1 EXP, level up requirements increase by 1.5x per level
-
-### 🎮 Games
-1. **Number Guess** - Guess a number between 1-100 with minimum attempts
-2. **Rock Paper Scissors** - Battle AI in 10 rounds
-3. **Quick Click** - Click as many targets as possible within 30 seconds
-4. **Cycle Rift (轮回裂隙)** - Roguelike survival game with skill upgrades
-5. **Infinite Match** - Match-3 puzzle game with infinite levels
-
-**Game Modes:**
-- **Tournament Mode**: Connect wallet, join tournaments, compete for BLZ tokens, track on-chain
-- **Experience Mode**: Play without wallet connection, no blockchain transactions, no score persistence
-
-### 🤝 Social System
-- **Friend System**: Send friend requests, accept/reject requests, manage friend list
-- **Messages**: Real-time chat with friends and tournament participants
-- **Tournament Chat**: Automatic chat room creation for each tournament, 24-hour auto-cleanup
-- **Profile Likes**: Like other players' profiles to show appreciation
-- **All data stored off-chain**: All social data uses localStorage for zero gas cost
-
-### 🏆 Achievement System
-7 pre-defined achievements across game and social categories, stored on-chain:
-
-**Game Achievements:**
-- "First Tournament" - Join your first tournament (Reward: 3 BLZ)
-- "Score Master" - Submit a score in a tournament (Reward: 5 BLZ)
-- "Champion" - Win your first tournament (Reward: 10 BLZ)
-- "Tournament Veteran" - Participate in 10 tournaments (Reward: 15 BLZ)
-
-**Social Achievements:**
-- "First Friend" - Add your first friend (Reward: 3 BLZ)
-- "Social Butterfly" - Add 10 friends (Reward: 10 BLZ)
-- "Community Star" - Receive 50 profile likes (Reward: 15 BLZ)
-
-**On-Chain Storage:**
-- All achievements are recorded on the blockchain via UserLevelManager contract
-- Achievement unlock events emit BLZ token rewards
-- Achievement status is publicly verifiable
-
-### 📊 Level & Experience System (On-Chain)
-- **Level Range**: 1 to 100
-- **Experience Calculation**: 1 BLZ = 1 EXP
-- **Level Requirements**: Formula: `EXP for Level N = 100 × 1.5^(N-1)`
-- **Level Benefits**: Higher levels show gaming experience and dedication
-- **Progression**: Participate in tournaments, win games, unlock achievements to earn EXP
-- **UserLevelManager Contract**: Manages all level data on-chain with secure role-based access
-- **Maximum Level**: Level 100 requires ~3.3 billion EXP
-- **Automatic Level Up**: Experience automatically advances your level when thresholds are met
-
-### 🏅 Leaderboard
-- **Real-time Rankings**: View top players across all games
-- **Game Filtering**: Filter by specific game type
-- **Time Range**: View rankings by day, week, month, or all-time
-- **Custom UI Components**: Modern dropdown filters with smooth animations
-
-### 🚀 Frontend Technology Stack
-- **Framework**: Next.js 16 with App Router
-- **UI Components**: shadcn/ui (production-ready components)
-- **Styling**: Tailwind CSS 4 with custom theme
-- **Web3**: Wagmi v3 + RainbowKit (multi-wallet support)
-- **Animations**: Framer Motion for smooth transitions
-- **TypeScript**: Full type safety across the codebase
-- **Storage**: localStorage for social data, smart contracts for game results
-
-### 🎨 Design Features
-- **Modern Dark Theme**: Professional dark mode with glassmorphism effects
-- **Responsive Design**: Mobile-first, works on all devices
-- **Smooth Animations**: Page transitions, hover effects, and loading states
-- **Discord-Inspired Chat**: Modern chat interface with real-time updates
-- **User Card Modal**: Click any wallet address to view user profile and stats
-- **Intuitive UX**: Clear navigation, instant feedback, and error handling
-- **Product-Grade UI**: Polished components ready for production deployment
-
-### 📱 Pages
-1. **Home Page** (`/`)
-   - Hero section with animated gradient background
-   - Live statistics display
-   - Feature highlights with icons
-   - Upcoming tournaments preview
-   - Call-to-action sections
-
-2. **Tournaments** (`/tournaments`)
-   - Card-based tournament grid
-   - Real-time filtering and search
-   - Tournament status badges (Open, Full, Live, Ended, Canceled)
-   - Player count and prize pool display
-   - Quick join functionality with wallet authorization
-   - Experience game mode (no wallet required)
-
-3. **Create Tournament** (`/profile#create`)
-   - Multi-step form with validation
-   - Intuitive time selection with presets
-   - Game type selection with visual cards
-   - Real-time cost calculation
-   - Prize distribution options
-   - Creator prize pool validation
-
-4. **Tournament Details** (`/tournament/[id]`)
-   - Complete tournament information
-   - Participant list with status
-   - Full leaderboard (Top 3 + all participants)
-   - Game entry point (both tournament and experience modes)
-   - Real-time status updates
-   - Financial transaction history
-
-5. **Leaderboard** (`/leaderboard`)
-   - Real-time rankings across all games
-   - Game type filtering
-   - Time range selection (day/week/month/all-time)
-   - Custom dropdown components
-   - Player statistics display
-
-6. **Chat Hub** (`/chat`)
-   - Discord-style chat interface
-   - Friends direct messaging
-   - Tournament chat rooms
-   - Add friend modal (in-page, no redirect)
-   - Click wallet addresses to view user profiles
-   - Unread message indicators
-   - Real-time message updates
-
-7. **Profile** (`/profile`)
-   - User statistics (Tournaments, Total Prizes, Win Rate)
-   - Level and experience progress bar
-   - BLZ token balance display
-   - Tournament history
-   - Friend management (requests, list)
-   - Achievement display (text-only, no icons)
-   - Profile like count
-   - Create tournament section
-
-8. **Documentation** (`/docs`)
-   - Complete platform documentation
-   - Getting started guide
-   - Game rules and scoring
-   - BLZ token system explanation
-   - Leveling system details (on-chain)
-   - Achievement system overview
-   - Social system guide (friends, chat, profile likes)
-   - FAQ section
-
-### User Experience
-- **Loading States**: Skeleton screens and spinners
-- **Error Handling**: Toast notifications with detailed messages
-- **Form Validation**: Real-time input validation
-- **Responsive Layout**: Mobile, tablet, and desktop optimized
-- **Dark Mode**: Native dark theme support
-- **Instant Feedback**: All actions provide immediate visual feedback
-- **Smart Defaults**: Pre-filled forms with sensible defaults
-
-## 🧪 Testing
-
-### Prerequisites
-- Node.js 20+ and pnpm
-- MetaMask or compatible Web3 wallet
-- Local blockchain network (Hardhat)
-
-### 1. Clone and Install Dependencies
-
-```bash
-# Install dependencies
-pnpm install
-```
-
-### 2. Smart Contracts Setup
-
-```bash
-# Compile contracts
-pnpm run compile
-
-# Deploy to local Hardhat network
-pnpm run deploy:local
-
-# Deploy to Mantle testnet (requires .env with PRIVATE_KEY)
-pnpm run deploy:testnet
-```
-
-### 3. Start Development Server
-
-```bash
-# Start Next.js development server (runs on port 5000)
-pnpm run dev
-```
-
-The application will be available at **http://localhost:5000**
-
-## 📁 Project Structure
-
-```
-.
-├── contracts/              # Solidity smart contracts
-│   ├── Types.sol          # Shared type definitions
-│   ├── GameFactory.sol    # Factory contract
-│   ├── GameInstance.sol   # Tournament instance
-│   ├── GameRegistry.sol   # Game validation and anti-cheat
-│   ├── UserLevelManager.sol # Level, experience, and achievements
-│   └── MockERC20.sol      # Test token
-├── scripts/               # Deployment scripts
-│   └── deploy.js         # Contract deployment
-├── deployments/           # Deployment information
-│   └── deployment.json   # Contract addresses
-├── src/
-│   ├── app/              # Next.js pages
-│   │   ├── page.tsx     # Home page
-│   │   ├── tournaments/ # Tournaments listing
-│   │   ├── create/      # Create tournament form
-│   │   └── layout.tsx   # Root layout
-│   ├── components/
-│   │   ├── ui/         # shadcn/ui components
-│   │   ├── providers.tsx  # Wagmi + RainbowKit setup
-│   │   └── navbar.tsx     # Navigation component
-│   ├── lib/
-│   │   ├── utils.ts       # Utility functions
-│   │   └── wagmi.ts       # Wagmi configuration
-│   └── types/
-│       └── web3.d.ts      # Web3 type definitions
-├── public/                # Static assets
-├── hardhat.config.js     # Hardhat configuration
-├── next.config.ts        # Next.js configuration
-├── tailwind.config.ts    # Tailwind configuration
-└── package.json          # Dependencies
-```
-
-## 🎯 Core Functionality
-
-### Smart Contract Features
-
-#### GameFactory
-- Create new tournament instances
-- Collect 10% platform fee (not refundable)
-- Track all tournaments
-- Withdraw accumulated fees (admin only)
-- Enforce creator prize pool requirements: must be > (entryFee × maxPlayers) / 2
-
-#### GameInstance
-- Player registration and cancellation (with refund)
-- Game state management (Created, Ongoing, Ended, PrizeDistributed, Canceled)
-- Score submission with GameRegistry verification
-- Winner selection (multiple winners supported)
-- Prize distribution (WinnerTakesAll, AverageSplit, CustomRanked)
-- Refund handling for canceled games
-- Minimum player check at game start (auto-cancel if not met)
-
-#### GameRegistry
-- Game type management (enable/disable games)
-- Anti-cheat verification (score limits, time intervals, hash validation)
-- Game-specific rule validation
-- Maximum score enforcement per game type
-
-### Frontend Features
-
-#### Wallet Integration
-- **Multi-Wallet Support**: RainbowKit supports 10+ wallets
-- **Network Detection**: Automatically detects and switches networks
-- **Transaction Signing**: Seamless transaction flow for tournament creation and joining
-- **Authorization**: Users must approve token transfers (entry fees, prize pool creation)
-- **Balance Display**: Real-time token balance updates
-
-#### Tournament Management
-- **Browse**: Filter and search tournaments by status, game type, title
-- **Create**: Intuitive form with real-time validation and cost calculation
-- **Join**: One-click tournament registration with wallet authorization
-- **Track**: Monitor tournament status and progress
-- **Experience Mode**: Play games without wallet connection for testing
-
-#### BLZ Token System
-- **Earning**:
-  - Participate in tournaments: +3 BLZ (after game completion)
-  - Win tournaments: Top 3 bonuses (20/10/5 BLZ)
-  - Unlock achievements: Variable rewards (5-25 BLZ)
-- **Spending**:
-  - Tournament entry fees: Pay to join
-  - Prize pool creation: Provide initial prize pool
-- **Experience**: 1 BLZ = 1 EXP for leveling up
-- **Platform Fee**: 10% on all transactions (non-refundable)
-
-#### Social System
-- **Friend Management**:
-  - Send friend requests
-  - Accept/reject pending requests
-  - View friend list
-  - All data stored in localStorage (no gas cost)
-- **Messaging**:
-  - Real-time chat with friends
-  - Tournament chat rooms (auto-created, auto-cleaned after 24h)
-  - Unread message indicators
-  - In-page add friend modal
-- **Profile Interactions**:
-  - Like other players' profiles
-  - Click wallet addresses to view user cards
-  - View user statistics and achievements
-
-#### Achievement & Level System
-- **7 Pre-defined Achievements**: Game, social, and special categories
-- **Automatic Unlocking**: Achievements unlock automatically when conditions met
-- **BLZ Rewards**: Immediate token distribution upon achievement unlock
-- **Level Progression**: 1-100 levels with increasing requirements
-- **Experience Calculation**: EXP = BLZ earned, level requirement increases by 1.5x per level
-
-## 🔌 Smart Contract Summary
-
-### Contract Overview
-
-#### 1. Types.sol
-- **GameStatus**: Created, Ongoing, Ended, PrizeDistributed, Canceled
-- **GameType**: None, NumberGuess, RockPaperScissors, QuickClick, InfiniteMatch
-- **PrizeDistributionType**: WinnerTakesAll, AverageSplit, CustomRanked
-- **Structs**: GameResult, PlayerInfo, GameConfig, GameData
-
-#### 2. GameRegistry.sol
-- **Game Management**: Enable/disable game types
-- **Anti-Cheat**:
-  - Minimum game interval (10 seconds) to prevent spam
-  - Maximum score validation per game type
-  - Timestamp validation (not future, not too old)
-  - Game hash verification for data integrity
-- **Game-Specific Validation**:
-  - NumberGuess: Validates attempt count (1-5) and score calculation
-  - RockPaperScissors: Validates 10 rounds and score formula
-  - QuickClick: Validates click count (max 50 in 30s)
-  - InfiniteMatch: Validates level, combo, and score ranges
-
-#### 3. GameFactory.sol
-- **Tournament Creation**:
-  - Deploys new GameInstance contracts
-  - Collects 10% platform fee on creator prize pool
-  - Transfers prize pool to GameInstance
-  - Stores tournament metadata
-- **Fee Management**:
-  - Tracks fees per token address
-  - Admin can withdraw accumulated fees
-- **Factory Features**:
-  - List all tournaments
-  - Paginated tournament queries
-  - Tournament count for pagination
-
-#### 4. UserLevelManager.sol
-- **User Level Management**:
-  - Track user experience (total BLZ earned)
-  - Calculate current level based on cumulative EXP
-  - Store next level requirements
-  - Maximum level cap at 100
-- **Achievement System**:
-  - Define achievement rewards (name, description, BLZ amount)
-  - Track unlocked achievements per user
-  - Emit achievement unlock events
-- **Token Rewards**:
-  - Grant BLZ tokens for achievements
-  - Grant EXP for tournament participation
-  - Grant EXP bonuses for winners (1st: 20, 2nd: 10, 3rd: 5)
-  - Grant EXP for tournament creation (5 EXP)
-- **Access Control**:
-  - ADMIN_ROLE: Manage achievements and settings
-  - GAME_ROLE: GameFactory and GameInstance can grant rewards
-
-**Key Features:**
-- 1 BLZ = 1 EXP automatic conversion
-- Progressive level requirements (1.5x multiplier per level)
-- Achievement rewards range from 3 to 15 BLZ
-- All data stored on-chain for transparency
-
-#### 5. GameInstance.sol
-- **Tournament Lifecycle**:
-  - Initialize with configuration
-  - Player registration (with entry fee payment)
-  - Cancel registration (with refund)
-  - Start game (checks minimum players)
-  - Cancel game (with full prize pool refund)
-  - Submit score (with GameRegistry verification)
-  - Set winners
-  - Distribute prizes
-  - Claim prizes/withdraw
-- **Financial Flows**:
-  - Entry fees added to prize pool
-  - Creator provides initial prize pool
-  - Platform fee (10%) collected on creation
-  - Prizes calculated based on distribution type
-  - Refunds handled for cancellations
-- **State Management**:
-  - Tracks players, scores, winners
-  - Stores game results with verification
-  - Manages prize claims
-
-**Key Features:**
-- Automatic cancellation if minimum players not met at start time
-- Player can cancel registration before game starts
-- Full refund for canceled games (platform fee not refunded)
-- Three prize distribution strategies
-- Pull pattern for prize claiming (safe against reentrancy)
-
-### User Experience
-- **Loading States**: Skeleton screens and spinners
-- **Error Handling**: Toast notifications with detailed messages
-- **Form Validation**: Real-time input validation
-- **Responsive Layout**: Mobile, tablet, and desktop optimized
-- **Dark Mode**: Native dark theme support
-- **Instant Feedback**: All actions provide immediate visual feedback
-- **Smart Defaults**: Pre-filled forms with sensible defaults
-
-### Smart Contract Testing
-
-```bash
-# Run contract tests
-pnpm run test
-```
-
-### Frontend Testing
-
-```bash
-# Run Next.js build
-pnpm run build
-
-# Type checking
-npx tsc --noEmit
-```
-
-## 📦 Deployment
-
-### Deploy to Local Network
-
-Contracts are already deployed to the local Hardhat network:
-- **BLZ Token**: `0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6`
-- **Prize Token**: `0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82`
-- **GameRegistry**: `0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e`
-- **GameFactory**: `0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0`
-- **UserLevelManager**: `0x8A791620dd6260079BF849Dc5567aDC3F2FdC318`
-
-### Deploy to Mantle Testnet
-
-1. Create a `.env` file:
-
-```env
-PRIVATE_KEY=your_private_key_here
-```
-
-2. Update `src/lib/wagmi.ts` to include Mantle testnet:
-
-```typescript
-import { hardhat, mantle } from "wagmi/chains";
-
-export const config = getDefaultConfig({
-  // ...
-  chains: [hardhat, mantle],
-  // ...
-});
-```
-
-3. Deploy contracts:
-
-```bash
-pnpm run deploy:testnet
-```
-
-4. Update frontend contract addresses in each page file
-
-## 🎨 Customization
-
-### Theme Colors
-
-Edit `src/app/globals.css` to customize the color scheme:
-
-```css
-.dark {
-  --primary: oklch(0.922 0 0);  /* Primary color */
-  --accent: oklch(0.269 0 0);    /* Accent color */
-  /* ... more variables */
-}
-```
-
-### Wagmi Configuration
-
-Edit `src/lib/wagmi.ts` to add more chains or wallets:
-
-```typescript
-export const config = getDefaultConfig({
-  appName: "Your App Name",
-  chains: [mainnet, polygon, arbitrum, ...],
-  // ...
-});
-```
-
-### RainbowKit Theme
-
-Edit `src/components/providers.tsx` to customize the wallet modal:
-
-```typescript
-<RainbowKitProvider
-  theme={darkTheme({
-    accentColor: "#3b82f6",
-    accentColorForeground: "white",
-  })}
->
-```
-
-## 🔐 Security Considerations
-
-1. **Private Keys**: Never commit private keys to version control
-2. **Contract Audits**: Always audit contracts before mainnet deployment
-3. **Reentrancy Protection**: Contracts use OpenZeppelin's security patterns
-4. **Access Control**: Role-based access control with proper modifiers
-5. **Input Validation**: All contract inputs are validated
-
-## 📈 Performance Optimization
-
-- **Code Splitting**: Automatic route-based code splitting
-- **Image Optimization**: Next.js Image component for optimal loading
-- **Lazy Loading**: Components load only when needed
-- **Caching**: Aggressive caching for static assets
-- **Bundle Analysis**: Optimize bundle size with `@next/bundle-analyzer`
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🙏 Acknowledgments
-
-- [OpenZeppelin](https://openzeppelin.com/) - Smart contract security
-- [shadcn/ui](https://ui.shadcn.com/) - UI component library
-- [RainbowKit](https://www.rainbowkit.com/) - React wallet connection library
-- [Wagmi](https://wagmi.sh/) - React Hooks for Ethereum
-- [Framer Motion](https://www.framer.com/motion/) - Production-ready motion library
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-blue?style=for-the-badge&logo=solidity)](https://soliditylang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+
+[在线演示 / Live Demo](https://5c5f236a-6d0b-4eed-82db-6a193669bde6.dev.coze.site/test) ·
+[功能特性 / Features](#-特性-features) ·
+[快速开始 / Quick Start](#-快速开始-quick-start) ·
+[文档 / Documentation](#-文档-documentation)
+
+</div>
 
 ---
 
-Built with ❤️ using Next.js, Web3, and modern design principles.
+## 📝 描述 / Description
+
+### 中文
+
+Blitz Arena 是一个原生的区块链游戏竞技平台，它使玩家能够在 Mantle 区块链上创建、参与和管理游戏比赛。平台抽象化了智能合约部署、资金管理和游戏执行的复杂性，提供了类似于现代 Web 应用的游戏竞技体验。
+
+每次比赛创建都会自动在 Mantle 上部署智能合约，初始化比赛环境并开始报名。支持多种游戏类型，玩家可以参与比赛、提交成绩、争夺奖金。
+
+### English
+
+Blitz Arena is a native blockchain gaming tournament platform that enables players to create, join, and manage game tournaments on the Mantle blockchain. The platform abstracts the complexity of smart contract deployment, fund management, and game execution, providing a gaming tournament experience similar to modern web applications.
+
+Every tournament creation automatically deploys smart contracts to the Mantle blockchain, initializing the tournament environment and starting registration. The platform supports multiple game types, allowing players to participate in tournaments, submit scores, and compete for prizes.
+
+---
+
+## 🔗 重要链接 / Important Links
+
+### 代码仓库 / Code Repositories
+- [主仓库 / Main Repository](https://github.com/YOUR_USERNAME/Blitz-Arena)
+- [智能合约 / Smart Contracts](./contracts/)
+- [前端应用 / Frontend Application](./src/)
+
+### 平台和工具 / Platforms and Tools
+- [在线演示 / Live Demo](https://5c5f236a-6d0b-4eed-82db-6a193669bde6.dev.coze.site/test)
+- [Mantle Sepolia 测试网水龙头 / Mantle Sepolia Testnet Faucet](https://faucet.mantle.xyz/)
+
+---
+
+## ✨ 特性 / Features
+
+### 🎮 智能合约功能 / Smart Contract Features
+
+- **GameFactory**: 工厂模式创建比赛实例 / Factory pattern for creating tournament instances
+- **GameInstance**: 完整比赛生命周期管理 / Complete tournament lifecycle management
+- **GameRegistry**: 游戏类型注册、结果验证和反作弊机制 / Game type registration, result verification, and anti-cheat mechanisms
+- **UserLevelManager**: 链上等级、经验和成就管理 / On-chain level, experience, and achievement management
+- **Multi-Chain Support**: 支持 Hardhat 本地网络和 Mantle Sepolia 测试网 / Supports Hardhat local network and Mantle Sepolia testnet
+
+### 💰 平台代币（BLZ）/ Platform Token (BLZ)
+
+Blitz Arena 使用 BLZ 代币作为平台原生实用代币：
+
+Blitz Arena uses the BLZ token as the platform's native utility token:
+
+- **报名费 / Entry Fee**: 玩家支付 BLZ 代币参加比赛 / Players pay BLZ tokens to participate in tournaments
+- **奖池 / Prize Pool**: 获胜者获得 BLZ 代币作为奖励 / Winners receive BLZ tokens as rewards
+- **平台手续费 / Platform Fee**: 所有比赛交易的 10% 手续费（创建、报名、退款）/ 10% fee on all tournament transactions (creation, entry, refunds)
+- **经验系统 / Experience System**: 1 BLZ = 1 EXP，用于升级 / 1 BLZ = 1 EXP, used for leveling up
+- **成就奖励 / Achievement Rewards**: 解锁成就获得 BLZ 代币 / Unlock achievements to earn BLZ tokens
+
+**代币分配 / Token Distribution:**
+- 参与奖励 / Participation Reward: 3 BLZ per tournament (游戏完成后发放 / awarded after game completion)
+- 前 3 名奖励 / Top 3 Bonus: 第 1 名 20 BLZ，第 2 名 10 BLZ，第 3 名 5 BLZ
+- 成就奖励 / Achievement Rewards: 解锁成就获得不等数量 BLZ / Variable BLZ amounts for unlocking achievements
+- 等级进度 / Level Progression: 1 BLZ = 1 EXP，等级需求每级增加 1.5 倍 / Level up requirements increase by 1.5x per level
+
+### 🎮 游戏功能 / Game Features
+
+1. **猜数字 / Number Guess** - 猜数字游戏（1-100），最少尝试次数获胜 / Guess a number between 1-100 with minimum attempts
+2. **石头剪刀布 / Rock Paper Scissors** - 与 AI 进行 10 回合对战 / Battle AI in 10 rounds
+3. **快速点击 / Quick Click** - 30 秒内尽可能多地点击目标 / Click as many targets as possible within 30 seconds
+4. **轮回裂隙 / Cycle Rift** - 带技能升级的肉鸽生存游戏 / Roguelike survival game with skill upgrades
+5. **无限消除 / Infinite Match** - 无限关卡的消除游戏 / Match-3 puzzle game with infinite levels
+
+**游戏模式 / Game Modes:**
+- **比赛模式 / Tournament Mode**: 连接钱包，加入比赛，争夺 BLZ 代币，成绩上链 / Connect wallet, join tournaments, compete for BLZ tokens, track on-chain
+- **体验模式 / Experience Mode**: 无需钱包连接，无区块链交易，成绩不保存 / Play without wallet connection, no blockchain transactions, no score persistence
+
+### 🤝 社交系统 / Social System
+
+- **好友系统 / Friend System**: 发送好友请求、接受/拒绝请求、管理好友列表 / Send friend requests, accept/reject requests, manage friend list
+- **消息系统 / Messaging System**: 与好友和比赛参与者实时聊天 / Real-time chat with friends and tournament participants
+- **比赛聊天室 / Tournament Chat**: 每个比赛自动创建聊天室，24 小时自动清理 / Automatic chat room creation for each tournament, 24-hour auto-cleanup
+- **个人主页点赞 / Profile Likes**: 点赞其他玩家的主页以示赞赏 / Like other players' profiles to show appreciation
+- **链下数据存储 / Off-chain Data Storage**: 所有社交数据使用 localStorage 存储，零 Gas 消耗 / All social data uses localStorage for zero gas cost
+
+### 🏆 成就系统 / Achievement System
+
+7 个预定义成就，涵盖游戏和社交类别，存储在链上：
+
+7 pre-defined achievements across game and social categories, stored on-chain:
+
+**游戏成就 / Game Achievements:**
+- "首场比赛 / First Tournament" - 参加你的第一场比赛（奖励：3 BLZ）/ Join your first tournament (Reward: 3 BLZ)
+- "得分大师 / Score Master" - 在比赛中提交成绩（奖励：5 BLZ）/ Submit a score in a tournament (Reward: 5 BLZ)
+- "冠军 / Champion" - 赢得你的第一场比赛（奖励：10 BLZ）/ Win your first tournament (Reward: 10 BLZ)
+- "比赛老兵 / Tournament Veteran" - 参加 10 场比赛（奖励：15 BLZ）/ Participate in 10 tournaments (Reward: 15 BLZ)
+
+**社交成就 / Social Achievements:**
+- "第一个朋友 / First Friend" - 添加第一个好友（奖励：3 BLZ）/ Add your first friend (Reward: 3 BLZ)
+- "社交达人 / Social Butterfly" - 添加 10 个好友（奖励：10 BLZ）/ Add 10 friends (Reward: 10 BLZ)
+- "社区之星 / Community Star" - 获得 50 个主页点赞（奖励：15 BLZ）/ Receive 50 profile likes (Reward: 15 BLZ)
+
+### 📊 等级与经验系统（链上）/ Level & Experience System (On-Chain)
+
+- **等级范围 / Level Range**: 1 到 100 级 / 1 to 100
+- **经验计算 / Experience Calculation**: 1 BLZ = 1 EXP
+- **等级需求 / Level Requirements**: 公式 / Formula: `EXP for Level N = 100 × 1.5^(N-1)`
+- **等级权益 / Level Benefits**: 更高的等级显示游戏经验和投入程度 / Higher levels show gaming experience and dedication
+- **进度提升 / Progression**: 参加比赛、赢得比赛、解锁成就可获得 EXP / Participate in tournaments, win games, unlock achievements to earn EXP
+- **UserLevelManager 合约 / Contract**: 在链上管理所有等级数据 / Manages all level data on-chain with secure role-based access control
+- **最高等级 / Maximum Level**: 100 级需要约 33 亿 EXP / Level 100 requires ~3.3 billion EXP
+
+### 🏅 排行榜 / Leaderboard
+
+- **实时排名 / Real-time Rankings**: 查看所有游戏的顶级玩家 / View top players across all games
+- **游戏筛选 / Game Filtering**: 按特定游戏类型筛选 / Filter by specific game type
+- **时间范围 / Time Range**: 按天、周、月或全部时间查看排名 / View rankings by day, week, month, or all-time
+- **自定义 UI 组件 / Custom UI Components**: 现代下拉筛选器，平滑动画 / Modern dropdown filters with smooth animations
+
+### 🚀 技术栈 / Technology Stack
+
+#### 前端 / Frontend
+- **Framework**: Next.js 16 with App Router
+- **UI Components**: shadcn/ui (production-ready components)
+- **Styling**: Tailwind CSS 4
+- **Web3**: Wagmi v3 + RainbowKit (multi-wallet support)
+- **Animations**: Framer Motion
+- **TypeScript**: Full type safety
+
+#### 区块链 / Blockchain
+- **Smart Contracts**: Solidity ^0.8.24
+- **Framework**: Hardhat
+- **Networks**: Mantle Sepolia Testnet, Hardhat Local
+- **Libraries**: OpenZeppelin Contracts, ethers.js v6, viem
+
+#### 开发工具 / Development Tools
+- **Package Manager**: pnpm
+- **Code Quality**: ESLint, Prettier
+- **Version Control**: Git
+
+---
+
+## 📖 快速开始 / Quick Start
+
+### 前置要求 / Prerequisites
+
+- Node.js 20+
+- pnpm
+- MetaMask 或兼容的 Web3 钱包 / MetaMask or compatible Web3 wallet
+
+### 1. 克隆项目 / Clone the Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/Blitz-Arena.git
+cd Blitz-Arena
+```
+
+### 2. 安装依赖 / Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 3. 配置环境变量 / Configure Environment Variables
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env` 文件，配置必要的变量（如果需要）：
+Edit the `.env` file to configure necessary variables (if needed):
+
+```env
+# Mantle Sepolia Testnet
+NEXT_PUBLIC_MANTLE_SEPOLIA_RPC_URL=https://sepolia.mantle.xyz
+NEXT_PUBLIC_CHAIN_ID=5003
+
+# Local Hardhat Network
+NEXT_PUBLIC_LOCAL_RPC_URL=http://localhost:8545
+NEXT_PUBLIC_LOCAL_CHAIN_ID=31337
+```
+
+### 4. 编译智能合约 / Compile Smart Contracts
+
+```bash
+pnpm run compile
+```
+
+### 5. 启动本地区块链网络 / Start Local Blockchain
+
+在新的终端窗口中打开：
+In a new terminal window:
+
+```bash
+npx hardhat node
+```
+
+### 6. 部署合约到本地网络 / Deploy Contracts to Local Network
+
+在另一个终端中：
+In another terminal:
+
+```bash
+npx hardhat run scripts/deploy.js --network localhost
+```
+
+### 7. 启动前端开发服务器 / Start Frontend Development Server
+
+```bash
+pnpm run dev
+```
+
+访问 / Visit: [http://localhost:5000](http://localhost:5000)
+
+### 8. 配置 MetaMask / Configure MetaMask
+
+添加本地网络到 MetaMask：
+Add local network to MetaMask:
+
+- **Network Name**: Hardhat Local
+- **RPC URL**: http://localhost:8545
+- **Chain ID**: 31337
+- **Currency Symbol**: ETH
+
+获取测试代币 / Get test tokens:
+```bash
+npx hardhat run scripts/check-wallet.js --network localhost
+```
+
+---
+
+## 🌐 部署到 Mantle Sepolia 测试网 / Deploy to Mantle Sepolia Testnet
+
+### 1. 获取 MNT 测试代币 / Get MNT Test Tokens
+
+访问水龙头 / Visit: [https://faucet.mantle.xyz/](https://faucet.mantle.xyz/)
+
+### 2. 配置 MetaMask / Configure MetaMask
+
+添加 Mantle Sepolia 网络：
+Add Mantle Sepolia network to MetaMask:
+
+- **Network Name**: Mantle Sepolia Testnet
+- **RPC URL**: https://sepolia.mantle.xyz
+- **Chain ID**: 5003
+- **Currency Symbol**: MNT
+- **Block Explorer**: https://sepolia.mantle.xyz
+
+### 3. 部署合约 / Deploy Contracts
+
+```bash
+npx hardhat run scripts/deploy.js --network mantle
+```
+
+或者使用部署脚本：
+Or use deployment script:
+
+```bash
+bash scripts/deploy-mantle.sh
+```
+
+### 4. 更新前端配置 / Update Frontend Configuration
+
+将部署的合约地址更新到 `src/lib/chainConfig.ts`：
+Update the deployed contract addresses in `src/lib/chainConfig.ts`:
+
+```typescript
+export const MANTLE_SEPOLIA = {
+  chainId: 5003,
+  GAME_FACTORY: "0x99E43c03AB9c8DC0d03c9EF3fbcDd92c13Da34BA",
+  GAME_REGISTRY: "0x...", // 替换为实际地址 / Replace with actual address
+  USER_LEVEL_MANAGER: "0x...", // 替换为实际地址 / Replace with actual address
+  // ... 其他配置 / Other configurations
+}
+```
+
+### 5. 验证合约（可选）/ Verify Contracts (Optional)
+
+```bash
+npx hardhat verify --network mantle <CONTRACT_ADDRESS> <CONSTRUCTOR_ARGS>
+```
+
+---
+
+## 📁 项目结构 / Project Structure
+
+```
+Blitz-Arena/
+├── contracts/              # 智能合约 / Smart Contracts
+│   ├── GameFactory.sol     # 工厂合约 / Factory Contract
+│   ├── GameInstance.sol    # 游戏实例合约 / Game Instance Contract
+│   ├── GameRegistry.sol    # 游戏注册合约 / Game Registry Contract
+│   ├── UserLevelManager.sol # 等级管理合约 / Level Manager Contract
+│   └── Types.sol           # 类型定义 / Type Definitions
+├── scripts/                # 部署脚本 / Deployment Scripts
+│   ├── deploy.js           # 主部署脚本 / Main Deployment Script
+│   └── deploy-mantle.sh    # Mantle 部署脚本 / Mantle Deployment Script
+├── src/                    # 前端源码 / Frontend Source
+│   ├── app/                # Next.js 页面 / Next.js Pages
+│   ├── components/         # React 组件 / React Components
+│   ├── hooks/              # 自定义 Hooks / Custom Hooks
+│   ├── lib/                # 工具库 / Utilities
+│   └── types/              # 类型定义 / Type Definitions
+└── public/                 # 公共资源 / Public Assets
+    └── game-assets/        # 游戏资源 / Game Assets
+```
+
+---
+
+## 🎮 游戏模式 / Game Modes
+
+### 比赛模式 / Tournament Mode
+
+1. 连接钱包 / Connect wallet
+2. 浏览比赛列表 / Browse tournament list
+3. 加入比赛（支付报名费）/ Join tournament (pay entry fee)
+4. 玩游戏 / Play game
+5. 提交成绩 / Submit score
+6. 等待比赛结束 / Wait for tournament to end
+7. 领取奖金 / Claim prize
+
+### 体验模式 / Experience Mode
+
+1. 无需连接钱包 / No wallet connection needed
+2. 从比赛详情页进入体验模式 / Enter experience mode from tournament details
+3. 完整游戏体验 / Full game experience
+4. 成绩不保存 / No score persistence
+5. 无区块链交易 / No blockchain transactions
+
+---
+
+## 🤝 贡献 / Contributing
+
+欢迎贡献！请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+---
+
+## 📄 许可证 / License
+
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+---
+
+## 📞 联系方式 / Contact
+
+- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/Blitz-Arena/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/Blitz-Arena/discussions)
+
+---
+
+## 🙏 致谢 / Acknowledgments
+
+- [Next.js](https://nextjs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Wagmi](https://wagmi.sh/)
+- [RainbowKit](https://www.rainbowkit.com/)
+- [Mantle Network](https://www.mantle.xyz/)
+- [OpenZeppelin](https://openzeppelin.com/)
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给一个 Star！/ If this project helps you, please give it a Star! ⭐**
+
+Made with ❤️ by Blitz Arena Team
+
+</div>
