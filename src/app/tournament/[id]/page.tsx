@@ -13,6 +13,10 @@ import {
   useGameDetailsWithRefetch,
   useJoinGame,
   useSubmitScore,
+  useStartGame,
+  useCancelGame,
+  useDistributePrize,
+  useClaimPrize,
   GameType,
   GameStatus,
 } from '@/hooks/useGameContract';
@@ -38,6 +42,10 @@ export default function TournamentDetailPage() {
   const { gameDetails, loading, refetch: refetchGameDetails } = useGameDetailsWithRefetch(gameAddress);
   const { joinGame, hash: joinHash, isSuccess: joinSuccess, isPending: joinPending } = useJoinGame();
   const { submitScore, isSuccess: submitSuccess } = useSubmitScore();
+  const { startGame, isSuccess: startSuccess } = useStartGame();
+  const { cancelGame, isSuccess: cancelSuccess } = useCancelGame();
+  const { distributePrize, isSuccess: distributeSuccess } = useDistributePrize();
+  const { claimPrize, isSuccess: claimSuccess } = useClaimPrize();
 
   // 监听加入成功 - 只在 hash 匹配时显示成功消息并刷新数据
   useEffect(() => {
@@ -59,6 +67,38 @@ export default function TournamentDetailPage() {
       window.location.reload(); // 重新加载页面以刷新数据
     }
   }, [submitSuccess]);
+
+  // 监听开始游戏成功
+  useEffect(() => {
+    if (startSuccess) {
+      toast.success('Game started successfully!');
+      refetchGameDetails();
+    }
+  }, [startSuccess, refetchGameDetails]);
+
+  // 监听取消比赛成功
+  useEffect(() => {
+    if (cancelSuccess) {
+      toast.success('Game canceled successfully!');
+      refetchGameDetails();
+    }
+  }, [cancelSuccess, refetchGameDetails]);
+
+  // 监听分发奖励成功
+  useEffect(() => {
+    if (distributeSuccess) {
+      toast.success('Prizes distributed successfully!');
+      refetchGameDetails();
+    }
+  }, [distributeSuccess, refetchGameDetails]);
+
+  // 监听领取奖励成功
+  useEffect(() => {
+    if (claimSuccess) {
+      toast.success('Prize claimed successfully!');
+      refetchGameDetails();
+    }
+  }, [claimSuccess, refetchGameDetails]);
 
   // 游戏类型映射
   const gameTypeLabels: Record<number, string> = {
@@ -505,6 +545,102 @@ export default function TournamentDetailPage() {
                       </Button>
                     </div>
                   </Card>
+
+                  {/* Creator Actions - Start Game */}
+                  {address === gameDetails.creator && gameDetails.status === BigInt(GameStatus.Created) && gameDetails.canStartGame && (
+                    <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/20 overflow-hidden group hover:border-orange-500/40 transition-all duration-300">
+                      <div className="p-8 text-center">
+                        <div className="mb-6">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 mb-4 group-hover:scale-110 transition-transform duration-300">
+                            <Flame className="w-8 h-8 text-white" />
+                          </div>
+                          <h3 className="text-2xl font-bold text-white mb-2">Start Tournament</h3>
+                          <p className="text-gray-400 text-sm">
+                            Start the tournament now. Registration is closed.
+                          </p>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() => startGame(gameAddress)}
+                          className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold"
+                        >
+                          Start Now
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Creator Actions - Cancel Game */}
+                  {address === gameDetails.creator && (gameDetails.status === BigInt(GameStatus.Created) || gameDetails.status === BigInt(GameStatus.Ongoing)) && (
+                    <Card className="bg-gradient-to-br from-red-500/10 to-pink-500/10 border-red-500/20 overflow-hidden group hover:border-red-500/40 transition-all duration-300">
+                      <div className="p-8 text-center">
+                        <div className="mb-6">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-pink-500 mb-4 group-hover:scale-110 transition-transform duration-300">
+                            <Skull className="w-8 h-8 text-white" />
+                          </div>
+                          <h3 className="text-2xl font-bold text-white mb-2">Cancel Tournament</h3>
+                          <p className="text-gray-400 text-sm">
+                            Cancel the tournament and refund all players.
+                          </p>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() => cancelGame(gameAddress)}
+                          className="w-full bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold"
+                        >
+                          Cancel Tournament
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Creator Actions - Distribute Prizes */}
+                  {address === gameDetails.creator && gameDetails.status === BigInt(GameStatus.Ended) && (
+                    <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20 overflow-hidden group hover:border-yellow-500/40 transition-all duration-300">
+                      <div className="p-8 text-center">
+                        <div className="mb-6">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-500 to-orange-500 mb-4 group-hover:scale-110 transition-transform duration-300">
+                            <Trophy className="w-8 h-8 text-white" />
+                          </div>
+                          <h3 className="text-2xl font-bold text-white mb-2">Distribute Prizes</h3>
+                          <p className="text-gray-400 text-sm">
+                            Distribute prizes to winners.
+                          </p>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() => distributePrize(gameAddress)}
+                          className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-semibold"
+                        >
+                          Distribute Prizes
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Player Actions - Claim Prize */}
+                  {gameDetails.prizeToClaim && gameDetails.prizeToClaim > BigInt(0) && (
+                    <Card className="bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-purple-500/20 overflow-hidden group hover:border-purple-500/40 transition-all duration-300">
+                      <div className="p-8 text-center">
+                        <div className="mb-6">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 mb-4 group-hover:scale-110 transition-transform duration-300">
+                            <Trophy className="w-8 h-8 text-white" />
+                          </div>
+                          <h3 className="text-2xl font-bold text-white mb-2">Claim Prize</h3>
+                          <p className="text-gray-400 text-sm">
+                            You have {formatUnits(gameDetails.prizeToClaim, 18)} tokens to claim.
+                          </p>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() => claimPrize(gameAddress)}
+                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold"
+                        >
+                          Claim Now
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
                 </div>
               )}
 

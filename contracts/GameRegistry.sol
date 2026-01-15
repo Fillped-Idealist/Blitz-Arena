@@ -18,9 +18,6 @@ contract GameRegistry is AccessControl {
     // 最小游戏间隔（防止重复提交）
     uint256 public constant MIN_GAME_INTERVAL = 10 seconds;
 
-    // 游戏元数据验证规则
-    mapping(Types.GameType => uint256) public maxScores; // 各游戏最大分数限制
-
     // 事件
     event GameEnabled(Types.GameType gameType);
     event GameDisabled(Types.GameType gameType);
@@ -30,7 +27,6 @@ contract GameRegistry is AccessControl {
         uint256 score,
         bytes32 gameHash
     );
-    event MaxScoreUpdated(Types.GameType gameType, uint256 maxScore);
 
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -43,13 +39,6 @@ contract GameRegistry is AccessControl {
         gameEnabled[Types.GameType.QuickClick] = true;
         gameEnabled[Types.GameType.RoguelikeSurvival] = true;
         gameEnabled[Types.GameType.InfiniteMatch] = true;
-
-        // 设置各游戏最大分数限制
-        maxScores[Types.GameType.NumberGuess] = 100; // 猜数字最高100分
-        maxScores[Types.GameType.RockPaperScissors] = 100; // 猜拳最高100分
-        maxScores[Types.GameType.QuickClick] = 50; // 30秒内最多点击50次（合理上限）
-        maxScores[Types.GameType.RoguelikeSurvival] = 100000; // 肉鸽割草最高100000分（理论最大值）
-        maxScores[Types.GameType.InfiniteMatch] = 10000; // 无限消除最高10000分（理论最大值）
 
         emit GameEnabled(Types.GameType.NumberGuess);
         emit GameEnabled(Types.GameType.RockPaperScissors);
@@ -71,15 +60,6 @@ contract GameRegistry is AccessControl {
         emit GameDisabled(gameType);
     }
 
-    /// @notice 更新游戏最大分数限制
-    function updateMaxScore(Types.GameType gameType, uint256 newMaxScore)
-        external
-        onlyRole(GAME_ADMIN_ROLE)
-    {
-        maxScores[gameType] = newMaxScore;
-        emit MaxScoreUpdated(gameType, newMaxScore);
-    }
-
     /// @notice 验证游戏结果（核心防作弊逻辑）
     /// @param result 游戏结果数据
     /// @return bool 验证是否通过
@@ -93,18 +73,15 @@ contract GameRegistry is AccessControl {
         require(block.timestamp >= lastTime + MIN_GAME_INTERVAL, "Too frequent submissions");
         lastPlayedTime[result.player][result.gameType] = block.timestamp;
 
-        // 3. 验证分数不超过最大值
-        require(result.score <= maxScores[result.gameType], "Score exceeds maximum");
-
-        // 4. 验证时间戳合理（不能是未来时间）
+        // 3. 验证时间戳合理（不能是未来时间）
         require(result.timestamp <= block.timestamp, "Invalid timestamp");
         require(result.timestamp >= block.timestamp - 1 days, "Timestamp too old");
 
-        // 5. 验证游戏哈希（确保数据未被篡改）
+        // 4. 验证游戏哈希（确保数据未被篡改）
         bytes32 computedHash = computeGameHash(result);
         require(computedHash == result.gameHash, "Game hash mismatch");
 
-        // 6. 根据游戏类型进行特定验证
+        // 5. 根据游戏类型进行特定验证
         _validateGameSpecificRules(result);
 
         emit GameResultVerified(result.player, result.gameType, result.score, result.gameHash);
@@ -220,11 +197,10 @@ contract GameRegistry is AccessControl {
         external
         view
         returns (
-            bool enabled,
-            uint256 maxScore
+            bool enabled
         )
     {
-        return (gameEnabled[gameType], maxScores[gameType]);
+        return gameEnabled[gameType];
     }
 
     /// @notice 检查玩家是否可以进行游戏

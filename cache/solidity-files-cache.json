@@ -499,8 +499,8 @@
       ]
     },
     "/workspace/projects/contracts/GameRegistry.sol": {
-      "lastModificationDate": 1768482970902,
-      "contentHash": "253b9df99b960dd47a244a9168813b5b",
+      "lastModificationDate": 1768486097276,
+      "contentHash": "53a7091cbbca8b8a279ecff08a1dfd88",
       "sourceName": "contracts/GameRegistry.sol",
       "solcConfig": {
         "version": "0.8.24",

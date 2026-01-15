@@ -1803,6 +1803,219 @@ export function useGameDetailsWithRefetch(gameAddress: `0x${string}` | null) {
  */
 export function useStartGame() {
   const { address } = useAccount();
+  const { supported } = useNetworkCheck();
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  // 监听交易成功
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Game started successfully!");
+    }
+  }, [isSuccess]);
+
+  const startGame = async (gameAddress: `0x${string}`) => {
+    try {
+      if (!supported) {
+        throw new Error('Unsupported network. Please switch to Hardhat or Mantle Sepolia Testnet');
+      }
+
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      toast.info('Starting game...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'startGame',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to start game', {
+        description: errorMessage,
+      });
+      throw err;
+    }
+  };
+
+  return {
+    startGame,
+    hash,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+/**
+ * 取消比赛的 hook
+ */
+export function useCancelGame() {
+  const { address } = useAccount();
+  const { supported } = useNetworkCheck();
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  // 监听交易成功
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Game canceled successfully!");
+    }
+  }, [isSuccess]);
+
+  const cancelGame = async (gameAddress: `0x${string}`) => {
+    try {
+      if (!supported) {
+        throw new Error('Unsupported network. Please switch to Hardhat or Mantle Sepolia Testnet');
+      }
+
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      toast.info('Canceling game...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'cancelGame',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to cancel game', {
+        description: errorMessage,
+      });
+      throw err;
+    }
+  };
+
+  return {
+    cancelGame,
+    hash,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+/**
+ * 分发奖励的 hook
+ */
+export function useDistributePrize() {
+  const { address } = useAccount();
+  const { supported } = useNetworkCheck();
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  // 监听交易成功
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Prize distributed successfully!");
+    }
+  }, [isSuccess]);
+
+  const distributePrize = async (gameAddress: `0x${string}`) => {
+    try {
+      if (!supported) {
+        throw new Error('Unsupported network. Please switch to Hardhat or Mantle Sepolia Testnet');
+      }
+
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      toast.info('Distributing prizes...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'distributePrize',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to distribute prize', {
+        description: errorMessage,
+      });
+      throw err;
+    }
+  };
+
+  return {
+    distributePrize,
+    hash,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+/**
+ * 领取奖励的 hook
+ */
+export function useClaimPrize() {
+  const { address } = useAccount();
+  const { supported } = useNetworkCheck();
+  const { data: hash, writeContract, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  // 监听交易成功
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Prize claimed successfully!");
+    }
+  }, [isSuccess]);
+
+  const claimPrize = async (gameAddress: `0x${string}`) => {
+    try {
+      if (!supported) {
+        throw new Error('Unsupported network. Please switch to Hardhat or Mantle Sepolia Testnet');
+      }
+
+      if (!address) {
+        throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      toast.info('Claiming prize...', {
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      writeContract({
+        address: gameAddress,
+        abi: GAME_INSTANCE_ABI,
+        functionName: 'claimPrize',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      toast.error('Failed to claim prize', {
+        description: errorMessage,
+      });
+      throw err;
+    }
+  };
+
+  return {
+    claimPrize,
+    hash,
+    isPending: isPending || isConfirming,
+    isSuccess,
+    error,
+  };
+}
+
+
+/**
+ * 开始比赛的 hook
+ */
+export function useStartGame() {
+  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
