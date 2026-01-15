@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -86,6 +86,7 @@ export default function CreateTournamentPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { supported } = useNetworkCheck();
+  const publicClient = usePublicClient();
   const { createGame, hash: createHash, isSuccess: createSuccess, isPending: createPending } = useCreateGame();
   const addresses = useContractAddresses();
   const { approve } = useERC20(addresses?.PRIZE_TOKEN as `0x${string}`);
@@ -156,22 +157,22 @@ export default function CreateTournamentPage() {
 
     setLoading(true);
     try {
-      // 获取当前区块时间戳（而不是浏览器时间）
-      const currentBlock = await window.ethereum?.request({
-        method: 'eth_getBlockByNumber',
-        params: ['latest', false],
-      });
+      if (!publicClient) {
+        throw new Error('Public client not available');
+      }
 
-      const blockTimestamp = parseInt(currentBlock?.timestamp || Math.floor(Date.now() / 1000), 16);
+      // 获取当前区块时间戳
+      const currentBlock = await publicClient.getBlock();
+      const blockTimestamp = Number(currentBlock.timestamp);
 
       // 计算时间戳（使用区块时间）
       let registrationEndTime: number;
       let gameStartTime: number;
 
       if (formData.startImmediately) {
-        // 立即开始模式
-        registrationEndTime = blockTimestamp + 1; // 报名立即结束（+1秒以满足 > 检查）
-        gameStartTime = blockTimestamp + 1; // 游戏立即开始（+1秒以满足 > 检查）
+        // 立即开始模式：在区块时间基础上增加 10 秒，确保时间在未来
+        registrationEndTime = blockTimestamp + 10;
+        gameStartTime = blockTimestamp + 10;
       } else {
         // 正常模式
         registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
