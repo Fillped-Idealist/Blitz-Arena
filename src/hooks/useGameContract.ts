@@ -713,6 +713,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                   functionName: 'players',
                 }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
                 playerCount = players?.length || 0;
+                console.log(`[useGamesBatch] Game ${address}: Fetched ${playerCount} players`);
 
                 // 如果用户已连接钱包，检查是否已加入
                 if (address) {
@@ -722,10 +723,11 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                     functionName: 'isJoined',
                     args: [address],
                   }) as unknown as boolean;
+                  console.log(`[useGamesBatch] Game ${address}: User ${address} isJoined = ${isJoined}`);
                 }
               } catch (err) {
                 // 如果获取玩家失败，默认为 0
-                console.warn(`Failed to fetch players for game ${address}:`, err);
+                console.warn(`[useGamesBatch] Failed to fetch players for game ${address}:`, err);
                 playerCount = 0;
               }
 
@@ -1121,12 +1123,19 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           }),
         ]);
 
-        // 获取玩家列表和分数
-        const players = await publicClient.readContract({
-          address: gameAddress,
-          abi: GAME_INSTANCE_ABI,
-          functionName: 'players',
-        }) as unknown as Array<{ player: `0x${string}`, score: bigint, submittedAt: bigint }>;
+        // 获取玩家数量 - 添加错误处理
+        let playerCount = 0;
+        try {
+          const players = await publicClient.readContract({
+            address: gameAddress,
+            abi: GAME_INSTANCE_ABI,
+            functionName: 'players',
+          }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
+          playerCount = players?.length || 0;
+        } catch (err) {
+          console.warn('Failed to fetch players:', err);
+          playerCount = 0;
+        }
 
         let myScore: bigint | undefined;
         let hasSubmitted = false;
@@ -1134,29 +1143,33 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
         let prizeToClaim: bigint | undefined;
 
         if (address) {
-          isJoined = await publicClient.readContract({
-            address: gameAddress,
-            abi: GAME_INSTANCE_ABI,
-            functionName: 'isJoined',
-            args: [address],
-          }) as unknown as boolean;
-
-          if (isJoined) {
-            myScore = await publicClient.readContract({
+          try {
+            isJoined = await publicClient.readContract({
               address: gameAddress,
               abi: GAME_INSTANCE_ABI,
-              functionName: 'scores',
+              functionName: 'isJoined',
               args: [address],
-            }) as unknown as bigint;
+            }) as unknown as boolean;
 
-            hasSubmitted = myScore !== undefined && myScore > BigInt(0);
+            if (isJoined) {
+              myScore = await publicClient.readContract({
+                address: gameAddress,
+                abi: GAME_INSTANCE_ABI,
+                functionName: 'scores',
+                args: [address],
+              }) as unknown as bigint;
 
-            prizeToClaim = await publicClient.readContract({
-              address: gameAddress,
-              abi: GAME_INSTANCE_ABI,
-              functionName: 'prizeToClaimsAmount',
-              args: [address],
-            }) as unknown as bigint;
+              hasSubmitted = myScore !== undefined && myScore > BigInt(0);
+
+              prizeToClaim = await publicClient.readContract({
+                address: gameAddress,
+                abi: GAME_INSTANCE_ABI,
+                functionName: 'prizeToClaimsAmount',
+                args: [address],
+              }) as unknown as bigint;
+            }
+          } catch (err) {
+            console.warn('Failed to fetch user data:', err);
           }
         }
 
@@ -1180,8 +1193,8 @@ export function useGameDetails(gameAddress: `0x${string}` | null) {
           registrationEndTime: registrationEndTime as bigint,
           gameStartTime: gameStartTime as bigint,
           creator: creator as `0x${string}`,
-          playersList: players,
-          players: players?.length || 0,
+          playersList: [],
+          players: playerCount,
           myScore,
           hasSubmitted,
           isJoined,
