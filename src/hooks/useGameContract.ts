@@ -414,6 +414,10 @@ export function useGameInstance(gameAddress: `0x${string}` | null) {
  */
 export function useJoinGame() {
   const { address } = useAccount();
+  const { supported } = useNetworkCheck();
+  const addresses = useContractAddresses();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -422,17 +426,56 @@ export function useJoinGame() {
 
   const joinGame = async (gameAddress: `0x${string}`, entryFee: string) => {
     try {
+      if (!supported) {
+        throw new Error('Unsupported network. Please switch to Hardhat or Mantle Sepolia Testnet');
+      }
+
       if (!address) {
         throw new Error('Wallet not connected. Please connect your wallet first');
+      }
+
+      if (!addresses) {
+        throw new Error('Contract addresses not available on current network');
+      }
+
+      if (!publicClient || !walletClient) {
+        throw new Error('Wallet client or public client not available');
+      }
+
+      // 计算报名费金额
+      const entryFeeAmount = parseUnits(entryFee, 18);
+
+      // 检查并授权 feeToken
+      // 注意：需要授权给 GameInstance 合约，而不是 GameFactory
+      const allowance = await publicClient.readContract({
+        address: addresses.PRIZE_TOKEN as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address, gameAddress],
+      }) as bigint;
+
+      // 如果授权不足，先授权
+      if (allowance < entryFeeAmount) {
+        toast.info('Approving token transfer...', {
+          description: 'Please approve the transaction in your wallet',
+        });
+
+        const approveHash = await walletClient.writeContract({
+          address: addresses.PRIZE_TOKEN as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [gameAddress, entryFeeAmount],
+        });
+
+        // 等待授权交易确认
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+        toast.success('Token approved successfully');
       }
 
       toast.info('Joining tournament...', {
         description: 'Please approve the transaction in your wallet',
       });
-
-      // 先授权代币
-      // 注意：这里需要先调用 approve 函数授权 GameInstance 使用代币
-      // 简化版假设已授权，实际需要先 approve
 
       writeContract({
         address: gameAddress,
