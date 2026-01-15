@@ -20,6 +20,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
             accentColor: "#3b82f6",
             accentColorForeground: "white",
           })}
+          // 隐藏交易详情弹窗
+          showRecentTransactions={false}
         >
           <NetworkCheck />
           {children}

@@ -455,6 +455,13 @@ export function useJoinGame() {
     hash,
   });
 
+  // 监听交易成功
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Successfully joined tournament!");
+    }
+  }, [isSuccess]);
+
   const joinGame = async (gameAddress: `0x${string}`, entryFee: string) => {
     try {
       if (!supported) {
@@ -625,6 +632,7 @@ export function useSubmitScore() {
  */
 export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
   const publicClient = usePublicClient();
+  const { address } = useAccount();
   const [gamesData, setGamesData] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -694,8 +702,10 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                   }) as unknown as Promise<bigint>,
                 ]);
 
-              // 获取玩家数量 - 添加错误处理
+              // 获取玩家数量和用户是否已加入 - 添加错误处理
               let playerCount = 0;
+              let isJoined = false;
+
               try {
                 const players = await publicClient.readContract({
                   address,
@@ -703,6 +713,16 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                   functionName: 'players',
                 }) as unknown as Array<{ player: `0x${string}`, score: bigint }>;
                 playerCount = players?.length || 0;
+
+                // 如果用户已连接钱包，检查是否已加入
+                if (address) {
+                  isJoined = await publicClient.readContract({
+                    address,
+                    abi: GAME_INSTANCE_ABI,
+                    functionName: 'isJoined',
+                    args: [address],
+                  }) as unknown as boolean;
+                }
               } catch (err) {
                 // 如果获取玩家失败，默认为 0
                 console.warn(`Failed to fetch players for game ${address}:`, err);
@@ -721,6 +741,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
                 registrationEndTime: registrationEndTime as bigint,
                 gameStartTime: gameStartTime as bigint,
                 players: playerCount,
+                isJoined,
               };
             } catch (error) {
               console.error(`Failed to fetch game ${address}:`, error);
@@ -743,7 +764,7 @@ export function useGamesBatch(gameAddresses: `0x${string}`[] | undefined) {
     };
 
     fetchGames();
-  }, [gameAddresses, publicClient]);
+  }, [gameAddresses, publicClient, address]);
 
   return { gamesData, loading, error, refetch: () => {} };
 }
@@ -863,7 +884,7 @@ interface GameData {
   registrationEndTime: bigint;
   gameStartTime: bigint;
   players: number;
-  isJoined?: boolean;
+  isJoined: boolean;
 }
 
 interface GameDetails extends GameData {

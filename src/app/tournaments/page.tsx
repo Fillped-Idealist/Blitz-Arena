@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { formatUnits } from 'viem';
 import { motion } from "framer-motion";
@@ -35,7 +35,7 @@ export default function TournamentsPage() {
 
   const { allGames, refetchGames } = useGameFactory();
   const { gamesData, loading } = useGamesBatch(allGames);
-  const { joinGame } = useJoinGame();
+  const { joinGame, isSuccess: joinSuccess } = useJoinGame();
 
   // Filter games
   const filteredGames = gamesData.filter((game) => {
@@ -58,17 +58,22 @@ export default function TournamentsPage() {
     setJoining(gameAddress);
     try {
       await joinGame(gameAddress, entryFee);
-      toast.success("Successfully joined tournament!");
+      // Success toast is handled by useJoinGame hook
       // The useGamesBatch hook will automatically refetch when allGames changes
     } catch (error) {
       console.error('Failed to join tournament:', error);
-      toast.error("Failed to join tournament", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
+      // Error toast is already handled by useJoinGame hook
     } finally {
       setJoining(null);
     }
   };
+
+  // 监听加入比赛成功，刷新比赛列表
+  useEffect(() => {
+    if (joinSuccess) {
+      refetchGames();
+    }
+  }, [joinSuccess, refetchGames]);
 
   // Format time
   const formatTime = (timestamp: bigint) => {
