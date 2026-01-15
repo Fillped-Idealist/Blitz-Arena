@@ -1,11 +1,11 @@
 {
   "network": "mantle_testnet",
   "chainId": "5003",
-  "blzToken": "0x26624b8d2F28A21379d88A304B2529554f140005",
-  "prizeToken": "0xaBAd6BD5baedb6A090bAB50DC43CEd42A92cF77F",
-  "userLevelManager": "0x74AFF7421b3c35954f0BAE1024e2aba8B2140967",
-  "gameRegistry": "0x3aE8809e382d3f77217412B8289b505D47CE7A14",
-  "gameFactory": "0xF6Ef81EC8b61688AE168AB4B5d67b6f7E58E4e24",
+  "blzToken": "0xcC4c864CF05b7398AEfD7857Ed0bD28c02f26353",
+  "prizeToken": "0xDD32ceCE350c0e5bd4Cb9C8FcAe3927977AAD6B2",
+  "userLevelManager": "0x6774Fd4342A2FE2cD04b9F75A229ee646fD0bb7E",
+  "gameRegistry": "0x24BF9bc997226Dd90A46410b4e38de9247a696a6",
+  "gameFactory": "0x1E3d2c13208a25e65F1b90cBD694859B0E44DA51",
   "deployer": "0xce289Ca273e6edd7D84CA15eB354E56a34c7d03d",
-  "timestamp": "2026-01-15T10:17:59.631Z"
+  "timestamp": "2026-01-15T12:29:23.471Z"
 }
