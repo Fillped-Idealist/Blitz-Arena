@@ -156,10 +156,17 @@ export default function CreateTournamentPage() {
 
     setLoading(true);
     try {
-      // 计算时间戳
-      const now = Math.floor(Date.now() / 1000);
-      const registrationEndTime = now + formData.registrationDuration * 60;
-      const gameStartTime = registrationEndTime + formData.gameDuration * 60;
+      // 获取当前区块时间戳（而不是浏览器时间）
+      const currentBlock = await window.ethereum?.request({
+        method: 'eth_getBlockByNumber',
+        params: ['latest', false],
+      });
+
+      const blockTimestamp = parseInt(currentBlock?.timestamp || Math.floor(Date.now() / 1000), 16);
+
+      // 计算时间戳（使用区块时间）
+      const registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
+      const gameStartTime = registrationEndTime; // 游戏在报名结束后立即开始
 
       // 准备配置
       const config = {
@@ -177,7 +184,7 @@ export default function CreateTournamentPage() {
       };
 
       // 创建比赛
-      const result = await createGame(config);
+      await createGame(config);
 
       toast.success("Tournament created successfully!");
       router.push("/tournaments");

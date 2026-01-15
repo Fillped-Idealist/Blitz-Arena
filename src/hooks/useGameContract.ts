@@ -170,9 +170,15 @@ export function useCreateGame() {
         });
 
         // 等待授权交易确认
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-        toast.success('Token approved successfully');
+        if (receipt.status !== 'success') {
+          throw new Error('Token approval failed');
+        }
+
+        toast.success('Token approved successfully', {
+          description: 'You can now create the tournament',
+        });
       }
 
       // 准备配置参数
@@ -214,8 +220,7 @@ export function useCreateGame() {
   return {
     createGame,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -468,9 +473,15 @@ export function useJoinGame() {
         });
 
         // 等待授权交易确认
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-        toast.success('Token approved successfully');
+        if (receipt.status !== 'success') {
+          throw new Error('Token approval failed');
+        }
+
+        toast.success('Token approved successfully', {
+          description: 'You can now join the tournament',
+        });
       }
 
       toast.info('Joining tournament...', {
@@ -494,8 +505,7 @@ export function useJoinGame() {
   return {
     joinGame,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -544,8 +554,7 @@ export function useSubmitScore() {
   return {
     submitScore,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -717,8 +726,7 @@ export function useClaimPrize() {
   return {
     claimPrize,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -1150,8 +1158,7 @@ export function useStartGame() {
   return {
     startGame,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -1200,8 +1207,7 @@ export function useSetWinners() {
   return {
     setWinners,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -1245,8 +1251,7 @@ export function useDistributePrize() {
   return {
     distributePrize,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
@@ -1290,8 +1295,7 @@ export function useCancelGame() {
   return {
     cancelGame,
     hash,
-    isPending,
-    isConfirming,
+    isPending: isPending || isConfirming,
     isSuccess,
     error,
   };
