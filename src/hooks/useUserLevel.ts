@@ -1,12 +1,12 @@
 "use client";
 
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { useReadContract } from "wagmi";
 import { formatUnits } from "viem";
 import {
   USER_LEVEL_MANAGER_ABI,
 } from "@/lib/contracts";
-import { getContractAddresses } from "@/lib/chainConfig";
+import { getContractAddresses, isSupportedChain } from "@/lib/chainConfig";
 
 /**
  * 用户等级数据接口
@@ -22,7 +22,15 @@ export interface UserLevelData {
  */
 export function useUserLevel() {
   const { address } = useAccount();
-  const addresses = getContractAddresses(31337); // 默认使用本地网络
+  const chainId = useChainId();
+
+  // 检查网络是否支持
+  const supported = isSupportedChain(chainId);
+  if (!supported) {
+    console.warn(`Chain ID ${chainId} is not supported`);
+  }
+
+  const addresses = getContractAddresses(chainId);
 
   const { data: userData, isLoading, error, refetch } = useReadContract({
     address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
@@ -30,7 +38,7 @@ export function useUserLevel() {
     functionName: "getUserData",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address,
+      enabled: !!address && supported,
     },
   });
 
@@ -46,13 +54,18 @@ export function useUserLevel() {
  * 获取特定等级所需的经验
  */
 export function useExpForLevel(level: number) {
-  const addresses = getContractAddresses(31337);
+  const chainId = useChainId();
+  const supported = isSupportedChain(chainId);
+  const addresses = getContractAddresses(chainId);
 
   const { data: expNeeded } = useReadContract({
     address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getExpForLevel",
     args: [BigInt(level)],
+    query: {
+      enabled: supported,
+    },
   });
 
   return {
@@ -65,7 +78,9 @@ export function useExpForLevel(level: number) {
  */
 export function useHasAchievement(achievementId: number) {
   const { address } = useAccount();
-  const addresses = getContractAddresses(31337);
+  const chainId = useChainId();
+  const supported = isSupportedChain(chainId);
+  const addresses = getContractAddresses(chainId);
 
   const { data: hasAchievement } = useReadContract({
     address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
@@ -73,7 +88,7 @@ export function useHasAchievement(achievementId: number) {
     functionName: "hasAchievement",
     args: address ? [address, BigInt(achievementId)] : undefined,
     query: {
-      enabled: !!address,
+      enabled: !!address && supported,
     },
   });
 
@@ -86,13 +101,18 @@ export function useHasAchievement(achievementId: number) {
  * 获取成就信息
  */
 export function useAchievement(achievementId: number) {
-  const addresses = getContractAddresses(31337);
+  const chainId = useChainId();
+  const supported = isSupportedChain(chainId);
+  const addresses = getContractAddresses(chainId);
 
   const { data: achievement } = useReadContract({
     address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getAchievement",
     args: [BigInt(achievementId)],
+    query: {
+      enabled: supported,
+    },
   });
 
   return {
@@ -104,12 +124,17 @@ export function useAchievement(achievementId: number) {
  * 获取 UserLevelManager 合约的代币余额
  */
 export function useLevelManagerTokenBalance() {
-  const addresses = getContractAddresses(31337);
+  const chainId = useChainId();
+  const supported = isSupportedChain(chainId);
+  const addresses = getContractAddresses(chainId);
 
   const { data: balance } = useReadContract({
     address: addresses.USER_LEVEL_MANAGER as `0x${string}`,
     abi: USER_LEVEL_MANAGER_ABI,
     functionName: "getTokenBalance",
+    query: {
+      enabled: supported,
+    },
   });
 
   return {

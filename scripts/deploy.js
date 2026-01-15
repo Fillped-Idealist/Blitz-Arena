@@ -32,7 +32,10 @@ async function main() {
 
   // 给 UserLevelManager 合约添加一些代币用于奖励
   console.log("Adding BLZ tokens to UserLevelManager for rewards...");
-  await blzToken.transfer(levelManagerAddress, hre.ethers.parseEther("10000"));
+  const tx = await blzToken.transfer(levelManagerAddress, hre.ethers.parseEther("10000"));
+  console.log("Transfer transaction submitted, waiting for confirmation...");
+  await tx.wait();
+  console.log("Transfer confirmed");
   const levelManagerBalance = await blzToken.balanceOf(levelManagerAddress);
   console.log("UserLevelManager BLZ balance:", hre.ethers.formatEther(levelManagerBalance));
 
@@ -55,12 +58,14 @@ async function main() {
   // 授予 GameFactory GAME_ROLE 和 ADMIN_ROLE 权限
   console.log("Granting GAME_ROLE to GameFactory...");
   const GAME_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("GAME_ROLE"));
-  await levelManager.grantRole(GAME_ROLE, factoryAddress);
+  const roleTx1 = await levelManager.grantRole(GAME_ROLE, factoryAddress);
+  await roleTx1.wait();
   console.log("GAME_ROLE granted to GameFactory");
 
   console.log("Granting ADMIN_ROLE to GameFactory...");
   const ADMIN_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("ADMIN_ROLE"));
-  await levelManager.grantRole(ADMIN_ROLE, factoryAddress);
+  const roleTx2 = await levelManager.grantRole(ADMIN_ROLE, factoryAddress);
+  await roleTx2.wait();
   console.log("ADMIN_ROLE granted to GameFactory");
 
   // 部署 Mock Prize Token 用于测试

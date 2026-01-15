@@ -41,7 +41,7 @@ import { ERC20_ABI } from "@/lib/contracts";
 import { getContractAddresses } from "@/lib/chainConfig";
 
 export default function ProfilePage() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const [isMounted, setIsMounted] = useState(false);
 
   // 使用合约获取用户比赛数据
@@ -51,7 +51,7 @@ export default function ProfilePage() {
   const { userData, isLoading: levelLoading } = useUserLevel();
 
   // 从链上获取 BLZ 代币余额
-  const addresses = getContractAddresses(31337);
+  const addresses = chainId ? getContractAddresses(chainId) : getContractAddresses(31337);
   const { data: tokenBalanceRaw } = useReadContract({
     address: addresses.BLZ_TOKEN as `0x${string}`,
     abi: ERC20_ABI,

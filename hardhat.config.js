@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -16,8 +17,8 @@ module.exports = {
       chainId: 31337
     },
     mantle_testnet: {
-      url: "https://rpc.testnet.mantle.xyz",
-      chainId: 5001,
+      url: "https://rpc.sepolia.mantle.xyz",
+      chainId: 5003,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   }

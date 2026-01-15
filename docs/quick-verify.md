@@ -1,208 +1,194 @@
-# Blitz Arena 快速验证指南
+# 快速验证指南
 
-## 一键验证所有配置
+## 1. 检查合约部署
 
-### 1. 验证 Hardhat 节点
-
-在终端中执行：
+使用以下命令验证所有合约是否已正确部署：
 
 ```bash
-curl -I http://127.0.0.1:8545
+npx hardhat run scripts/verify-deployment.js --network mantle_testnet
 ```
 
-**预期结果：** 返回 HTTP 200 响应
-
-### 2. 验证合约部署
-
-```bash
-npx hardhat run test/verify-games.js --network localhost
+预期输出：
+```
+=== Verifying Deployment on Mantle Sepolia ===
+✅ BLZ Token: Code exists (3854 bytes)
+✅ Prize Token: Code exists (3854 bytes)
+✅ UserLevelManager: Code exists (10796 bytes)
+✅ GameRegistry: Code exists (11712 bytes)
+✅ GameFactory: Code exists (43270 bytes)
 ```
 
-**预期结果：** 显示比赛列表（至少 1 个比赛）
+## 2. 检查钱包余额
 
-### 3. 验证前端服务
-
-在浏览器中访问：`http://localhost:5000`
-
-**预期结果：** 页面正常加载，无控制台错误
-
-## 测试创建比赛的完整步骤
-
-### 步骤 1：配置 MetaMask
-
-1. 打开 MetaMask
-2. 添加网络：
-   - 名称：Hardhat Local
-   - RPC URL：http://127.0.0.1:8545
-   - 链 ID：3137
-   - 符号：ETH
-
-3. 导入账户：
-   - 私钥：`0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
-
-### 步骤 2：连接钱包
-
-1. 访问 `http://localhost:5000`
-2. 点击右上角 "Connect Wallet"
-3. 在 MetaMask 中确认连接
-
-### 步骤 3：创建比赛
-
-1. 点击导航栏 "Create Tournament"
-2. 填写表单：
-   - **标题：** My First Tournament
-   - **游戏类型：** Number Guess (🔢)
-   - **报名费：** 5
-   - **创建者奖池：** 100
-   - **最小人数：** 2
-   - **最大人数：** 10
-   - **比赛时长：** 30 min
-   - **游戏时长：** 30 min
-3. 点击 "Create Tournament"
-
-### 步骤 4：确认交易
-
-1. MetaMask 弹出交易窗口
-2. 确认交易详情
-3. 点击 "Confirm"
-
-### 步骤 5：查看比赛
-
-1. 交易成功后，自动跳转到比赛列表
-2. 看到新创建的比赛 "My First Tournament"
-3. 点击比赛查看详情
-
-## 测试报名比赛
-
-### 步骤 1：切换到第二个账户
-
-1. 在 MetaMask 中切换账户
-2. 导入第二个账户：
-   - 私钥：`0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d`
-
-### 步骤 2：授权代币
-
-1. 返回比赛列表
-2. 点击比赛 "My First Tournament"
-3. 点击 "Join Tournament"
-4. MetaMask 弹出授权窗口
-5. 确认授权 Prize Token
-
-### 步骤 3：支付报名费
-
-1. MetaMask 再次弹出，显示支付 5 PRIZE
-2. 确认交易
-
-### 步骤 4：确认报名
-
-1. 交易成功后，页面显示 "Joined"
-2. 比赛详情页显示参与者列表
-
-## 测试游戏流程
-
-### 步骤 1：等待报名结束
-
-方法 1：手动修改时间
 ```bash
-# 在另一个终端中，加速时间
-npx hardhat console --network localhost
-> await ethers.provider.send('evm_increaseTime', [3600])
-> await ethers.provider.send('evm_mine', [])
-> exit
+npx hardhat run scripts/check-wallet.js --network mantle_testnet
 ```
 
-方法 2：创建短期比赛
-- 重新创建一个比赛，设置报名时长为 1 分钟
-
-### 步骤 2：开始比赛
-
-1. 使用创建者账户
-2. 进入比赛详情页
-3. 点击 "Start Game"
-
-### 步骤 3：玩游戏
-
-1. 游戏页面自动打开
-2. 完成 Number Guess 游戏
-3. 提交分数
-
-### 步骤 4：查看排行榜
-
-1. 返回比赛详情页
-2. 查看 "Leaderboard" 部分
-3. 看到你的分数
-
-## 常见问题
-
-### Q1: MetaMask 显示"网络错误"
-
-**原因：** Hardhat 节点未运行
-
-**解决：**
-```bash
-pkill -f "hardhat node"
-npx hardhat node > /tmp/hardhat.log 2>&1 &
+预期输出：
+```
+✅ Wallet connected successfully
+Deployer address: 0xce289Ca273e6edd7D84CA15eB354E56a34c7d03d
+Wallet balance: 103.226 MNT
+Network: mantle_testnet
+Chain ID: 5003
 ```
 
-### Q2: 交易失败，提示"insufficient funds"
+## 3. 检查前端配置
 
-**原因：** 账户没有足够的 ETH 或代币
+在浏览器中打开应用，检查以下几点：
 
-**解决：**
-- 确保使用的是测试账户（有 10,000 ETH）
-- 检查是否需要授权代币
+### 3.1 钱包连接
 
-### Q3: 创建比赛后看不到比赛
+- 打开 MetaMask 或 RainbowKit
+- 连接到 Mantle Sepolia 测试网 (Chain ID: 5003)
+- 确认钱包地址显示正确
 
-**原因：** 交易未确认或前端未刷新
+### 3.2 网络配置
 
-**解决：**
-- 检查 MetaMask 交易历史
-- 刷新页面
-- 打开控制台查看错误
+- 检查 MetaMask 是否连接到 Mantle Sepolia
+- RPC URL: https://rpc.sepolia.mantle.xyz
+- 链 ID: 5003
 
-### Q4: 报名时无反应
+### 3.3 合约地址
 
-**原因：** 未授权代币
+打开浏览器控制台，运行以下代码：
 
-**解决：**
-- 第一次报名时需要先授权
-- 确认 MetaMask 授权窗口
+```javascript
+// 获取当前链的合约地址
+import { getContractAddresses } from '@/lib/chainConfig';
+import { useChainId } from 'wagmi';
 
-## 检查清单
+const chainId = useChainId();
+const addresses = getContractAddresses(chainId);
 
-使用以下清单确保所有配置正确：
+console.log('Contract Addresses:', addresses);
+```
+
+预期输出：
+```javascript
+{
+  BLZ_TOKEN: '0x2dfC071529Fb5b7A7F88558CF78584aE2209D2b6',
+  PRIZE_TOKEN: '0xcB2a1d1227f96756c02e4B147596C56D45027cFa',
+  GAME_REGISTRY: '0x370B81AB8fAE14B8c6b9bd72F85201Bdb1fbeD01',
+  GAME_FACTORY: '0x3bC8655F6903b138C5BfB8F974F65e4C01800A5f',
+  USER_LEVEL_MANAGER: '0x98a5D63514231d348269d0D4Ace62cd0265dFa7b'
+}
+```
+
+## 4. 在浏览器中验证合约
+
+访问 Mantle Explorer: https://sepolia.mantlescan.xyz/
+
+搜索以下合约地址，确认合约存在：
+
+- **BLZ Token**: 0x2dfC071529Fb5b7A7F88558CF78584aE2209D2b6
+- **Prize Token**: 0xcB2a1d1227f96756c02e4B147596C56D45027cFa
+- **UserLevelManager**: 0x98a5D63514231d348269d0D4Ace62cd0265dFa7b
+- **GameRegistry**: 0x370B81AB8fAE14B8c6b9bd72F85201Bdb1fbeD01
+- **GameFactory**: 0x3bC8655F6903b138C5BfB8F974F65e4C01800A5f
+
+## 5. 测试核心功能
+
+### 5.1 创建比赛
+
+1. 连接钱包
+2. 导航到创建比赛页面
+3. 填写比赛信息
+4. 提交交易
+5. 确认交易成功
+
+### 5.2 参加比赛
+
+1. 导航到比赛列表
+2. 选择一个比赛
+3. 点击"Join"按钮
+4. 支付报名费
+5. 确认报名成功
+
+### 5.3 查看个人主页
+
+1. 导航到个人主页
+2. 检查等级和代币余额
+3. 查看历史比赛
+4. 确认数据正确显示
+
+## 6. 检查 TypeScript 编译
 
 ```bash
-# 1. 检查 Hardhat 节点
-curl -I http://127.0.0.1:8545
-
-# 2. 检查合约
-npx hardhat run test/verify-games.js --network localhost
-
-# 3. 检查 Next.js
-curl -I http://localhost:5000
-
-# 4. 检查 TypeScript 编译
 npx tsc --noEmit
 ```
 
-所有检查都应该返回成功（HTTP 200 或无错误）。
+预期输出：无错误
 
-## 下一步
+## 7. 检查前端构建
 
-验证完成后，你可以：
+```bash
+pnpm run build
+```
 
-1. 创建更多比赛
-2. 邀请朋友参与（使用不同的测试账户）
-3. 尝试不同的游戏类型
-4. 探索排行榜和个人资料功能
+预期输出：构建成功
 
-## 技术支持
+## 常见问题
 
-如果遇到问题：
+### Q: 合约地址显示为空
 
-1. 查看浏览器控制台（F12）
-2. 查看 Hardhat 节点日志：`tail -f /tmp/hardhat.log`
-3. 查看 Next.js 开发服务器日志
-4. 参考故障排除指南：`docs/troubleshooting.md`
+**A**: 检查 `src/lib/chainConfig.ts` 中的合约地址是否正确配置。
+
+### Q: 钱包无法连接
+
+**A**: 确保 MetaMask 连接到 Mantle Sepolia 测试网，Chain ID 为 5003。
+
+### Q: 交易失败
+
+**A**: 检查钱包是否有足够的 MNT 余额，检查网络连接是否正常。
+
+### Q: 前端无法读取合约数据
+
+**A**: 检查 Wagmi 配置，确保网络 ID 正确，检查合约 ABI 是否正确。
+
+## 验证检查清单
+
+- [ ] 合约部署验证通过
+- [ ] 钱包余额检查通过
+- [ ] 前端配置正确
+- [ ] MetaMask 连接正常
+- [ ] 合约地址在浏览器中可查
+- [ ] 创建比赛功能正常
+- [ ] 参加比赛功能正常
+- [ ] 个人主页显示正常
+- [ ] TypeScript 编译通过
+- [ ] 前端构建成功
+
+## 快速修复
+
+### 问题：chainConfig 地址错误
+
+```bash
+# 编辑 src/lib/chainConfig.ts
+# 更新 Mantle Sepolia (5003) 的合约地址
+```
+
+### 问题：Hardhat 网络配置错误
+
+```bash
+# 编辑 hardhat.config.js
+# 确认 RPC URL 和 Chain ID 正确
+```
+
+### 问题：环境变量未加载
+
+```bash
+# 检查 .env 文件是否存在
+# 确认 dotenv 已配置在 hardhat.config.js 中
+```
+
+## 相关文档
+
+- [MANTLE-DEPLOYMENT-SUMMARY.md](./MANTLE-DEPLOYMENT-SUMMARY.md) - 完整部署总结
+- [DEPLOYMENT-SUCCESS.md](./DEPLOYMENT-SUCCESS.md) - 部署成功指南
+- [troubleshooting.md](./troubleshooting.md) - 故障排除
+
+---
+
+**最后更新**: 2026-01-15
+**验证状态**: ✅ 通过
