@@ -181,6 +181,32 @@ export function useCreateGame() {
         });
       }
 
+      // 在发送交易之前，再次获取最新的区块时间，确保时间是最新的
+      const latestBlock = await publicClient.getBlock();
+      const latestTimestamp = Number(latestBlock.timestamp);
+
+      console.log('=== useCreateGame Debug ===');
+      console.log('Latest block timestamp:', latestTimestamp);
+      console.log('Latest UTC time:', new Date(latestTimestamp * 1000).toISOString());
+      console.log('Original registration end time:', config.registrationEndTime);
+      console.log('Original game start time:', config.gameStartTime);
+
+      // 如果传入的时间已经过期（小于当前区块时间），需要调整
+      let adjustedRegistrationEndTime = config.registrationEndTime;
+      let adjustedGameStartTime = config.gameStartTime;
+
+      // 如果时间已经过期，重新计算（立即开始模式 + 60 秒）
+      if (adjustedRegistrationEndTime <= latestTimestamp) {
+        const timeDiff = latestTimestamp - adjustedRegistrationEndTime;
+        console.log('Time expired, diff:', timeDiff, 'seconds');
+        adjustedRegistrationEndTime = latestTimestamp + 60;
+        adjustedGameStartTime = latestTimestamp + 60;
+      }
+
+      console.log('Adjusted registration end time:', adjustedRegistrationEndTime);
+      console.log('Adjusted game start time:', adjustedGameStartTime);
+      console.log('===========================');
+
       // 准备配置参数
       const gameConfig = {
         title: config.title,
@@ -190,8 +216,8 @@ export function useCreateGame() {
         entryFee: parseUnits(config.entryFee, 18),
         minPlayers: BigInt(config.minPlayers),
         maxPlayers: BigInt(config.maxPlayers),
-        registrationEndTime: BigInt(config.registrationEndTime),
-        gameStartTime: BigInt(config.gameStartTime),
+        registrationEndTime: BigInt(adjustedRegistrationEndTime),
+        gameStartTime: BigInt(adjustedGameStartTime),
         prizeTokenAddress: addresses.PRIZE_TOKEN as `0x${string}`,
         prizePool: prizePoolAmount,
         distributionType: config.distributionType,

@@ -165,19 +165,33 @@ export default function CreateTournamentPage() {
       const currentBlock = await publicClient.getBlock();
       const blockTimestamp = Number(currentBlock.timestamp);
 
+      // 输出调试信息
+      console.log('=== Create Tournament Debug ===');
+      console.log('Current block timestamp:', blockTimestamp);
+      console.log('Current UTC time:', new Date(blockTimestamp * 1000).toISOString());
+      console.log('Start immediately:', formData.startImmediately);
+
       // 计算时间戳（使用区块时间）
       let registrationEndTime: number;
       let gameStartTime: number;
 
       if (formData.startImmediately) {
-        // 立即开始模式：在区块时间基础上增加 10 秒，确保时间在未来
-        registrationEndTime = blockTimestamp + 10;
-        gameStartTime = blockTimestamp + 10;
+        // 立即开始模式：在区块时间基础上增加 60 秒，确保时间在未来
+        // 增加更多缓冲时间，因为从提交到交易打包可能需要较长时间
+        registrationEndTime = blockTimestamp + 60;
+        gameStartTime = blockTimestamp + 60;
       } else {
         // 正常模式
         registrationEndTime = blockTimestamp + formData.registrationDuration * 60;
         gameStartTime = registrationEndTime; // 游戏在报名结束后立即开始
       }
+
+      // 输出计算结果
+      console.log('Registration end time:', registrationEndTime);
+      console.log('Registration end UTC:', new Date(registrationEndTime * 1000).toISOString());
+      console.log('Game start time:', gameStartTime);
+      console.log('Game start UTC:', new Date(gameStartTime * 1000).toISOString());
+      console.log('==============================');
 
       // 准备配置
       const config = {
