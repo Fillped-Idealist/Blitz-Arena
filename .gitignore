@@ -69,7 +69,7 @@ scripts/deploy-registry-only.js
 scripts/setGameRegistry.js
 scripts/verify-deployment.js
 
-# Documentation (excluding README.md and README.zh-CN.md)
+# Documentation (excluding README.md, README.zh-CN.md, DEPLOY_TO_VERCEL.md, and DEPLOY_TO_VERCEL_EN.md)
 CHANGELOG.md
 DEPLOYMENT.md
 DEPLOYMENT_SUMMARY.md
@@ -87,6 +87,7 @@ TOKEN_REFUND_UPDATE.md
 USER_TEST_REPORT.md
 WUZETIAN_ULTIMATE_DESIGN.md
 README.en.md
+HEARTBEAT_README.md
 
 # Documentation directories
 docs/

@@ -1,0 +1,65 @@
+# Hardhat contracts and deployment files
+contracts/
+deployments/
+artifacts/
+cache/
+
+# Hardhat scripts
+scripts/
+
+# Test files
+test/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+hardhat-node.log
+hardhat.log
+.coze-logs/
+
+# Development files
+*.swp
+.DS_Store
+
+# Documentation files (keep only README.md)
+CHANGELOG.md
+DEPLOYMENT.md
+DEPLOYMENT_SUMMARY.md
+FINANCIAL_SUMMARY.md
+GAMES_README.md
+JOIN_LOGIC.md
+PERFORMANCE_TEST_REPORT.md
+PRIZE_DISTRIBUTION.md
+SMART_CONTRACT_INTEGRATION.md
+STRESS_TEST_REPORT.md
+TESTING_SUMMARY.md
+TEST_SUMMARY.md
+TIME_LOGIC_UPDATE.md
+TOKEN_REFUND_UPDATE.md
+USER_TEST_REPORT.md
+WUZETIAN_ULTIMATE_DESIGN.md
+FILE_CLASSIFICATION.md
+
+# Documentation directories
+docs/
+deploy/
+
+# Temporary files
+tmp/
+tmp-*.md
+
+# Hardhat node data
+hardhat-node-data/
+
+# Build cache
+.turbo
+.parcel-cache
+
+# Coverage
+coverage/
+storybook-static
